@@ -31,8 +31,8 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 3846,
-      "sha256": "cf6ba73187ac1e5af1f4f4ae2f2d4d4ae403f93e2fd7f2c5f57cfc2d39bb1cc2"
+      "bytes": 4045,
+      "sha256": "f7732c980ca3486aecd7125aab3c4436775f630e3ea74813065945e8c7ea4885"
     },
     {
       "path": "docs/KNOWN-GAPS.md",
@@ -110,6 +110,11 @@
       "sha256": "f89db75729f531ad5ecc671d3ef5d65b6ec071cec0058a927cb00b69a3530532"
     },
     {
+      "path": "overlay/common/housing/crate_content_loader.h",
+      "bytes": 4930,
+      "sha256": "60ec6bc4064540b02a9e428d8830aa3460bb15d1da7e91dd6aa530165339b725"
+    },
+    {
       "path": "overlay/common/housing/crate_foreign_member_policy_db.h",
       "bytes": 1430,
       "sha256": "ae8f8b798cd4a3c8e025ff32af0cad2d2521173a987247ae9eb60dfd501a791e"
@@ -163,11 +168,6 @@
       "path": "overlay/common/housing/crate_storage_service.h",
       "bytes": 3188,
       "sha256": "dad4f8b519c265433619e3ccec9d5ca6cf136df525fe1f2e7c5f4b0d2172e0aa"
-    },
-    {
-      "path": "overlay/common/housing/crate_test_content.h",
-      "bytes": 4782,
-      "sha256": "1f62bdc8e344e04677f8d7c78facf2de8bc3d100586eb73ba750e400fc1ab7f8"
     },
     {
       "path": "overlay/common/housing/current_estate_access.cpp",
@@ -1231,8 +1231,8 @@
     },
     {
       "path": "overlay/zone/housing_crate_runtime.cpp",
-      "bytes": 11574,
-      "sha256": "26f984d8263459f78c29d26df54331388daa7f3d6bd016b35a9c8d735e5dd68e"
+      "bytes": 11576,
+      "sha256": "75567152c530af59d7ebbe1bca9b71b805f3922563928a6d7c9d6eda1e9ae4b4"
     },
     {
       "path": "overlay/zone/housing_crate_runtime.h",

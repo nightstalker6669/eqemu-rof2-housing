@@ -5,7 +5,7 @@
 #include "client.h"
 #include "zone.h"
 #include "../common/eqemu_config.h"
-#include "../common/housing/crate_test_content.h"
+#include "../common/housing/crate_content_loader.h"
 #include "../common/housing/crate_placement_model.h"
 #include "../common/housing/reviewed_crate_runtime.h"
 #include <fstream>

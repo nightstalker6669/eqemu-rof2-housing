@@ -43,3 +43,5 @@ Historical tariffs, all per-template vault/NPC limits, and all guild-hall capaci
 Apply housing/guild-trophy mappings from the integration patch to the actual RoF2 opcode file used by the server. Message numbers are client-build-specific. Begin with a local disposable environment; validate coherent startup, inventory recovery, the current catalog and one representative personal/guild workflow before expanding coverage.
 
 This repository is a research/development integration snapshot. A complete turnkey installer and full Live-equivalent acceptance are not supplied.
+
+Legacy configuration schema names are retained in the production crate parser for compatibility. The parser is published as `crate_content_loader.h`; it is a runtime dependency, not a test fixture.

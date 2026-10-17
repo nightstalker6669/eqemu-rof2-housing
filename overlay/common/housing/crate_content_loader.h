@@ -1,12 +1,14 @@
-#ifndef EQEMU_HOUSING_CRATE_TEST_CONTENT_H
-#define EQEMU_HOUSING_CRATE_TEST_CONTENT_H
+#ifndef EQEMU_HOUSING_CRATE_CONTENT_LOADER_H
+#define EQEMU_HOUSING_CRATE_CONTENT_LOADER_H
 #include "crate_binding.h"
 #include "catalog_service.h"
 #include "house_geometry_registry.h"
 #include "../json/json.h"
 #include <sstream>
 namespace Housing::CrateTest {
-// Explicit experimental test content, never a claim of recovered Live limits.
+// Runtime parser for the explicit experimental crate content profile.
+// Legacy schema/namespace names are retained for configuration compatibility;
+// this is a production runtime dependency, not a fixture or test suite.
 struct Content {
  AuthenticatedPurchaser actor;EstateId estate_id=0;uint32_t native_plot_id=0,plot_definition_id=0,root_definition_id=0;
  uint16_t neighborhood_instance=0;uint64_t catalog_revision=0;std::string catalog_key,definitions_hex,regions_hex,map_sha256;
