@@ -1,0 +1,2595 @@
+diff --git a/common/CMakeLists.txt b/common/CMakeLists.txt
+index 1a9028e..3115dc6 100644
+--- a/common/CMakeLists.txt
++++ b/common/CMakeLists.txt
+@@ -16,6 +16,32 @@ SET(common_sources
+     database/database_dump_service.cpp
+     database.cpp
+     database_instances.cpp
++    housing/persistence_service.cpp
++    housing/escrow_service.cpp
++    housing/item_service.cpp
++    housing/live_item_service.cpp
++    housing/layout_batch_journal.cpp
++    housing/layout_inventory_units.cpp
++    housing/catalog_service.cpp
++	housing/inventory_session_service.cpp
++    housing/inventory_process_recovery.cpp
++    housing/scene_service.cpp
++    housing/interior_storage_service.cpp
++    housing/native_access_service.cpp
++    housing/native_plot_purchase.cpp
++    housing/ownership_transfer_service.cpp
++    housing/live_escrow_service.cpp
++    housing/guild_purchase_authority.cpp
++    housing/current_estate_access.cpp
++    housing/house_binding_service.cpp
++    housing/crate_storage_service.cpp
++    housing/crate_binding.cpp
++    housing/house_interior_allocator.cpp
++    housing/house_binding_preload.cpp
++    housing/house_operation_authority.cpp
++    housing/house_custody_authority.cpp
++    housing/house_inventory_transition.cpp
++    housing/house_inventory_profile_fence.cpp
+     database/database_update_manifest.cpp
+     database/database_update_manifest_custom.cpp
+     database/database_update_manifest_bots.cpp
+diff --git a/common/database.cpp b/common/database.cpp
+index 3052fd7..26adc93 100644
+--- a/common/database.cpp
++++ b/common/database.cpp
+@@ -25,6 +25,7 @@
+ #include <map>
+ #include <algorithm>
+ #include <mysqld_error.h>
++#include "housing/admission_guard.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -373,6 +374,12 @@ bool Database::DeleteCharacter(const std::string& name)
+ 		return false;
+ 	}
+ 
++	if (Housing::CheckHousingCharacterDeletion(*this, e.id, RuleB(Housing, EnablePlayerHousing)) !=
++		Housing::InventoryAdmission::Allowed) {
++		LogError("Character [{}] deletion withheld: housing requires an atomic maintenance/archive adapter", e.id);
++		return false;
++	}
++
+ 	std::string delete_type = "hard-deleted";
+ 	if (RuleB(Character, SoftDeletes)) {
+ 		delete_type = "soft-deleted";
+diff --git a/common/emu_oplist.h b/common/emu_oplist.h
+index 268fa97..f6378b8 100644
+--- a/common/emu_oplist.h
++++ b/common/emu_oplist.h
+@@ -627,4 +627,58 @@ N(OP_ZoneSpawns),
+ N(OP_ZoneUnavail),
+ N(OP_ResetAA),
+ N(OP_UnderWorld),
++N(OP_RealEstateNeighborhood),
++N(OP_RealEstateGo),
++N(OP_RealEstateDefinitions),
++N(OP_RealEstateRegions),
++N(OP_RealEstateSnapshot),
++N(OP_RealEstateZoneContext),
++N(OP_RealEstateInspect),
++N(OP_RealEstatePlotSearchOpen),
++N(OP_RealEstateOwnedList),
++N(OP_RealEstateAccess),
++N(OP_RealEstateAccessEdit),
++N(OP_RealEstatePurchase),
++N(OP_RealEstateSale),
++N(OP_RealEstateTransfer),
++N(OP_RealEstateEscrow),
++N(OP_RealEstateItemList),
++N(OP_RealEstateItemDelta),
++N(OP_RealEstatePlacementBegin),
++N(OP_RealEstatePlacementCommit),
++N(OP_RealEstateWorldItem),
++N(OP_RealEstateWorldRemove),
++N(OP_RealEstatePlacementSource),
++N(OP_RealEstatePlacementEnd),
++N(OP_RealEstateOperationResult),
++N(OP_RealEstatePickup),
++N(OP_RealEstateItemOperation),
++N(OP_RealEstatePack),
++N(OP_RealEstateStoreAll),
++N(OP_RealEstateLoadLayout),
++N(OP_RealEstateItemMenu),
++N(OP_RealEstateItemQuery),
++N(OP_RealEstateExit),
++N(OP_RealEstateTrophyToggle),
++N(OP_RealEstateTrophy),
++N(OP_RealEstateTrophyList),
++N(OP_RealEstateTrophyTimer),
++N(OP_RealEstateTrophyClear),
++N(OP_RealEstateAnchorConfirm),
++N(OP_RealEstateOwnerItemPurge),
++N(OP_RealEstateOwnedItemList),
++N(OP_RealEstateArchivedList),
++
+ // mail and chat opcodes located in ../mail_oplist.h
++
++N(OP_GuildTrophyAvailable),
++
++N(OP_GuildTrophyActive),
++
++N(OP_GuildTrophyToggle),
++
++N(OP_GuildTrophySave),
++
++N(OP_GuildTrophyModify),
++
++N(OP_GuildTrophyOptIn),
+diff --git a/common/guild_base.cpp b/common/guild_base.cpp
+index 3f34c36..7c102e8 100644
+--- a/common/guild_base.cpp
++++ b/common/guild_base.cpp
+@@ -1,3 +1,4 @@
++#include "housing/guild_favor.h"
+ /*	EQEMu: Everquest Server Emulator
+     Copyright (C) 2001-2006 EQEMu Development Team (http://eqemulator.net)
+ 
+@@ -1297,6 +1298,9 @@ bool BaseGuildManager::StoreGuildDB(uint32 guild_id)
+ 	return _StoreGuildDB(guild_id);
+ }
+ 
++std::optional<uint32> BaseGuildManager::ReadDbGuildFavor(uint32 guild_id){return m_db?Housing::GuildFavor::Read(*m_db,guild_id):std::nullopt;}
++std::optional<uint32> BaseGuildManager::AdjustDbGuildFavor(uint32 guild_id,int64 delta){auto result=m_db?Housing::GuildFavor::Adjust(*m_db,guild_id,delta):std::nullopt;if(result)if(auto* guild=GetGuildByGuildID(guild_id))guild->tribute.favor=*result;return result;}
++
+ uint32 BaseGuildManager::UpdateDbGuildFavor(uint32 guild_id, uint32 favor)
+ {
+ 	if (!GuildsRepository::UpdateFavor(*m_db, guild_id, favor)) {
+diff --git a/common/guild_base.h b/common/guild_base.h
+index 0cd4fe5..f3085ba 100644
+--- a/common/guild_base.h
++++ b/common/guild_base.h
+@@ -1,3 +1,4 @@
++#include <optional>
+ #ifndef GUILD_BASE_H_
+ #define GUILD_BASE_H_
+ 
+@@ -114,6 +115,8 @@ class BaseGuildManager
+ 		bool	SetTributeFlag(uint32 charid, bool enabled);
+ 		bool	SetPublicNote(uint32 charid, std::string public_note);
+ 		uint32  UpdateDbGuildFavor(uint32 guild_id, uint32 enabled);
++		std::optional<uint32> AdjustDbGuildFavor(uint32 guild_id, int64 delta);
++		std::optional<uint32> ReadDbGuildFavor(uint32 guild_id);
+ 		bool    UpdateDbGuildTributeEnabled(uint32 guild_id, uint32 enabled);
+ 		bool    UpdateDbMemberTributeEnabled(uint32 guild_id, uint32 char_id, uint32 enabled);
+ 		bool    UpdateDbTributeTimeRemaining(uint32 guild_id, uint32 enabled);
+diff --git a/common/item_data.h b/common/item_data.h
+index 6967c21..70f0521 100644
+--- a/common/item_data.h
++++ b/common/item_data.h
+@@ -493,6 +493,24 @@ namespace EQ
+ 		bool	PotionBelt {};
+ 		bool	Stackable {};
+ 		bool	NoTransfer {};
++		uint32	Placeable {}; // Native estate-type mask; items.UNK224 in the current schema.
++		char	HousingHousepetFilename[32] {};
++		uint8	HousingInteractiveObject {};
++		uint32	HousingNpcRespawnInterval {};
++		bool	HousingNpcMetadataKnown {};
++		float HousingNpcActorHeight = 0; // Explicit reviewed actor input; zero leaves runtime unsupported.
++		char HousingNpcSourceSha256[65] = {}; // Exact reviewed source; absent source retains legacy empty/zero bytes.
++		uint8	HousingIgnoreCollisions {};
++		uint32	HousingPlacementType {};
++		uint8	HousingDisableRotation {};
++		uint8	HousingDisableFreePlacement {};
++		bool	HousingPlacementFlagsKnown {}; // Both named DB bytes reviewed; unknown is not a Free-mode grant.
++		uint32	HousingDefinitionID {};
++		float	HousingMinimumScale {};
++		float	HousingMaximumScale {};
++		uint32	HousingTrophyBenefitID {0xffffffff}; // explicit reviewed source binding, never raw UNK233
++		uint32	HousingUpkeepID {};
++		int32	HousingMaxPerEstate {};
+ 		bool	QuestItemFlag {};
+ 		int16	StackSize {};
+ 		uint8	PotionBeltSlots {};
+diff --git a/common/item_instance.cpp b/common/item_instance.cpp
+index bb048b1..cbf8d60 100644
+--- a/common/item_instance.cpp
++++ b/common/item_instance.cpp
+@@ -150,6 +150,9 @@ EQ::ItemInstance::ItemInstance(const ItemInstance& copy)
+ 	}
+ 
+ 	m_SerialNumber = copy.m_SerialNumber;
++	m_housing_estate_id = copy.m_housing_estate_id;
++	m_housing_house_id = copy.m_housing_house_id;
++	m_housing_crate_id = copy.m_housing_crate_id;
+ 	m_custom_data  = copy.m_custom_data;
+ 	m_timers       = copy.m_timers;
+ 
+@@ -172,6 +175,15 @@ EQ::ItemInstance::ItemInstance(const ItemInstance& copy)
+ }
+ 
+ // Clean up container contents
++EQ::ItemInstance* EQ::ItemInstance::CloneWithNewSerial() const
++{
++	auto* copy = Clone();
++	if (copy) {
++		copy->m_SerialNumber = GetNextItemInstSerialNumber();
++	}
++	return copy;
++}
++
+ EQ::ItemInstance::~ItemInstance()
+ {
+ 	Clear();
+diff --git a/common/item_instance.h b/common/item_instance.h
+index 99edfb5..28312fe 100644
+--- a/common/item_instance.h
++++ b/common/item_instance.h
+@@ -228,9 +228,50 @@ namespace EQ
+ 		std::string Serialize(int16 slot_id) const { InternalSerializedItem_Struct s; s.slot_id = slot_id; s.inst = (const void*)this; std::string ser; ser.assign((char*)&s, sizeof(InternalSerializedItem_Struct)); return ser; }
+ 		void Serialize(OutBuffer& ob, int16 slot_id) const { InternalSerializedItem_Struct isi; isi.slot_id = slot_id; isi.inst = (const void*)this; ob.write((const char*)&isi, sizeof(isi)); }
+ 
++		// Explicit split-instance copy. Ordinary Clone retains its historic serial.
++		ItemInstance* CloneWithNewSerial() const;
+ 		inline int32 GetSerialNumber() const { return m_SerialNumber; }
+ 		inline void SetSerialNumber(int32 id) { m_SerialNumber = id; }
+ 
++		// Independent server ledger identity, including houses with no interior
++		// allocated yet. This is never a client wire field or a generated GUID.
++		// Only checked ledger reconstruction/acquisition may assign it. Copying
++		// preserves identity for relocation, not permission to mint another row.
++		uint64 GetHousingHouseID() const { return m_housing_house_id; }
++		bool SetHousingHouseID(uint64 id) {
++			if (!id) { m_housing_house_id = 0; return true; }
++			const auto* item = GetItem();
++			if (m_housing_crate_id || !item || !item->HousingDefinitionID || item->HousingDefinitionID == UINT32_MAX)
++				return false;
++			m_housing_house_id = id;
++			return true;
++		}
++		// Independent crate ledger identity. Only checked custody/reload adapters
++		// may assign it; this is not a GUID, HouseID or native wire field.
++		uint64 GetHousingCrateID() const { return m_housing_crate_id; }
++		bool SetHousingCrateID(uint64 id) {
++			if (!id) { m_housing_crate_id = 0; return true; }
++			const auto* item = GetItem();
++			if (m_housing_house_id || !item || !item->HousingDefinitionID || item->HousingDefinitionID == UINT32_MAX)
++				return false;
++			m_housing_crate_id = id;
++			return true;
++		}
++
++		// Server-resolved per-instance child estate, not the item template's
++		// HousingDefinitionID or a transient placed-object/serial identity.
++		// Durable housing admission/reconstruction must assign this explicitly;
++		// never populate it from client fields or unvalidated custom data.
++		uint32 GetHousingEstateID() const { return m_housing_estate_id; }
++		bool SetHousingEstateID(uint32 id) {
++			if (id == UINT32_MAX) { m_housing_estate_id = id; return true; }
++			const auto* item = GetItem();
++			if (!id || !item || !item->HousingDefinitionID || item->HousingDefinitionID == UINT32_MAX)
++				return false;
++			m_housing_estate_id = id;
++			return true;
++		}
++
+ 		std::map<std::string, ::Timer>& GetTimers() const { return m_timers; }
+ 		void SetTimer(std::string name, uint32 time);
+ 		void SetTimer(std::string name, uint32 time) const;
+@@ -367,6 +408,9 @@ namespace EQ
+ 		uint32           m_new_id_file{0};
+ 		uint32           m_ornament_hero_model{0};
+ 		uint32           m_recast_timestamp{0};
++		uint32           m_housing_estate_id{UINT32_MAX};
++		uint64           m_housing_house_id{0};
++		uint64           m_housing_crate_id{0};
+ 		int              m_task_delivered_count{0};
+ 		mutable CharacterEvolvingItemsRepository::CharacterEvolvingItems  m_evolving_details{};
+ 
+diff --git a/common/patches/rof2.cpp b/common/patches/rof2.cpp
+index b250a5d..7441b27 100644
+--- a/common/patches/rof2.cpp
++++ b/common/patches/rof2.cpp
+@@ -1,3 +1,5 @@
++#include "../housing/plot_find_wire.h"
++#include "../housing/npc_item_metadata.h"
+ /*	EQEMu: Everquest Server Emulator
+ 
+ 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
+@@ -21,6 +23,8 @@
+ #include "../eqemu_config.h"
+ #include "../eqemu_logsys.h"
+ #include "rof2.h"
++#include "../housing/item_wire.h"
++#include <cmath>
+ #include "../opcodemgr.h"
+ 
+ #include "../eq_stream_ident.h"
+@@ -52,6 +56,34 @@ namespace RoF2
+ 
+ 	void SerializeItem(EQ::OutBuffer& ob, const EQ::ItemInstance *inst, int16 slot_id, uint8 depth, ItemPacketType packet_type);
+ 
++	namespace {
++		bool HousingItemTreeValid(const EQ::ItemInstance &instance, size_t depth, size_t &nodes)
++		{
++			if (depth > HousingItemMaximumDepth || ++nodes > HousingItemMaximumNodes ||
++				!instance.GetUnscaledItem() || instance.GetMerchantSlot()) return false;
++			for (uint8_t index = EQ::invbag::SLOT_BEGIN; index <= EQ::invbag::SLOT_END; ++index) {
++				const auto *child = instance.GetItem(index);
++				if (child && !HousingItemTreeValid(*child, depth + 1, nodes)) return false;
++			}
++			return true;
++		}
++	}
++
++	std::optional<std::vector<uint8_t>> SerializeHousingItem(
++		const EQ::ItemInstance &instance, int16_t server_slot)
++	{
++		if (!RuleB(Housing, EnablePlayerHousing) || server_slot == EQ::invslot::SLOT_INVALID)
++			return std::nullopt;
++		size_t nodes = 0;
++		if (!HousingItemTreeValid(instance, 0, nodes)) return std::nullopt;
++		EQ::OutBuffer buffer;
++		SerializeItem(buffer, &instance, server_slot, 0, ItemPacketTrade);
++		if (!buffer.good() || buffer.size() == 0 || buffer.size() > HousingItemMaximumBytes)
++			return std::nullopt;
++		const auto bytes = buffer.str();
++		return std::vector<uint8_t>(bytes.begin(), bytes.end());
++	}
++
+ 	// server to client inventory location converters
+ 	static inline structs::InventorySlot_Struct ServerToRoF2Slot(uint32 server_slot);
+ 	static inline structs::InventorySlot_Struct ServerToRoF2CorpseSlot(uint32 server_corpse_slot);
+@@ -5599,6 +5725,10 @@ namespace RoF2
+ 
+ 	DECODE(OP_FindPersonRequest)
+ 	{
++		// Native housing Find mode4 carries an estate at8, not an NPC at4.
++		// Preserve this exact existing wire body for the RoF2-only zone adapter;
++		// every other Find mode retains the existing NPC translation below.
++		if (Housing::PlotFindWire::IsPlot(__packet->pBuffer,__packet->size)) return;
+ 		DECODE_LENGTH_EXACT(structs::FindPersonRequest_Struct);
+ 		SETUP_DIRECT_DECODE(FindPersonRequest_Struct, structs::FindPersonRequest_Struct);
+ 
+@@ -6544,7 +6674,9 @@ namespace RoF2
+ 		hdrf.ornamentHeroModel = hero_model;
+ 		hdrf.unknown063 = 0;
+ 		hdrf.Copied = 0;
+-		hdrf.unknowna4 = 0xffffffff;
++		// Original reader 0x555703 stores this in ItemInstance+0x7c.
++		// House template/placed-item IDs cannot substitute for this identity.
++		hdrf.unknowna4 = RuleB(Housing, EnablePlayerHousing) ? inst->GetHousingEstateID() : 0xffffffff;
+ 		hdrf.unknowna5 = 0;
+ 		hdrf.ItemClass = item->ItemClass;
+ 
+@@ -6880,7 +7012,7 @@ namespace RoF2
+ 		//evolve_string; // Some String, but being evolution related is just a guess
+ 
+ 		iqbs.Heirloom = 0;
+-		iqbs.Placeable = 0;
++		iqbs.Placeable = 0; // Legacy path; native housing metadata is serialized below.
+ 		iqbs.unknown28 = -1;
+ 		iqbs.unknown29 = packet_type == ItemPacketInvalid ? 0xFF : 0;
+ 		iqbs.unknown30 = -1;
+@@ -6890,7 +7022,29 @@ namespace RoF2
+ 		iqbs.unknown38 = 0;
+ 		iqbs.unknown39 = packet_type == ItemPacketInvalid ? 0 : 1;;
+ 
+-		ob.write((const char*)&iqbs, sizeof(RoF2::structs::ItemQuaternaryBodyStruct));
++		if (RuleB(Housing, EnablePlayerHousing)) {
++			static_assert(offsetof(RoF2::structs::ItemQuaternaryBodyStruct, Placeable) == 96,
++				"Native quaternary metadata begins at byte 96");
++			Housing::ItemWire::Metadata metadata;
++			metadata.placeable = item->Placeable;
++			metadata.ignore_collisions = item->HousingIgnoreCollisions != 0;
++			metadata.placement_type = item->HousingPlacementType;
++			metadata.disable_rotation = item->HousingDisableRotation != 0;
++			metadata.disable_free_placement = item->HousingDisableFreePlacement != 0;
++			metadata.definition_id = item->HousingDefinitionID;
++			metadata.scale_min = std::isfinite(item->HousingMinimumScale) ? item->HousingMinimumScale : 0;
++			metadata.scale_max = std::isfinite(item->HousingMaximumScale) ? item->HousingMaximumScale : 0;
++			metadata.upkeep_id = item->HousingUpkeepID;
++			metadata.max_per_estate = item->HousingMaxPerEstate;
++			Housing::NpcItemMetadata::ToWire(metadata, *item);
++			metadata.trophy_benefit_id = item->HousingTrophyBenefitID;
++			metadata.instance_placeable = packet_type != ItemPacketInvalid;
++			auto tail = Housing::ItemWire::EncodeTail(metadata);
++			ob.write(reinterpret_cast<const char*>(&iqbs), 96);
++			ob.write(reinterpret_cast<const char*>(tail.data()), tail.size());
++		} else {
++			ob.write((const char*)&iqbs, sizeof(RoF2::structs::ItemQuaternaryBodyStruct));
++		}
+ 
+ 		EQ::OutBuffer::pos_type count_pos = ob.tellp();
+ 		uint32 subitem_count = 0;
+diff --git a/common/patches/rof2.h b/common/patches/rof2.h
+index f5f00db..ef2cd1c 100644
+--- a/common/patches/rof2.h
++++ b/common/patches/rof2.h
+@@ -21,6 +21,12 @@
+ #define COMMON_ROF2_H
+ 
+ #include "../struct_strategy.h"
++#include <cstddef>
++#include <cstdint>
++#include <optional>
++#include <vector>
++
++namespace EQ { class ItemInstance; }
+ 
+ class EQStreamIdentifier;
+ 
+@@ -30,6 +36,14 @@ namespace RoF2
+ 	//these are the only public member of this namespace.
+ 	extern void Register(EQStreamIdentifier &into);
+ 	extern void Reload();
++	// Native embedded ItemPtr, without the OP_ItemPacket type DWORD. Uses the
++	// ordinary item encoder and preserves instance identity, charges and children.
++	// Housing must be enabled. Limits are server policy, not client wire limits.
++	inline constexpr size_t HousingItemMaximumBytes = 65535;
++	inline constexpr size_t HousingItemMaximumNodes = 64;
++	inline constexpr size_t HousingItemMaximumDepth = 8;
++	std::optional<std::vector<uint8_t>> SerializeHousingItem(
++		const EQ::ItemInstance &instance, int16_t server_slot);
+ 
+ 
+ 
+diff --git a/common/patches/rof2_structs.h b/common/patches/rof2_structs.h
+index b6ad6bb..0434b63 100644
+--- a/common/patches/rof2_structs.h
++++ b/common/patches/rof2_structs.h
+@@ -4765,7 +4786,7 @@ struct ItemSerializationHeaderFinish
+ 	uint32 ornamentHeroModel;
+ 	int32 unknown063;	// 0
+ 	uint8 Copied;		// Copied Flag - Possibly for items copied during server transfer?
+-	int32 unknowna4;	// 0xffffffff
++	uint32 unknowna4;	// Per-instance RealEstateID; 0xffffffff when unbound (reader 0x555703).
+ 	int32 unknowna5;	// 0
+ 	uint8 ItemClass; //0, 1, or 2
+ };
+diff --git a/common/repositories/base/base_items_repository.h b/common/repositories/base/base_items_repository.h
+index eb344f4..ae8259b 100644
+--- a/common/repositories/base/base_items_repository.h
++++ b/common/repositories/base/base_items_repository.h
+@@ -304,6 +304,8 @@ public:
+ 		int32_t     UNK240;
+ 		int32_t     UNK241;
+ 		int32_t     epicitem;
++		int32_t     housing_disable_rotation; // -1: unreviewed/NULL
++		int32_t     housing_disable_free_placement;
+ 	};
+ 
+ 	static std::string PrimaryKey()
+@@ -599,6 +601,8 @@ public:
+ 			"UNK240",
+ 			"UNK241",
+ 			"epicitem",
++			"housing_disable_rotation",
++			"housing_disable_free_placement",
+ 		};
+ 	}
+ 
+@@ -890,6 +894,8 @@ public:
+ 			"UNK240",
+ 			"UNK241",
+ 			"epicitem",
++			"housing_disable_rotation",
++			"housing_disable_free_placement",
+ 		};
+ 	}
+ 
+@@ -1215,6 +1221,8 @@ public:
+ 		e.UNK240              = 0;
+ 		e.UNK241              = 0;
+ 		e.epicitem            = 0;
++		e.housing_disable_rotation = -1;
++		e.housing_disable_free_placement = -1;
+ 
+ 		return e;
+ 	}
+@@ -1536,6 +1544,8 @@ public:
+ 			e.UNK240              = row[282] ? static_cast<int32_t>(atoi(row[282])) : 0;
+ 			e.UNK241              = row[283] ? static_cast<int32_t>(atoi(row[283])) : 0;
+ 			e.epicitem            = row[284] ? static_cast<int32_t>(atoi(row[284])) : 0;
++			e.housing_disable_rotation = row[285] ? static_cast<int32_t>(atoi(row[285])) : -1;
++			e.housing_disable_free_placement = row[286] ? static_cast<int32_t>(atoi(row[286])) : -1;
+ 
+ 			return e;
+ 		}
+@@ -1854,6 +1864,8 @@ public:
+ 		v.push_back(columns[282] + " = " + std::to_string(e.UNK240));
+ 		v.push_back(columns[283] + " = " + std::to_string(e.UNK241));
+ 		v.push_back(columns[284] + " = " + std::to_string(e.epicitem));
++		v.push_back(columns[285] + " = " + (e.housing_disable_rotation < 0 ? std::string("NULL") : std::to_string(e.housing_disable_rotation)));
++		v.push_back(columns[286] + " = " + (e.housing_disable_free_placement < 0 ? std::string("NULL") : std::to_string(e.housing_disable_free_placement)));
+ 
+ 		auto results = db.QueryDatabase(
+ 			fmt::format(
+@@ -2160,6 +2172,8 @@ public:
+ 		v.push_back(std::to_string(e.UNK240));
+ 		v.push_back(std::to_string(e.UNK241));
+ 		v.push_back(std::to_string(e.epicitem));
++		v.push_back(e.housing_disable_rotation < 0 ? std::string("NULL") : std::to_string(e.housing_disable_rotation));
++		v.push_back(e.housing_disable_free_placement < 0 ? std::string("NULL") : std::to_string(e.housing_disable_free_placement));
+ 
+ 		auto results = db.QueryDatabase(
+ 			fmt::format(
+@@ -2474,6 +2488,8 @@ public:
+ 			v.push_back(std::to_string(e.UNK240));
+ 			v.push_back(std::to_string(e.UNK241));
+ 			v.push_back(std::to_string(e.epicitem));
++			v.push_back(e.housing_disable_rotation < 0 ? std::string("NULL") : std::to_string(e.housing_disable_rotation));
++			v.push_back(e.housing_disable_free_placement < 0 ? std::string("NULL") : std::to_string(e.housing_disable_free_placement));
+ 
+ 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+ 		}
+@@ -2792,6 +2808,8 @@ public:
+ 			e.UNK240              = row[282] ? static_cast<int32_t>(atoi(row[282])) : 0;
+ 			e.UNK241              = row[283] ? static_cast<int32_t>(atoi(row[283])) : 0;
+ 			e.epicitem            = row[284] ? static_cast<int32_t>(atoi(row[284])) : 0;
++			e.housing_disable_rotation = row[285] ? static_cast<int32_t>(atoi(row[285])) : -1;
++			e.housing_disable_free_placement = row[286] ? static_cast<int32_t>(atoi(row[286])) : -1;
+ 
+ 			all_entries.push_back(e);
+ 		}
+@@ -3101,6 +3119,8 @@ public:
+ 			e.UNK240              = row[282] ? static_cast<int32_t>(atoi(row[282])) : 0;
+ 			e.UNK241              = row[283] ? static_cast<int32_t>(atoi(row[283])) : 0;
+ 			e.epicitem            = row[284] ? static_cast<int32_t>(atoi(row[284])) : 0;
++			e.housing_disable_rotation = row[285] ? static_cast<int32_t>(atoi(row[285])) : -1;
++			e.housing_disable_free_placement = row[286] ? static_cast<int32_t>(atoi(row[286])) : -1;
+ 
+ 			all_entries.push_back(e);
+ 		}
+@@ -3460,6 +3480,8 @@ public:
+ 		v.push_back(std::to_string(e.UNK240));
+ 		v.push_back(std::to_string(e.UNK241));
+ 		v.push_back(std::to_string(e.epicitem));
++		v.push_back(e.housing_disable_rotation < 0 ? std::string("NULL") : std::to_string(e.housing_disable_rotation));
++		v.push_back(e.housing_disable_free_placement < 0 ? std::string("NULL") : std::to_string(e.housing_disable_free_placement));
+ 
+ 		auto results = db.QueryDatabase(
+ 			fmt::format(
+@@ -3767,6 +3789,8 @@ public:
+ 			v.push_back(std::to_string(e.UNK240));
+ 			v.push_back(std::to_string(e.UNK241));
+ 			v.push_back(std::to_string(e.epicitem));
++			v.push_back(e.housing_disable_rotation < 0 ? std::string("NULL") : std::to_string(e.housing_disable_rotation));
++			v.push_back(e.housing_disable_free_placement < 0 ? std::string("NULL") : std::to_string(e.housing_disable_free_placement));
+ 
+ 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+ 		}
+diff --git a/common/repositories/inventory_repository.h b/common/repositories/inventory_repository.h
+index 8b4b859..2b7c8f5 100644
+--- a/common/repositories/inventory_repository.h
++++ b/common/repositories/inventory_repository.h
+@@ -4,6 +4,11 @@
+ #include "../database.h"
+ #include "../strings.h"
+ #include "base/base_inventory_repository.h"
++#include <array>
++#include <algorithm>
++#include <charconv>
++#include <optional>
++#include <set>
+ 
+ class InventoryRepository: public BaseInventoryRepository {
+ public:
+@@ -45,6 +50,90 @@ public:
+ 
+ 	// Custom extended repository methods here
+ 
++ // Exact load snapshot. custom_data is selected as HEX so embedded NULs are
++ // retained and SQL NULL stays distinct from an empty value. No generated base
++ // repository code is changed.
++ using LoadFields = std::array<std::optional<std::string>,17>;
++ struct LoadRow { Inventory values{}; LoadFields fields{}; };
++ struct LoadSnapshot { bool success=false; std::vector<LoadRow> rows; };
++ enum class GuidLoadResult { Applied, Conflict, DatabaseFailure, CommitUncertain };
++
++ static bool DecodeLoadRow(const LoadFields& fields,LoadRow& output) {
++  LoadRow row;row.fields=fields;
++  auto unsigned_value=[&](size_t i,uint64_t maximum,uint64_t& value) {
++   if(!fields[i]){value=0;return i==2||i==3||i==16;}
++   const auto& s=*fields[i];value=0;
++   auto parsed=std::from_chars(s.data(),s.data()+s.size(),value);
++   return !s.empty()&&parsed.ec==std::errc{}&&parsed.ptr==s.data()+s.size()&&value<=maximum;
++  };
++  uint64_t values[17]{};
++  for(size_t i=0;i<17;++i){
++   if(i==12||i==15)continue;
++   const auto maximum=i==16?UINT64_MAX:(i==3?UINT16_MAX:(i==11?UINT8_MAX:UINT32_MAX));
++   if(!unsigned_value(i,maximum,values[i]))return false;
++  }
++  if(!fields[15])return false;
++  const auto& hero=*fields[15];int32_t signed_hero=0;
++  auto parsed=std::from_chars(hero.data(),hero.data()+hero.size(),signed_hero);
++  if(hero.empty()||parsed.ec!=std::errc{}||parsed.ptr!=hero.data()+hero.size())return false;
++  if(fields[12]){
++   const auto& hex=*fields[12];if(hex.size()%2||hex.size()>131070)return false;
++   auto digit=[](char c)->int {if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;if(c>='a'&&c<='f')return c-'a'+10;return -1;};
++   for(size_t i=0;i<hex.size();i+=2){auto a=digit(hex[i]),b=digit(hex[i+1]);if(a<0||b<0)return false;row.values.custom_data.push_back(char((a<<4)|b));}
++  }
++  auto& v=row.values;
++  v.character_id=values[0];v.slot_id=values[1];v.item_id=values[2];v.charges=values[3];v.color=values[4];
++  v.augment_one=values[5];v.augment_two=values[6];v.augment_three=values[7];v.augment_four=values[8];v.augment_five=values[9];v.augment_six=values[10];
++  v.instnodrop=values[11];v.ornament_icon=values[13];v.ornament_idfile=values[14];v.ornament_hero_model=signed_hero;v.guid=values[16];
++  output=std::move(row);return true;
++ }
++
++ static LoadSnapshot GetLoadSnapshot(Database& db,uint32_t character,bool lock=false) {
++  LoadSnapshot out;if(!character)return out;
++  auto columns=SelectColumns();columns[12]="HEX(custom_data)";
++  auto result=db.QueryDatabase("SELECT "+Strings::Implode(",",columns)+" FROM inventory WHERE character_id="+std::to_string(character)+" ORDER BY slot_id"+(lock?" FOR UPDATE":""),false);
++  if(!result.Success()||result.ColumnCount()!=17)return out;
++  std::set<uint32_t> slots;
++  for(auto r=result.begin();r!=result.end();++r){
++   LoadFields fields;for(size_t i=0;i<17;++i)if(r[i])fields[i]=std::string(r[i]);
++   LoadRow row;if(!DecodeLoadRow(fields,row)||row.values.character_id!=character||!slots.insert(row.values.slot_id).second)return {};
++   out.rows.push_back(std::move(row));
++  }
++  out.success=true;return out;
++ }
++
++ // Short, owned transaction AFTER memory loading. Lock and compare every raw
++ // row before any GUID-only update. Never REPLACE rows or normalize NULLs.
++ // Caller must reject partial admission on failure, including uncertain COMMIT;
++ // this operation never retries a write and is not an item custody transition.
++ static GuidLoadResult UpdateLoadGuids(Database& db,uint32_t character,const LoadSnapshot& expected,
++  const std::vector<Inventory>& loaded) {
++  if(!character||!expected.success)return GuidLoadResult::Conflict;
++  std::set<uint32_t> slots;std::set<uint64_t> serials;
++  for(const auto& v:loaded)if(v.character_id!=character||!v.guid||v.guid>INT32_MAX||!slots.insert(v.slot_id).second||!serials.insert(v.guid).second)return GuidLoadResult::Conflict;
++  auto engine=db.QueryDatabase(std::string("SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='inventory'"),false);
++  if(!engine.Success()||engine.RowCount()!=1||!engine.begin()[0]||std::string(engine.begin()[0])!="InnoDB")return GuidLoadResult::DatabaseFailure;
++  if(!db.QueryDatabase(std::string("START TRANSACTION"),false).Success())return GuidLoadResult::DatabaseFailure;
++  auto rollback=[&](GuidLoadResult error){db.QueryDatabase(std::string("ROLLBACK"),false);return error;};
++  bool committing=false;
++  try {
++   auto current=GetLoadSnapshot(db,character,true);
++   if(!current.success)return rollback(GuidLoadResult::DatabaseFailure);
++   if(current.rows.size()!=expected.rows.size())return rollback(GuidLoadResult::Conflict);
++   for(size_t i=0;i<current.rows.size();++i)if(current.rows[i].fields!=expected.rows[i].fields)return rollback(GuidLoadResult::Conflict);
++   for(const auto& v:loaded){
++    const auto found=std::find_if(current.rows.begin(),current.rows.end(),[&](const LoadRow& r){return r.values.slot_id==v.slot_id;});
++    if(found==current.rows.end()||found->values.item_id!=v.item_id)return rollback(GuidLoadResult::Conflict);
++    if(found->fields[16]&&found->values.guid==v.guid)continue;
++    auto changed=db.QueryDatabase("UPDATE inventory SET guid="+std::to_string(v.guid)+" WHERE character_id="+std::to_string(character)+" AND slot_id="+std::to_string(v.slot_id),false);
++    if(!changed.Success()||changed.RowsAffected()!=1)return rollback(GuidLoadResult::DatabaseFailure);
++   }
++   committing=true;
++   if(!db.QueryDatabase(std::string("COMMIT"),false).Success())return GuidLoadResult::CommitUncertain;
++   return GuidLoadResult::Applied;
++  }catch(...){return committing?GuidLoadResult::CommitUncertain:rollback(GuidLoadResult::DatabaseFailure);}
++ }
++
+ };
+ 
+ #endif //EQEMU_INVENTORY_REPOSITORY_H
+diff --git a/common/ruletypes.h b/common/ruletypes.h
+index 1e08a9c..2e23741 100644
+--- a/common/ruletypes.h
++++ b/common/ruletypes.h
+@@ -1178,6 +1178,13 @@ RULE_INT(EvolvingItems, DelayUponEquipping, 30000, "Delay in ms before an evolvi
+ RULE_BOOL(EvolvingItems, DestroyAugmentsOnEvolve, false, "If this is enabled, any augments in an item will be destroyed when the item evolves. Otherwise, send augments to the player via the parcel system (requires that the Parcel System be enabled).")
+ RULE_CATEGORY_END()
+ 
++RULE_CATEGORY(Housing)
++RULE_BOOL(Housing, EnablePlayerHousing, false, "Enable experimental native RoF2 housing; requires the optional housing schema and verified content.")
++RULE_BOOL(Housing, EnableNativeFurniturePlacement, false, "Enable native RoF2 furniture mutation handlers after inventory-session and placement validation; requires player housing and optional placement schema.")
++RULE_BOOL(Housing, EnableNativeEscrowTransfers, false, "Enable native RoF2 cursor coin deposit and withdrawal after live currency-session validation; requires player housing and optional escrow schema.")
++RULE_INT(Housing, ReviewedPersonalTransferLimit, 0, "Explicit reviewed personal plot ownership transfer limit (1 to 3); zero disables transfer until policy is reviewed. Not a recovered historical limit.")
++RULE_CATEGORY_END()
++
+ #undef RULE_CATEGORY
+ #undef RULE_INT
+ #undef RULE_REAL
+diff --git a/common/servertalk.h b/common/servertalk.h
+index 9985c87..95f6138 100644
+--- a/common/servertalk.h
++++ b/common/servertalk.h
+@@ -274,6 +274,8 @@
+ 
+ // player events
+ #define ServerOP_QSSendQuery 0x5000
++#define ServerOP_HousingUpkeepRefresh 0x5124 // new internal world/zone invalidation; zero payload
++#define ServerOP_HousingTrophyRefresh 0x5120 // new internal world/zone invalidation; zero payload
+ #define ServerOP_PlayerEvent 0x5100
+ #define ServerOP_SendPlayerEventSettings 0x5101
+ 
+@@ -1782,4 +1784,11 @@ struct BazaarPurchaseMessaging_Struct {
+ 
+ #pragma pack()
+ 
++// Internal server messages, not claimed original client opcodes.
++#define ServerOP_HousingGuildTrophyRequest 0x5121
++#define ServerOP_HousingGuildTrophyRefresh 0x5122
++struct HousingGuildTrophyRequest {uint32 character_id;uint32 action;uint32 target_id;};
++
++#define ServerOP_HousingGuildTrophyMember 0x5123
++
+ #endif
+diff --git a/common/shareddb.cpp b/common/shareddb.cpp
+index 0ef0cbe..90e8775 100644
+--- a/common/shareddb.cpp
++++ b/common/shareddb.cpp
+@@ -1,3 +1,4 @@
++#include "housing/npc_item_metadata_db.h"
+ /*	EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.org)
+ 
+@@ -34,6 +35,7 @@
+ #include "mysql.h"
+ #include "rulesys.h"
+ #include "shareddb.h"
++#include "housing/trophy_benefits.h"
+ #include "strings.h"
+ #include "eqemu_config.h"
+ #include "data_verification.h"
+@@ -55,6 +57,7 @@
+ #include "repositories/spells_new_repository.h"
+ #include "repositories/damageshieldtypes_repository.h"
+ #include "repositories/items_repository.h"
++#include "housing/house_binding_preload.h"
+ 
+ SharedDatabase::SharedDatabase()
+ : Database()
+@@ -620,22 +623,40 @@ bool SharedDatabase::GetSharedBank(uint32 id, EQ::InventoryProfile *inv, bool is
+ }
+ // Overloaded: Retrieve character inventory based on character id (zone entry)
+ //bool SharedDatabase::GetInventory(uint32 char_id, EQ::InventoryProfile *inv)
+-bool SharedDatabase::GetInventory(Client *c)
++bool SharedDatabase::GetInventory(Client *c, const std::function<bool()>& session_fence,
++	std::vector<Housing::HousePreload::Loaded>* loaded_witnesses)
+ {
++	if (loaded_witnesses) loaded_witnesses->clear();
+ 	if (!c) {
+ 		return false;
+ 	}
+ 
+ 	uint32                char_id = c->CharacterID();
+ 	EQ::InventoryProfile &inv     = c->GetInv();
++	struct ClearLoadGuids { ~ClearLoadGuids() { EQ::ItemInstance::ClearGUIDMap(); } } clear_load_guids;
++	const bool checked_load = RuleB(Housing, EnablePlayerHousing);
++	if (loaded_witnesses && !checked_load) return false;
++	InventoryRepository::LoadSnapshot load_snapshot;
++	std::vector<Housing::HousePreload::Loaded> prepared_witnesses;
+ 
+ 	// Retrieve character inventory
+-	auto results   = InventoryRepository::GetWhere(*this, fmt::format("`character_id` = '{}' ORDER BY `slot_id`", char_id));
++	std::vector<InventoryRepository::Inventory> results;
++	if (checked_load) {
++		if (!session_fence || !session_fence()) return false;
++		try {
++			load_snapshot = InventoryRepository::GetLoadSnapshot(*this, char_id);
++			if (!load_snapshot.success) return false;
++			for (const auto& row : load_snapshot.rows) results.push_back(row.values);
++		} catch (...) { return false; }
++	} else {
++		results = InventoryRepository::GetWhere(*this, fmt::format("`character_id` = '{}' ORDER BY `slot_id`", char_id));
++	}
+ 	auto e_results = CharacterEvolvingItemsRepository::GetWhere(
+ 		*this, fmt::format("`character_id` = '{}' AND `deleted_at` IS NULL", char_id)
+ 	);
+ 
+ 	if (results.empty()) {
++		if (checked_load) return session_fence() && GetSharedBank(char_id, &inv, true);
+ 		LogError("Error loading inventory for char_id {} from the database.", char_id);
+ 		return false;
+ 	}
+@@ -707,11 +728,13 @@ bool SharedDatabase::GetInventory(Client *c)
+ 				item_id,
+ 				slot_id
+ 			);
++			if (checked_load) return false;
+ 			continue;
+ 		}
+ 
+ 		auto* inst = CreateBaseItem(item, charges);
+ 		if (!inst) {
++			if (checked_load) return false;
+ 			continue;
+ 		}
+ 
+@@ -721,7 +744,7 @@ bool SharedDatabase::GetInventory(Client *c)
+ 
+ 		inst->SetOrnamentIcon(ornament_icon);
+ 		inst->SetOrnamentationIDFile(ornament_idfile);
+-		inst->SetOrnamentHeroModel(item->HerosForgeModel);
++		inst->SetOrnamentHeroModel(checked_load && item->HousingDefinitionID ? ornament_hero_model : item->HerosForgeModel);
+ 
+ 		if (
+ 			instnodrop ||
+@@ -831,6 +854,7 @@ bool SharedDatabase::GetInventory(Client *c)
+ 				item_id,
+ 				slot_id
+ 			);
++			if (checked_load) return false;
+ 		}
+ 	}
+ 
+@@ -845,14 +869,35 @@ bool SharedDatabase::GetInventory(Client *c)
+ 		);
+ 	}
+ 
++	if (checked_load && (cv_conflict || !session_fence())) return false;
+ 	if (!queue.empty()) {
+-		InventoryRepository::ReplaceMany(*this, queue);
++		if (checked_load) {
++			try {
++				if (loaded_witnesses) {
++					prepared_witnesses.reserve(queue.size());
++					for (const auto& loaded : queue) {
++						const auto source = std::find_if(load_snapshot.rows.begin(), load_snapshot.rows.end(),
++							[&](const auto& row) { return row.values.slot_id == loaded.slot_id; });
++						if (source == load_snapshot.rows.end() || loaded.guid > INT32_MAX) return false;
++						auto witness = Housing::HousePreload::ProjectGuidUpdate(*source, int32_t(loaded.guid));
++						if (!witness || witness.value.persisted.values.item_id != loaded.item_id) return false;
++						prepared_witnesses.push_back(std::move(witness.value));
++					}
++				}
++				if (InventoryRepository::UpdateLoadGuids(*this, char_id, load_snapshot, queue) !=
++					InventoryRepository::GuidLoadResult::Applied) return false;
++			} catch (...) { return false; }
++		} else {
++			InventoryRepository::ReplaceMany(*this, queue);
++		}
+ 	}
+ 
+ 	EQ::ItemInstance::ClearGUIDMap();
+ 
+ 	// Retrieve shared inventory
+-	return GetSharedBank(char_id, &inv, true);
++	const bool shared_bank_loaded = GetSharedBank(char_id, &inv, true);
++	if (shared_bank_loaded && loaded_witnesses) loaded_witnesses->swap(prepared_witnesses);
++	return shared_bank_loaded;
+ }
+ 
+ std::map<uint32, uint32> SharedDatabase::GetItemRecastTimestamps(uint32 char_id)
+@@ -972,6 +1017,13 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+ 		}
+ 	}
+ 
++	// Optional housing schema. Missing/unreviewed definitions advertise no benefit.
++	std::map<uint32_t,uint32_t> trophy_sources;
++	auto trophy_rows=QueryDatabase(std::string("SELECT s.placed_item_id,s.benefit_id,s.source_sha256,s.source_description FROM housing_trophy_benefit_sources s JOIN tributes t ON t.id=s.benefit_id WHERE t.isguild=0"),false);
++	if(trophy_rows.Success())for(auto row=trophy_rows.begin();row.operator!=(trophy_rows.end());++row){
++		if(row[0]&&row[1]&&row[2]&&row[3]&&row[3][0]&&Housing::TrophyBenefits::SourceDigest(row[2]))trophy_sources[Strings::ToUnsignedInt(row[0])]=Strings::ToUnsignedInt(row[1]);
++	}
++	const auto housing_npc_sources = Housing::NpcItemMetadata::LoadAll(*this);
+ 	EQ::ItemData item;
+ 
+ 	const auto& l = ItemsRepository::All(*this);
+@@ -1004,6 +1056,26 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+ 		item.NoPet           = !disable_no_pet && e.nopet;
+ 		item.NoRent          = disable_no_rent ? std::numeric_limits<uint8>::max() : e.norent;
+ 		item.NoTransfer      = !disable_no_transfer && e.notransfer;
++		Housing::NpcItemMetadata::Clear(item);
++		if (auto source = housing_npc_sources.find(uint32_t(e.id)); source != housing_npc_sources.end())
++			Housing::NpcItemMetadata::Apply(item, source->second);
++		item.Placeable       = static_cast<uint32>(e.UNK224);
++		item.HousingIgnoreCollisions = static_cast<uint8>(e.UNK225);
++		item.HousingPlacementType = static_cast<uint32>(e.UNK226);
++		// These named columns are populated only from reviewed native metadata.
++		// Do not reinterpret packed historical UNK232..238 as these bytes.
++		item.HousingPlacementFlagsKnown =
++			(e.housing_disable_rotation == 0 || e.housing_disable_rotation == 1) &&
++			(e.housing_disable_free_placement == 0 || e.housing_disable_free_placement == 1);
++		item.HousingDisableRotation = item.HousingPlacementFlagsKnown ? uint8(e.housing_disable_rotation) : 0;
++		item.HousingDisableFreePlacement = item.HousingPlacementFlagsKnown ? uint8(e.housing_disable_free_placement) : 0;
++		item.HousingDefinitionID = static_cast<uint32>(e.UNK227);
++		// Collector columns retain IEEE-754 bits, not numeric float values.
++		std::memcpy(&item.HousingMinimumScale, &e.UNK228, sizeof(float));
++		std::memcpy(&item.HousingMaximumScale, &e.UNK229, sizeof(float));
++		item.HousingTrophyBenefitID = trophy_sources.count(e.id)?trophy_sources.at(e.id):0xffffffff;
++		item.HousingUpkeepID = static_cast<uint32>(e.UNK230);
++		item.HousingMaxPerEstate = e.UNK231;
+ 		item.PendingLoreFlag = e.pendingloreflag;
+ 		item.QuestItemFlag   = e.questitemflag;
+ 		item.Stackable       = e.stackable;
+diff --git a/common/shareddb.h b/common/shareddb.h
+index 2a78be6..92c0e52 100644
+--- a/common/shareddb.h
++++ b/common/shareddb.h
+@@ -34,6 +34,10 @@
+ #include <list>
+ #include <map>
+ #include <memory>
++#include <functional>
++#include <vector>
++
++namespace Housing::HousePreload { struct Loaded; }
+ 
+ class EvolveInfo;
+ struct InspectMessage_Struct;
+@@ -104,7 +108,11 @@ public:
+ 	bool GetSharedBank(uint32 id, EQ::InventoryProfile *inv, bool is_charid);
+ 	int32 GetSharedPlatinum(uint32 account_id);
+ 	bool AddSharedPlatinum(uint32 account_id, int amount);
+-	bool GetInventory(Client* c);
++	// Housing-enabled admission supplies a server-owned zone reservation check.
++	// Optional witnesses are cleared on entry and exported only after successful
++	// checked GUID commit and complete inventory load; shared bank is excluded.
++	bool GetInventory(Client* c, const std::function<bool()>& session_fence = {},
++		std::vector<Housing::HousePreload::Loaded>* loaded_witnesses = nullptr);
+ 	bool GetInventory(uint32 account_id, char *name, EQ::InventoryProfile *inv); // deprecated
+ 	std::map<uint32, uint32> GetItemRecastTimestamps(uint32 char_id);
+ 	uint32 GetItemRecastTimestamp(uint32 char_id, uint32 recast_type);
+diff --git a/common/spdat.h b/common/spdat.h
+index 11130d6..8385600 100644
+--- a/common/spdat.h
++++ b/common/spdat.h
+@@ -1493,13 +1493,13 @@ namespace SpellEffect {
+ 	constexpr int SkillProcSuccess                = 429; // implemented - chance to proc when tje skill in use successfully fires.
+ 	constexpr int PostEffect                      = 430; // *not implemented - Fear of the Dark(27641) - Alters vision
+ 	constexpr int PostEffectData                  = 431; // *not implemented - Fear of the Dark(27641) - Alters vision
+-	constexpr int ExpandMaxActiveTrophyBen        = 432; // not used
++	constexpr int ExpandMaxActiveTrophyBen        = 432; // personal trophy slot capacity
+ 	constexpr int CriticalDotDecay                = 433; // implemented - increase critical dot chance, effect decays based on level of spell it effects. (12266)
+ 	constexpr int CriticalHealDecay               = 434; // implemented - increase critical heal chance, effect decays based on level of spell it effects.
+ 	constexpr int CriticalRegenDecay              = 435; // implemented - increase critical heal over time chance, effect decays based on level of spell it effects.
+ 	constexpr int BeneficialCountDownHold         = 436; // not used ( 23491 | ABTest Buff Hold)
+-	constexpr int TeleporttoAnchor                = 437; // *not implemented - Teleport Guild Hall Anchor(33099)
+-	constexpr int TranslocatetoAnchor             = 438; // *not implemented - Translocate Primary Anchor (27750)
++	constexpr int TeleporttoAnchor                = 437; // Housing: RoF2 reviewed yard/room anchor routing
++	constexpr int TranslocatetoAnchor             = 438; // Housing: RoF2 recipient-anchor pending confirmation
+ 	constexpr int Assassinate                     = 439; // implemented[AA] - Assassinate damage
+ 	constexpr int FinishingBlowLvl                = 440; // implemented[AA] - Sets the level Finishing blow can be triggered on an NPC
+ 	constexpr int DistanceRemoval                 = 441; // implemented - Buff is removed from target when target moves X amount of distance away from where initially hit.
+diff --git a/utils/patches/patch_RoF2.conf b/utils/patches/patch_RoF2.conf
+index 3533aaa..42751ba 100644
+--- a/utils/patches/patch_RoF2.conf
++++ b/utils/patches/patch_RoF2.conf
+@@ -749,3 +749,62 @@ OP_ChangePetName=0x5dab
+ 
+ OP_InvokeNameChangeImmediate=0x4fe2
+ OP_InvokeNameChangeLazy=0x2f2e
++
++# May 10 2013 native real estate; experimental Housing:Enabled gate
++OP_RealEstateNeighborhood=0x2691
++OP_RealEstateGo=0x218c
++
++# Exact May10 2013 housing protocol. Handlers must gate/authenticate independently.
++OP_RealEstateDefinitions=0x2698
++OP_RealEstateRegions=0x49df
++OP_RealEstateSnapshot=0x63fd
++OP_RealEstateZoneContext=0x6fd0
++OP_RealEstateInspect=0x796c
++# S2C one-byte inspect-mode Plot Search window opener, original dispatcher4ca8bf.
++OP_RealEstatePlotSearchOpen=0x2b35
++OP_RealEstateOwnedList=0x2aa7
++OP_RealEstateAccess=0x485d
++OP_RealEstateAccessEdit=0x3146
++OP_RealEstatePurchase=0x45be
++OP_RealEstateSale=0x792c
++OP_RealEstateTransfer=0x507f
++OP_RealEstateEscrow=0x2aa6
++OP_RealEstateItemList=0x1cef
++OP_RealEstateItemDelta=0x087f
++OP_RealEstatePlacementBegin=0x626e
++OP_RealEstatePlacementCommit=0x711a
++OP_RealEstateWorldItem=0x1045
++OP_RealEstateWorldRemove=0x2a9e
++OP_RealEstatePlacementSource=0x2523
++OP_RealEstatePlacementEnd=0x6213
++OP_RealEstateOperationResult=0x1228
++OP_RealEstatePickup=0x2036
++OP_RealEstateItemOperation=0x3424
++OP_RealEstatePack=0x613d
++OP_RealEstateStoreAll=0x6917
++# Native May 10 2013 layout sender73bec0; atomic mixed member handler.
++OP_RealEstateLoadLayout=0x5b41
++OP_RealEstateItemMenu=0x21ec
++OP_RealEstateItemQuery=0x050c
++OP_RealEstateExit=0x1da9
++OP_RealEstateTrophyToggle=0x756a
++OP_RealEstateTrophy=0x4b65
++OP_RealEstateTrophyList=0x7697
++OP_RealEstateTrophyTimer=0x51ae
++OP_RealEstateTrophyClear=0x08bf
++OP_RealEstateAnchorConfirm=0x7bb1
++OP_RealEstateOwnerItemPurge=0x1967
++OP_RealEstateOwnedItemList=0x3e00
++OP_RealEstateArchivedList=0x66df
++
++OP_GuildTrophyAvailable=0x7db5
++
++OP_GuildTrophyActive=0x7dd2
++
++OP_GuildTrophyToggle=0x039d
++
++OP_GuildTrophySave=0x7c1d
++
++OP_GuildTrophyModify=0x7a41
++
++OP_GuildTrophyOptIn=0x02bc
+diff --git a/world/CMakeLists.txt b/world/CMakeLists.txt
+index 1963c83..bf07b86 100644
+--- a/world/CMakeLists.txt
++++ b/world/CMakeLists.txt
+@@ -25,6 +25,7 @@ SET(world_sources
+     web_interface.cpp
+     web_interface_eqw.cpp
+     wguild_mgr.cpp
++    wguild_trophies.cpp
+     world_event_scheduler.cpp
+     world_config.cpp
+     world_console_connection.cpp
+diff --git a/world/client.cpp b/world/client.cpp
+index a2d35a4..3a3c768 100644
+--- a/world/client.cpp
++++ b/world/client.cpp
+@@ -37,6 +37,8 @@
+ #include "../common/opcodemgr.h"
+ #include "../common/data_verification.h"
+ #include "../common/data_bucket.h"
++#include "../common/housing/admission_guard.h"
++#include "../common/housing/inventory_handoff_auth.h"
+ 
+ #include "client.h"
+ #include "worlddb.h"
+@@ -781,6 +783,13 @@ bool Client::HandleCharacterCreatePacket(const EQApplicationPacket *app) {
+ }
+ 
+ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
++	// The first authenticated request remains immutable while teardown finishes.
++	if (inventory_wait_character) {
++		return true;
++	}
++	if (app->size != sizeof(EnterWorld_Struct)) {
++		return false;
++	}
+ 	auto account_id = GetAccountID();
+ 	if (!account_id) {
+ 		LogInfo("Enter world with no logged in account.");
+@@ -844,6 +853,19 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
+ 		return true;
+ 	}
+ 
++	// Persisted active/pending custody leases survive CLE expiry/world restart.
++	// This quarantines unresolved sessions; it is not global admission fencing.
++	const auto inventory_admission = Housing::CheckInventoryAdmission(database, e.id, RuleB(Housing, EnablePlayerHousing));
++	if (inventory_admission == Housing::InventoryAdmission::ActiveLease) {
++		WaitForInventoryRelease(e.id, app, true);
++		return true;
++	}
++	if (inventory_admission != Housing::InventoryAdmission::Allowed) {
++		LogWarning("Character [{}] admission blocked by unresolved/unavailable housing custody state", e.id);
++		TellClientZoneUnavailable();
++		return true;
++	}
++
+ 	charid      = e.id;
+ 	zone_id     = e.zone_id;
+ 	instance_id = e.zone_instance;
+@@ -1072,7 +1094,9 @@ bool Client::HandleDeleteCharacterPacket(const EQApplicationPacket *app) {
+ 	uint32 char_acct_id = database.GetAccountIDByChar((char*)app->pBuffer);
+ 	if(char_acct_id == GetAccountID()) {
+ 		LogInfo("Delete character: [{}]", (const char*)app->pBuffer);
+-		database.DeleteCharacter((char *)app->pBuffer);
++		if (!database.DeleteCharacter((char *)app->pBuffer)) {
++			LogWarning("Character deletion was refused; retained character list will be sent");
++		}
+ 		SendCharInfo();
+ 	}
+ 
+@@ -1253,10 +1277,83 @@ bool Client::Process() {
+ 		LogInfo("Client disconnected (not active in process)");
+ 		return false;
+ 	}
++	if (ret) {
++		PollInventoryRelease();
++	}
+ 
+ 	return ret;
+ }
+ 
++void Client::WaitForInventoryRelease(uint32 character, const EQApplicationPacket* packet, bool try_bootup)
++{
++	if (inventory_wait_character) {
++		return;
++	}
++	if (!GetLSID()) {
++		// DropClient addresses the login identity; zero cannot safely identify an
++		// old actor. Keep its durable reservation untouched and reject admission.
++		TellClientZoneUnavailable();
++		return;
++	}
++	// Called only after account/character authentication. Include the destination
++	// zone: an existing client there must also finish its final save/destruction.
++	inventory_wait_packet.reset(packet ? packet->Copy() : nullptr);
++	inventory_wait_character = character;
++	inventory_wait_account = GetAccountID();
++	inventory_wait_route = !packet;
++	inventory_wait_try_bootup = try_bootup;
++	inventory_wait_poll_ms = 250;
++	inventory_wait_next_poll = std::chrono::steady_clock::now() + std::chrono::milliseconds(inventory_wait_poll_ms);
++	autobootup_timeout.Disable();
++	ZSList::Instance()->DropClient(GetLSID(), nullptr);
++	LogInfo("Character [{}] waiting for durable inventory writer teardown", character);
++}
++
++void Client::PollInventoryRelease()
++{
++	if (!inventory_wait_character || std::chrono::steady_clock::now() < inventory_wait_next_poll) {
++		return;
++	}
++	inventory_wait_poll_ms = inventory_wait_poll_ms < 2000 ? inventory_wait_poll_ms * 2 : 2000;
++	inventory_wait_next_poll = std::chrono::steady_clock::now() + std::chrono::milliseconds(inventory_wait_poll_ms);
++	// CLE replacement, account revocation and character ownership changes cannot
++	// turn a queued admission into another actor's request.
++	const auto actor = Housing::CheckHandoffActor(database, inventory_wait_character, inventory_wait_account);
++	if (actor.state == Housing::HandoffActorState::Unavailable) {
++		return; // Query failure is not proof of teardown or actor revocation.
++	}
++	if (!RuleB(Housing, EnablePlayerHousing)) {
++		inventory_wait_packet.reset();
++		inventory_wait_character = 0;
++		TellClientZoneUnavailable(); // Never bypass a queued writer by toggling rules.
++		return;
++	}
++	if (!GetAccountID() || GetAccountID() != inventory_wait_account || GetAdmin() < 0 || actor.state != Housing::HandoffActorState::Authenticated) {
++		inventory_wait_packet.reset();
++		inventory_wait_character = 0;
++		eqs->Close();
++		return;
++	}
++	const auto admission = Housing::CheckInventoryAdmission(database, inventory_wait_character,
++		RuleB(Housing, EnablePlayerHousing));
++	if (admission != Housing::InventoryAdmission::Allowed) {
++		// A DB outage or orphan stays quarantined. Polling never releases a lease.
++		return;
++	}
++	auto packet = std::move(inventory_wait_packet);
++	const bool route = inventory_wait_route;
++	const bool try_bootup = inventory_wait_try_bootup;
++	inventory_wait_character = 0;
++	inventory_wait_account = 0;
++	inventory_wait_route = false;
++	if (route) {
++		strn0cpy(char_name, actor.name.c_str(), sizeof(char_name));
++		EnterWorld(try_bootup);
++	} else if (packet && !HandleEnterWorldPacket(packet.get())) {
++		eqs->Close();
++	}
++}
++
+ bool Client::HandleChecksumPacket(const EQApplicationPacket *app)
+ {
+ 	// Is checksum verification turned on
+@@ -1398,6 +1495,21 @@ bool Client::ChecksumVerificationCRCBaseData(uint64 checksum)
+ }
+ 
+ void Client::EnterWorld(bool TryBootup) {
++	if (inventory_wait_character) {
++		return;
++	}
++	// Recheck delayed/autoboot routing immediately before any IncomingClient.
++	const auto inventory_admission = Housing::CheckInventoryAdmission(database, GetCharID(), RuleB(Housing, EnablePlayerHousing));
++	if (inventory_admission == Housing::InventoryAdmission::ActiveLease) {
++		WaitForInventoryRelease(GetCharID(), nullptr, TryBootup);
++		return;
++	}
++	if (inventory_admission != Housing::InventoryAdmission::Allowed) {
++		LogWarning("Character [{}] zone routing blocked by unresolved/unavailable housing custody state", GetCharID());
++		TellClientZoneUnavailable();
++		return;
++	}
++
+ 	if (zone_id == 0)
+ 		return;
+ 
+@@ -2465,7 +2577,7 @@ void Client::SendGuildTributeFavorAndTimer(uint32 favor, uint32 time_remaining)
+ 		gtsa->guild_id      = GetCLE()->GuildID();
+ 		gtsa->guild_favor   = guild->tribute.favor;
+ 		gtsa->tribute_timer = guild->tribute.time_remaining;
+-		gtsa->trophy_timer  = 0; //not yet implemented
++		gtsa->trophy_timer  = guild_mgr.GuildTrophyRemaining(GetCLE()->GuildID());
+ 
+ 		QueuePacket(outapp);
+ 		safe_delete(outapp);
+diff --git a/world/client.h b/world/client.h
+index 5890cfc..8768eec 100644
+--- a/world/client.h
++++ b/world/client.h
+@@ -19,6 +19,8 @@
+ #define CLIENT_H
+ 
+ #include <string>
++#include <memory>
++#include <chrono>
+ 
+ #include "../common/linked_list.h"
+ #include "../common/timer.h"
+@@ -88,6 +90,16 @@ private:
+ 	Timer	autobootup_timeout;
+ 	uint32	zone_waiting_for_bootup;
+ 	bool	enter_world_triggered;
++	// A durable release, never elapsed time, permits this queued admission.
++	std::unique_ptr<EQApplicationPacket> inventory_wait_packet;
++	uint32 inventory_wait_character = 0;
++	uint32 inventory_wait_account = 0;
++	bool inventory_wait_route = false;
++	bool inventory_wait_try_bootup = true;
++	uint32 inventory_wait_poll_ms = 250;
++	std::chrono::steady_clock::time_point inventory_wait_next_poll{};
++	void WaitForInventoryRelease(uint32 character, const EQApplicationPacket* packet, bool try_bootup);
++	void PollInventoryRelease();
+ 
+ 	bool StartInTutorial;
+ 	EQ::versions::ClientVersion m_ClientVersion;
+diff --git a/world/clientlist.cpp b/world/clientlist.cpp
+index d8f1d9f..3b43d80 100644
+--- a/world/clientlist.cpp
++++ b/world/clientlist.cpp
+@@ -2004,3 +2004,5 @@ void ClientList::AddToZoneServerCaches(ClientListEntry* cle)
+ 		m_guild_zone_server_ids[cle->GuildID()].insert(server_id);
+ 	}
+ }
++
++std::map<uint32,std::pair<uint32,uint32>> ClientList::GetInZoneGuildLevels(uint32 guild){std::map<uint32,std::pair<uint32,uint32>> out;LinkedListIterator<ClientListEntry*> it(clientlist);it.Reset();while(it.MoreElements()){auto* c=it.GetData();if(c&&c->GuildID()==guild&&c->Online()==CLE_Status::InZone&&c->Server()&&c->CharID()&&c->AccountID()&&c->level()&&c->GetClientVersion()==uint8(EQ::versions::ClientVersion::RoF2))out.emplace(c->CharID(),std::make_pair(c->AccountID(),uint32(c->level())));it.Advance();}return out;}
+diff --git a/world/clientlist.h b/world/clientlist.h
+index b158ad2..76b5534 100644
+--- a/world/clientlist.h
++++ b/world/clientlist.h
+@@ -34,6 +34,7 @@ public:
+ 	void	ZoneBootup(ZoneServer* zs);
+ 	void	RemoveCLEReferances(ClientListEntry* cle);
+ 	std::map<uint32, ClientListEntry*> GetGuildClientsWithTributeOptIn(uint32 guild_id);
++	std::map<uint32,std::pair<uint32,uint32>> GetInZoneGuildLevels(uint32 guild_id);
+ 	std::map<uint32, ClientListEntry*> GetGuildClientList(uint32 guild_id);
+ 	//Client* GetClient(uint32 char_id);
+ 
+diff --git a/world/main.cpp b/world/main.cpp
+index c938612..70b2e81 100644
+--- a/world/main.cpp
++++ b/world/main.cpp
+@@ -47,6 +47,9 @@
+ #include "worlddb.h"
+ #include "wguild_mgr.h"
+ #include "../common/evolving_items.h"
++#include "../common/housing/persistence_service.h"
++#include "../common/housing/upkeep_cycle_db.h"
++#include <ctime>
+ 
+ #ifdef _WINDOWS
+ #include <process.h>
+@@ -158,7 +161,35 @@ int main(int argc, char **argv)
+ 		return 1;
+ 	}
+ 
++	std::unique_ptr<Housing::PersistenceService> housing;
++	std::unique_ptr<Database> housing_upkeep_database;
++	if (RuleB(Housing, EnablePlayerHousing)) {
++		auto housing_database = std::make_unique<Database>();
++		if (!housing_database->Connect(Config->DatabaseHost, Config->DatabaseUsername,
++			Config->DatabasePassword, Config->DatabaseDB, Config->DatabasePort, "housing-world")) {
++			LogError("Housing database connection failed");
++			return 1;
++		}
++		Housing::Options options;
++		options.enabled = true;
++		options.reserved_instance_ids = RuleI(Instances, ReservedInstances);
++		housing = std::make_unique<Housing::PersistenceService>(std::move(housing_database), options);
++		auto neighborhoods = housing->ListNeighborhoods();
++		if (!neighborhoods) {
++			LogError("Housing schema unavailable; apply the optional housing migration before enabling it");
++			return 1;
++		}
++		LogInfo("Housing loaded [{}] persistent neighborhoods", neighborhoods.value.size());
++        housing_upkeep_database=std::make_unique<Database>();
++        if(!housing_upkeep_database->Connect(Config->DatabaseHost,Config->DatabaseUsername,
++            Config->DatabasePassword,Config->DatabaseDB,Config->DatabasePort,"housing-upkeep-world")){
++            LogError("Housing upkeep database connection failed");return 1;
++        }
++	}
++
+ 	// timers
++	Timer housing_upkeep_timer(60000);
++	housing_upkeep_timer.Start(60000);
+ 	Timer PurgeInstanceTimer(450000);
+ 	PurgeInstanceTimer.Start(450000);
+ 	Timer EQTimeTimer(600000);
+@@ -371,6 +402,16 @@ int main(int argc, char **argv)
+ 
+ 	auto loop_fn = [&](EQ::Timer* t) {
+ 		Timer::SetCurrentTime();
++        if(housing_upkeep_database&&housing_upkeep_timer.Check()){
++            try{
++                auto current=std::time(nullptr);
++                if(current>0&&uint64_t(current)<=UINT32_MAX){
++                    auto batch=Housing::UpkeepCycle::ProcessDue(*housing_upkeep_database,uint32_t(current));
++                    if(batch.refresh){ServerPacket refresh(ServerOP_HousingUpkeepRefresh,0);ZSList::Instance()->SendPacket(&refresh);}
++                    if(batch.unsupported)LogInfo("Housing upkeep deferred [{}] unsupported or pending contracts",batch.unsupported);
++                }
++            }catch(...){LogError("Housing upkeep tick failed; no success inferred");}
++        }
+ 
+ 		if (!RunLoops) {
+ 			EQ::EventLoop::Get().Shutdown();
+diff --git a/world/wguild_mgr.cpp b/world/wguild_mgr.cpp
+index ace4d9e..7023c85 100644
+--- a/world/wguild_mgr.cpp
++++ b/world/wguild_mgr.cpp
+@@ -99,6 +99,7 @@ void WorldGuildManager::ProcessZonePacket(ServerPacket *pack) {
+ 		LogGuilds("Received and broadcasting guild member refresh for char [{}] to all zones with members of guild [{}]", s->char_id, s->guild_id);
+ 
+ 		RefreshGuild(s->guild_id);
++		InvalidateGuildTrophies();
+ 		//preform the local update
+ 		ClientList::Instance()->UpdateClientGuild(s->char_id, s->guild_id);
+ 
+@@ -257,6 +258,7 @@ void WorldGuildManager::ProcessZonePacket(ServerPacket *pack) {
+ 
+ void WorldGuildManager::Process()
+ {
++ ProcessGuildTrophies();
+ 	for (auto &g: m_guilds) {
+ 		if (!g.second->tribute.enabled) {
+ 			continue;
+@@ -270,10 +272,11 @@ void WorldGuildManager::Process()
+ 			);
+ 		}
+ 		else if (g.second->tribute.enabled && g.second->tribute.timer.Check()) {
+-			g.second->tribute.favor         -= GetGuildTributeCost(g.first);
++			auto spent=AdjustDbGuildFavor(g.first,-int64(GetGuildTributeCost(g.first)));
++			if(!spent){g.second->tribute.enabled=false;g.second->tribute.timer.Disable();UpdateDbGuildTributeEnabled(g.first,0);SendGuildTributeFavorAndTimer(g.first);continue;}
++			g.second->tribute.favor=*spent;
+ 			g.second->tribute.time_remaining = RuleI(Guild, TributeTime);
+ 			g.second->tribute.timer.Start(RuleI(Guild, TributeTime));
+-			guild_mgr.UpdateDbGuildFavor(g.first, g.second->tribute.favor);
+ 			guild_mgr.UpdateDbTributeTimeRemaining(g.first, RuleI(Guild, TributeTime));
+ 			SendGuildTributeFavorAndTimer(g.first, g.second->tribute.favor, g.second->tribute.timer.GetRemainingTime());
+ 		}
+@@ -444,14 +447,22 @@ bool WorldGuildManager::RefreshGuild(uint32 guild_id)
+ 	return true;
+ }
+ 
++void WorldGuildManager::SendGuildTributeFavorAndTimer(uint32 guild_id)
++{
++	const auto* guild = GetGuildByGuildID(guild_id);
++	if (!guild) { return; }
++	SendGuildTributeFavorAndTimer(guild_id, guild->tribute.favor, GetGuildTributeTimeRemaining(guild_id));
++}
++
+ void WorldGuildManager::SendGuildTributeFavorAndTimer(uint32 guild_id, uint32 favor, uint32 time)
+ {
++ auto current=ReadDbGuildFavor(guild_id);if(!current)return;favor=*current;if(auto* guild=GetGuildByGuildID(guild_id))guild->tribute.favor=favor;
+ 	auto sp   = new ServerPacket(ServerOP_GuildTributeFavAndTimer, sizeof(GuildTributeFavorTimer_Struct));
+ 	auto data = (GuildTributeFavorTimer_Struct *)sp->pBuffer;
+ 	data->guild_id      = guild_id;
+ 	data->guild_favor   = favor;
+ 	data->tribute_timer = time;
+-	data->trophy_timer  = 0;
++	data->trophy_timer  = GuildTrophyRemaining(guild_id);
+ 
+ 	ZSList::Instance()->SendPacketToZonesWithGuild(guild_id, sp);
+ 	safe_delete(sp)
+diff --git a/world/wguild_mgr.h b/world/wguild_mgr.h
+index 9a02047..7300ee7 100644
+--- a/world/wguild_mgr.h
++++ b/world/wguild_mgr.h
+@@ -2,6 +2,8 @@
+ #define WGUILD_MGR_H_
+ 
+ #include "../common/types.h"
++#include <chrono>
++#include <set>
+ #include "../common/guild_base.h"
+ 
+ class Client;
+@@ -13,6 +15,12 @@ public:
+ 	//called by zoneserver when it receives a guild message from zone.
+ 	void ProcessZonePacket(ServerPacket *pack);
+ 	void Process();
++ void ProcessGuildTrophies();
++ void InvalidateGuildTrophies(){m_guild_trophy_refresh_all=true;}
++ bool UpdateGuildTrophies(uint32 guild,uint32 action,uint32 actor=0,uint32 account=0);
++ uint32 GuildTrophyRemaining(uint32 guild)const;
++ void GuildTrophyRequest(uint32 actor,uint32 account,uint32 action,uint32 target=0);
++
+ 	bool LoadTributes();
+ 	void SendGuildTributeFavorAndTimer(uint32 guild_id);
+ 	void SendGuildTributeFavorAndTimer(uint32 guild_id, uint32 favor, uint32 time);
+@@ -20,6 +28,9 @@ public:
+ 	virtual bool RefreshGuild(uint32 guild_id);
+ 
+ protected:
++ bool m_guild_trophy_initialized=false,m_guild_trophy_refresh_all=false;
++ std::map<uint32,std::chrono::steady_clock::time_point> m_guild_trophy_deadlines;
++ std::set<uint32> m_guild_trophy_known;
+ 	virtual void SendGuildRefresh(uint32 guild_id, bool name, bool motd, bool rank, bool relation);
+ 	virtual void SendCharRefresh(uint32 old_guild_id, uint32 guild_id, uint32 charid);
+ 	virtual void SendRankUpdate(uint32 CharID) { return; }
+diff --git a/world/zoneserver.cpp b/world/zoneserver.cpp
+index 30e90cb..df03f34 100644
+--- a/world/zoneserver.cpp
++++ b/world/zoneserver.cpp
+@@ -182,8 +182,23 @@ void ZoneServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p) {
+ 	auto pack = &tpack;
+ 
+ 	switch (opcode) {
+-		case 0:
+-		case ServerOP_KeepAlive:
++		case ServerOP_HousingGuildTrophyRequest: {
++        if(pack->size!=sizeof(HousingGuildTrophyRequest))break;auto* request=reinterpret_cast<const HousingGuildTrophyRequest*>(pack->pBuffer);auto* actor=ClientList::Instance()->FindCLEByCharacterID(request->character_id);if(!actor||actor->Server()!=this||actor->Online()!=CLE_Status::InZone||request->action>2)break;guild_mgr.GuildTrophyRequest(actor->CharID(),actor->AccountID(),request->action,request->target_id);break;
++    }
++    case ServerOP_HousingUpkeepRefresh: {
++        // Authenticated zone connection supplies only an invalidation hint.
++        // Ownership/ACL/content are independently reloaded by every receiver.
++        if(pack->size==0){guild_mgr.InvalidateGuildTrophies();ZSList::Instance()->SendPacket(pack);}
++        break;
++    }
++    case ServerOP_HousingTrophyRefresh: {
++            // Received only on the authenticated zone connection. This is an
++            // internal invalidation hint, never a client benefit/owner claim.
++            if(pack->size==0){guild_mgr.InvalidateGuildTrophies();ZSList::Instance()->SendPacket(pack);}
++            break;
++        }
++        case 0:
++	case ServerOP_KeepAlive:
+ 		case ServerOP_ZAAuth: {
+ 			break;
+ 		}
+@@ -1526,7 +1541,9 @@ void ZoneServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p) {
+ 				if (guild->tribute.enabled) {
+ 					data->enabled           = 1;
+ 					if (guild->tribute.time_remaining == RuleI(Guild, TributeTime)) {
+-						data->favor = (guild->tribute.favor -= guild_mgr.GetGuildTributeCost(data->guild_id));
++						auto spent=guild_mgr.AdjustDbGuildFavor(data->guild_id,-int64(guild_mgr.GetGuildTributeCost(data->guild_id)));
++						if(!spent){guild->tribute.enabled=0;data->enabled=0;guild->tribute.timer.Disable();guild_mgr.UpdateDbGuildTributeEnabled(data->guild_id,0);break;}
++						data->favor=guild->tribute.favor=*spent;
+ 					}
+ 					data->time_remaining    = guild->tribute.time_remaining;
+ 					data->tribute_id_1      = guild->tribute.id_1;
+@@ -1552,7 +1569,6 @@ void ZoneServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p) {
+ 					guild->tribute.timer.Disable();
+ 				}
+ 				guild_mgr.UpdateDbGuildTributeEnabled(data->guild_id, data->enabled);
+-				guild_mgr.UpdateDbGuildFavor(data->guild_id, data->favor);
+ 				guild_mgr.UpdateDbTributeTimeRemaining(data->guild_id, data->time_remaining);
+ 
+ 				ZSList::Instance()->SendPacketToZonesWithGuild(data->guild_id, pack);
+@@ -1644,7 +1660,7 @@ void ZoneServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p) {
+ 			auto guild = guild_mgr.GetGuildByGuildID(in->guild_id);
+ 
+ 			if (guild) {
+-				guild->tribute.favor = in->favor;
++				if(auto current=guild_mgr.ReadDbGuildFavor(in->guild_id))guild->tribute.favor=*current;else break;
+ 				guild_mgr.SendGuildTributeFavorAndTimer(in->guild_id, guild->tribute.favor, guild_mgr.GetGuildTributeTimeRemaining(in->guild_id)/*guild->tribute.timer.GetRemainingTime()*/);
+ 
+ 				auto sp  = new ServerPacket(ServerOP_GuildTributeUpdateDonations, sizeof(GuildTributeUpdate));
+diff --git a/zone/CMakeLists.txt b/zone/CMakeLists.txt
+index ffea99f..9935c2c 100644
+--- a/zone/CMakeLists.txt
++++ b/zone/CMakeLists.txt
+@@ -20,6 +20,24 @@ SET(zone_sources
+     client_bot.cpp
+     client_mods.cpp
+     client_packet.cpp
++    client_housing_anchor.cpp
++	client_housing_trophies.cpp
++    client_housing_guild_trophies.cpp
++    client_housing.cpp
++    client_housing_metadata.cpp
++    client_housing_interaction.cpp
++    client_housing_escrow.cpp
++    client_housing_purchase.cpp
++    client_housing_transfer.cpp
++    housing_inventory_bridge.cpp
++    housing_house_preload_fence.cpp
++    housing_house_reload.cpp
++    housing_house_runtime.cpp
++    housing_house_surface.cpp
++    housing_crate_runtime.cpp
++    housing_house_inventory_swap.cpp
++	housing_item_reconstruction.cpp
++	inventory_session_owner.cpp
+     client_process.cpp
+     combat_record.cpp
+     corpse.cpp
+@@ -505,4 +523,3 @@ endif()
+ target_link_libraries(zone PRIVATE lua_zone perl_zone gm_commands_zone ${ZONE_LIBS})
+ 
+ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+-
+diff --git a/zone/bonuses.cpp b/zone/bonuses.cpp
+index 0cc44ca..7df7e51 100644
+--- a/zone/bonuses.cpp
++++ b/zone/bonuses.cpp
+@@ -183,6 +183,12 @@ void Mob::CalcItemBonuses(StatBonuses* b) {
+ 	}
+ 
+ 	if (IsClient()) {
++		// Grants are refreshed on authenticated source invalidation, never from CalcBonuses.
++		std::vector<uint32> trophy_stats=CastToClient()->HousingTrophyStatItems();const auto& guild_trophy_stats=CastToClient()->HousingGuildTrophyStatItems();trophy_stats.insert(trophy_stats.end(),guild_trophy_stats.begin(),guild_trophy_stats.end());
++        for(auto item_id:trophy_stats){
++			const auto* trophy=database.CreateItem(item_id);
++			if(trophy){AddItemBonuses(trophy,b,false,true);safe_delete(trophy);}
++		}
+ 		if (CastToClient()->GetPP().tribute_active) {
+ 			for (auto const &t: CastToClient()->GetPP().tributes) {
+ 				auto item_id = CastToClient()->LookupTributeItemID(t.tribute, t.tier);
+@@ -736,6 +742,10 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
+ 		case SpellEffect::MaxHPChange:
+ 			newbon->PercentMaxHPChange += base_value;
+ 			break;
++		case SpellEffect::ExpandMaxActiveTrophyBen:
++			newbon->ExpandMaxActiveTrophyBenefits += base_value;
++			break;
++
+ 		case SpellEffect::Packrat:
+ 			newbon->Packrat += base_value;
+ 			break;
+@@ -2977,6 +2987,10 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
+ 				break;
+ 			}
+ 
++			case SpellEffect::ExpandMaxActiveTrophyBen:
++				new_bonus->ExpandMaxActiveTrophyBenefits += effect_value;
++				break;
++
+ 			case SpellEffect::NegateSpellEffect:
+ 				new_bonus->NegateEffects = true;
+ 				break;
+diff --git a/zone/client.cpp b/zone/client.cpp
+index 5ed9edd..ec514db 100644
+--- a/zone/client.cpp
++++ b/zone/client.cpp
+@@ -51,6 +51,12 @@ extern volatile bool RunLoops;
+ #include "bot_command.h"
+ #include "string_ids.h"
+ #include "dialogue_window.h"
++#include "housing_inventory_bridge.h"
++#include "housing_house_runtime.h"
++#include "inventory_session_owner.h"
++#include "../common/eqemu_config.h"
++#include <chrono>
++#include <thread>
+ 
+ #include "guild_mgr.h"
+ #include "quest_parser_collection.h"
+@@ -707,16 +713,73 @@ Client::Client(EQStreamInterface *ieqs) : Mob(
+ 	AI_Init();
+ }
+ 
++bool Client::ClaimInventorySessionReservation() {
++	if (m_inventory_session_reservation) return m_inventory_session_reservation->HeldFor(*this);
++	try { m_inventory_session_reservation = Housing::InventorySessions::ZoneReservation::ClaimForAuthenticatedClient(*this); }
++	catch (...) { m_inventory_session_rejected = true; return false; }
++	if (!m_inventory_session_reservation) m_inventory_session_rejected = true;
++	return bool(m_inventory_session_reservation);
++}
++bool Client::HasInventorySessionReservation() const {
++	return m_inventory_session_reservation && m_inventory_session_reservation->HeldFor(*this);
++}
++std::shared_ptr<Housing::InventorySessions::ZoneReservation> Client::InventorySessionReleaseTicket() const {
++	return m_inventory_session_reservation;
++}
++
++Housing::InventoryBridge::Bridge* Client::GetHousingInventoryBridge() {
++	if (!RuleB(Housing, EnablePlayerHousing) || ClientVersion() != EQ::versions::ClientVersion::RoF2 ||
++		!Housing::InventoryBridge::Bridge::CanCreateForClient(*this)) return nullptr;
++	if (!m_housing_inventory_bridge) {
++		try {
++			// Authoritative server config, exclusive fresh connection; no callbacks,
++			// event-loop pumping, shared MySQL handle or client-supplied credentials.
++			m_housing_inventory_bridge = std::make_unique<Housing::InventoryBridge::Bridge>(*this, [](Housing::HouseBinding::CustodyContext* houses, Housing::CrateBinding::CustodyContext* crates) {
++				const auto* config = EQEmuConfig::get();
++				if (!config) return std::unique_ptr<Housing::LiveItems::Service>{};
++				auto db = std::make_unique<Database>();
++				if (!db->Connect(config->DatabaseHost, config->DatabaseUsername, config->DatabasePassword,
++					config->DatabaseDB, config->DatabasePort, "housing-inventory-exclusive")) {
++					return std::unique_ptr<Housing::LiveItems::Service>{};
++				}
++				return std::make_unique<Housing::LiveItems::Service>(std::move(db), true, houses, crates);
++			}, Housing::HouseRuntime::MakeForClient);
++		} catch (const std::exception&) {
++			return nullptr;
++		}
++	}
++	return m_housing_inventory_bridge.get();
++}
++
+ Client::~Client() {
++	// First lifecycle action: no quests, save, stream release or inventory
++	// teardown can precede durable housing reconciliation/lease closure.
++	if (m_housing_inventory_bridge) {
++		for (;;) {
++			try {
++				if (m_housing_inventory_bridge->CloseSession()) break;
++			} catch (...) {
++				// An unresolved lease must never fall through to a stale save.
++			}
++			std::this_thread::sleep_for(std::chrono::milliseconds(250));
++		}
++		m_housing_inventory_bridge.reset();
++	}
++
+ 	entity_list.RemoveMobFromCloseLists(this);
+ 	m_close_mobs.clear();
+ 
++	// A rejected/unloaded ingress has authenticated IDs but does not own the
++	// existing actor's profile. Skip writer/callback lifecycle for that shell.
++	const bool owns_loaded_profile = !m_inventory_session_rejected &&
++		(!RuleB(Housing, EnablePlayerHousing) || (ClientDataLoaded() && HasInventorySessionReservation()));
++	mMovementManager->RemoveClient(this);
++	if (!owns_loaded_profile && trade) trade->Reset(); // shell owns no real trade partner
++	if (owns_loaded_profile) {
+ 	if (ClientVersion() == EQ::versions::ClientVersion::RoF2 && RuleB (Parcel, EnableParcelMerchants)) {
+ 		DoParcelCancel();
+ 	}
+ 
+-	mMovementManager->RemoveClient(this);
+-
+ 	DataBucket::DeleteCachedBuckets(DataBucketLoadType::Account, AccountID());
+ 	DataBucket::DeleteCachedBuckets(DataBucketLoadType::Client, CharacterID());
+ 
+@@ -793,6 +856,7 @@ Client::~Client() {
+ 	// we save right now, because the client might be zoning and the world
+ 	// will need this data right away
+ 	Save(2); // This fails when database destructor is called first on shutdown
++	} // owned loaded-profile lifecycle
+ 
+ 	safe_delete(task_state);
+ 	safe_delete(KarmaUpdateTimer);
+@@ -890,6 +954,8 @@ void Client::SendZoneInPackets()
+ 		SendLFGuildStatus();
+ 	}
+ 
++	SendHousingZoneCatalog();
++
+ 	//No idea why live sends this if even were not in a guild
+ 	SendGuildMOTD();
+ }
+@@ -992,6 +1058,9 @@ void Client::RemoveExpendedAA(int aa_id)
+ }
+ 
+ bool Client::Save(uint8 iCommitNow) {
++	if (m_inventory_session_rejected ||
++		(RuleB(Housing, EnablePlayerHousing) && !HasInventorySessionReservation())) return false;
++
+ 	if(!ClientDataLoaded())
+ 		return false;
+ 
+diff --git a/zone/client.h b/zone/client.h
+index d5e8f3e..9431a5d 100644
+--- a/zone/client.h
++++ b/zone/client.h
+@@ -1,3 +1,4 @@
++#include <chrono>
+ /* EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.org)
+ 
+@@ -33,6 +34,11 @@ struct DynamicZoneLocation;
+ enum WaterRegionType : int;
+ enum class DynamicZoneMemberStatus;
+ 
++namespace Housing::InventoryBridge { class Bridge; }
++namespace Housing::NativePlacement { struct Session; }
++namespace Housing::AnchorTransport {struct Pending;}
++namespace Housing::InventorySessions { class ZoneReservation; }
++
+ namespace EQ
+ {
+ 	struct ItemData;
+@@ -263,6 +269,13 @@ public:
+ 
+ 	Client(EQStreamInterface * ieqs);
+ 	Client(); // mocking / testing
++	bool m_housing_gate_open = false;
++	Housing::InventoryBridge::Bridge* GetHousingInventoryBridge();
++	bool ClaimInventorySessionReservation();
++	void RejectInventorySessionAdmission() { m_inventory_session_rejected = true; }
++	bool HasInventorySessionReservation() const;
++	std::shared_ptr<Housing::InventorySessions::ZoneReservation> InventorySessionReleaseTicket() const;
++
+ 	~Client();
+ 
+ 	void ReconnectUCS();
+@@ -387,6 +400,11 @@ public:
+ 		std::list<void *> *event_details = nullptr
+ 	);
+ 	void SendZonePoints();
++	void SendHousingZoneCatalog();
++	bool SendHousingZoneCatalogChecked();
++	void RememberHousingAclRevision(uint32_t native_id,uint64_t revision) { m_housing_acl_revisions[native_id]=revision; }
++	std::optional<uint64_t> HousingAclRevision(uint32_t native_id) const { auto i=m_housing_acl_revisions.find(native_id);return i==m_housing_acl_revisions.end()?std::nullopt:std::optional<uint64_t>(i->second); }
++	void ClearHousingAclRevisions() { m_housing_acl_revisions.clear(); }
+ 	void SendBulkParcels();
+ 	void DoParcelCancel();
+ 	void DoParcelSend(const Parcel_Struct *parcel_in);
+@@ -1306,6 +1324,35 @@ public:
+ 	uint16 sacrifice_caster_id;
+ 	PendingTranslocate_Struct PendingTranslocateData;
+ 	void SendOPTranslocateConfirm(Mob *Caster, uint16 SpellID);
++	void ProcessHousingTrophyBenefits();
++ void ProcessHousingGuildTrophyBenefits();
++ void InvalidateHousingGuildTrophyBenefits(bool request_world=false);
++ void RefreshHousingGuildTrophyBenefits(bool request_world=false);
++ void SendHousingGuildTrophyRequest(uint32 action=0,uint32 target=0);
++ uint32 HousingGuildTrophyRemaining()const;
++ const std::vector<uint32>& HousingGuildTrophyStatItems()const{return m_housing_guild_trophy_stat_items;}
++ void Handle_OP_GuildTrophyToggle(const EQApplicationPacket*);
++ void Handle_OP_GuildTrophySave(const EQApplicationPacket*);
++ void Handle_OP_GuildTrophyModify(const EQApplicationPacket*);
++ void Handle_OP_GuildTrophyOptIn(const EQApplicationPacket*);
++ std::vector<uint32> m_housing_guild_trophy_stat_items;
++ bool m_housing_guild_trophy_dirty=true,m_housing_guild_trophy_ready=false,m_housing_guild_trophy_world_request=false;
++ uint32 m_housing_guild_trophy_guild=0,m_housing_guild_trophy_level=0;
++ std::chrono::steady_clock::time_point m_housing_guild_trophy_deadline{};
++
++	void InvalidateHousingTrophyBenefits();
++	static void HousingTrophySourcesChanged() noexcept;
++	static void HousingUpkeepChanged() noexcept;
++	bool m_housing_trophy_dirty=true;
++	bool m_housing_trophy_ready=false;
++	uint32_t m_housing_trophy_capacity=0xffffffff;
++	void RefreshHousingTrophyBenefits(bool notify=true,bool recalculate=true,bool renew=false);
++	std::chrono::steady_clock::time_point m_housing_trophy_deadline{};
++	const std::vector<uint32_t>& HousingTrophyStatItems()const{return m_housing_trophy_stat_items;}
++	std::vector<uint32_t> m_housing_trophy_stat_items;
++	bool m_housing_trophy_sent=false;
++	uint32_t HousingTrophyCapacity()const;
++	void ApplyHousingAnchorSpell(Client* caster,uint32_t item_id,bool confirmation);
+ 
+ 	// Help Window
+ 	std::string SendBotCommandHelpWindow(const BotCommandHelpParams& params);
+@@ -2047,6 +2094,12 @@ private:
+ 
+ 	uint8 playeraction;
+ 
++	bool m_inventory_session_rejected = false;
++	std::shared_ptr<Housing::InventorySessions::ZoneReservation> m_inventory_session_reservation;
++	std::unique_ptr<Housing::InventoryBridge::Bridge> m_housing_inventory_bridge;
++	std::shared_ptr<Housing::NativePlacement::Session> m_housing_placement_session;
++	std::map<uint32_t,uint64_t> m_housing_acl_revisions;
++	std::shared_ptr<Housing::AnchorTransport::Pending> m_housing_anchor_pending;
+ 	EQStreamInterface* eqs;
+ 
+ 	uint32 ip;
+@@ -2142,7 +2195,11 @@ private:
+ public:
+ 	bool IsLockSavePosition() const;
+ 	void SetLockSavePosition(bool lock_save_position);
++	void RestoreRejectedZonePosition();
+ private:
++	// Source position captured before a solicited transfer can overwrite it.
++	glm::vec4 m_zone_transfer_origin{};
++	bool m_zone_transfer_origin_valid = false;
+ 
+ 	PlayerProfile_Struct m_pp;
+ 	ExtendedProfile_Struct m_epp;
+diff --git a/zone/client_packet.cpp b/zone/client_packet.cpp
+index a059bef..484044a 100644
+--- a/zone/client_packet.cpp
++++ b/zone/client_packet.cpp
+@@ -43,6 +43,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ #include "../common/data_verification.h"
+ #include "../common/rdtsc.h"
+ #include "../common/data_bucket.h"
++#include "../common/housing/admission_guard.h"
++#include "housing_house_reload.h"
++#include "housing_house_runtime.h"
+ #include "dynamic_zone.h"
+ #include "event_codes.h"
+ #include "guild_mgr.h"
+@@ -62,6 +65,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ #include "gm_commands/door_manipulation.h"
+ #include "gm_commands/object_manipulation.h"
+ #include "client.h"
++#include "../common/housing/plot_search_open.h"
+ #include "../common/repositories/account_repository.h"
+ #include "../common/repositories/character_corpses_repository.h"
+ #include "../common/repositories/guild_tributes_repository.h"
+@@ -128,6 +132,31 @@ void MapOpcodes()
+ 	ConnectedOpcodes[OP_AdventureMerchantRequest] = &Client::Handle_OP_AdventureMerchantRequest;
+ 	ConnectedOpcodes[OP_AdventureMerchantSell] = &Client::Handle_OP_AdventureMerchantSell;
+ 	ConnectedOpcodes[OP_AdventureRequest] = &Client::Handle_OP_AdventureRequest;
++	ConnectedOpcodes[OP_RealEstateNeighborhood] = &Client::Handle_OP_RealEstateNeighborhood;
++	ConnectedOpcodes[OP_GuildTrophyToggle]=&Client::Handle_OP_GuildTrophyToggle;
++    ConnectedOpcodes[OP_GuildTrophySave]=&Client::Handle_OP_GuildTrophySave;
++    ConnectedOpcodes[OP_GuildTrophyModify]=&Client::Handle_OP_GuildTrophyModify;
++    ConnectedOpcodes[OP_GuildTrophyOptIn]=&Client::Handle_OP_GuildTrophyOptIn;
++    ConnectedOpcodes[OP_RealEstateTrophy] = &Client::Handle_OP_RealEstateTrophy;
++	ConnectedOpcodes[OP_RealEstateTrophyToggle] = &Client::Handle_OP_RealEstateTrophyToggle;
++	ConnectedOpcodes[OP_RealEstateAnchorConfirm] = &Client::Handle_OP_RealEstateAnchorConfirm;
++	ConnectedOpcodes[OP_RealEstateGo] = &Client::Handle_OP_RealEstateGo;
++	ConnectedOpcodes[OP_RealEstateExit] = &Client::Handle_OP_RealEstateGo; // Same checked routing dispatcher; distinct native frame.
++	ConnectedOpcodes[OP_RealEstatePurchase] = &Client::Handle_OP_RealEstatePurchase;
++	ConnectedOpcodes[OP_RealEstateInspect] = &Client::Handle_OP_RealEstateInspect;
++	ConnectedOpcodes[OP_RealEstatePlacementBegin] = &Client::Handle_OP_RealEstatePlacementBegin;
++	ConnectedOpcodes[OP_RealEstatePlacementCommit] = &Client::Handle_OP_RealEstatePlacementCommit;
++	ConnectedOpcodes[OP_RealEstatePickup] = &Client::Handle_OP_RealEstatePickup;
++	ConnectedOpcodes[OP_RealEstateStoreAll] = &Client::Handle_OP_RealEstateStoreAll;
++	ConnectedOpcodes[OP_RealEstateLoadLayout] = &Client::Handle_OP_RealEstateLoadLayout;
++	ConnectedOpcodes[OP_RealEstatePack] = &Client::Handle_OP_RealEstatePack;
++	ConnectedOpcodes[OP_RealEstateItemOperation] = &Client::Handle_OP_RealEstateItemOperation;
++	ConnectedOpcodes[OP_RealEstateAccessEdit] = &Client::Handle_OP_RealEstateMetadata;
++	ConnectedOpcodes[OP_RealEstateItemMenu] = &Client::Handle_OP_RealEstateInteraction;
++	ConnectedOpcodes[OP_RealEstateItemQuery] = &Client::Handle_OP_RealEstateInteraction;
++	ConnectedOpcodes[OP_RealEstateEscrow] = &Client::Handle_OP_RealEstateEscrow;
++	ConnectedOpcodes[OP_RealEstateTransfer] = &Client::Handle_OP_RealEstateTransfer;
++	ConnectedOpcodes[OP_RealEstateSale] = &Client::Handle_OP_RealEstateSale;
+ 	ConnectedOpcodes[OP_AdventureStatsRequest] = &Client::Handle_OP_AdventureStatsRequest;
+ 	ConnectedOpcodes[OP_AggroMeterLockTarget] = &Client::Handle_OP_AggroMeterLockTarget;
+ 	ConnectedOpcodes[OP_AltCurrencyMerchantRequest] = &Client::Handle_OP_AltCurrencyMerchantRequest;
+@@ -533,6 +562,7 @@ void Client::CompleteConnect()
+ 	UpdateWho();
+ 	client_state = CLIENT_CONNECTED;
+ 	SendAllPackets();
++	// Catalog packets queued during zone-in precede the durable placed-item scene.
+ 	hpupdate_timer.Start();
+ 	autosave_timer.Start();
+ 	SetDuelTarget(0);
+@@ -887,6 +917,12 @@ void Client::CompleteConnect()
+ 
+ 	CalcItemScale();
+ 	DoItemEnterZone();
++	// Interior context requires the genuine loaded/connected inventory fence,
++	// so publish it here before the scene. Exterior catalog was queued earlier.
++	if (zone->GetZoneID() != 712) SendHousingZoneCatalog();
++	// Inventory admission and profile load must both be complete before a
++	// custody lease can publish persistent furniture to this connected client.
++	SendHousingPlacedScene();
+ 
+ 	if (zone->GetZoneID() == Zones::GUILDHALL && GuildBanks)
+ 		GuildBanks->SendGuildBank(this);
+@@ -1261,6 +1297,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
+ 
+ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+ {
++	if (m_inventory_session_rejected) { Disconnect(); return; }
+ 	if (app->size != sizeof(ClientZoneEntry_Struct))
+ 		return;
+ 	ClientZoneEntry_Struct *cze = (ClientZoneEntry_Struct *)app->pBuffer;
+@@ -1282,6 +1319,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+ 	Client* client = entity_list.GetClientByName(cze->char_name);
+ 	if (!zone->GetAuth(ip, cze->char_name, &WID, &account_id, &character_id, &admin, lskey, &tellsoff)) {
+ 		LogClientLogin("[{}] failed zone auth check", cze->char_name);
++		if (RuleB(Housing, EnablePlayerHousing)) {
++			RejectInventorySessionAdmission();
++			Disconnect();
++			return; // unclaimed ingress must not save/kick a real reservation owner
++		}
++
+ 		if (nullptr != client) {
+ 			client->Save();
+ 			client->Kick("Failed auth check");
+@@ -1289,6 +1332,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+ 		return;
+ 	}
+ 
++	// Trusted zone auth has resolved character/account. Reject before antighost
++	// saves or inventory load can touch a character with unresolved custody.
++	if (Housing::CheckInventoryAdmission(database, CharacterID(), RuleB(Housing, EnablePlayerHousing)) !=
++		Housing::InventoryAdmission::Allowed) {
++		LogWarning("Character [{}] zone admission blocked by unresolved/unavailable housing custody state", CharacterID());
++		RejectInventorySessionAdmission();
++		Disconnect();
++		return;
++	}
++
++	// Every enabled client version must win durable per-character ownership
++	// before antighost callbacks or any profile/inventory loading can occur.
++	if (RuleB(Housing, EnablePlayerHousing) && !ClaimInventorySessionReservation()) {
++		LogWarning("Character [{}] inventory-session admission unavailable or already owned", CharacterID());
++		RejectInventorySessionAdmission();
++		Disconnect();
++		return;
++	}
++
+ 	strcpy(name, cze->char_name);
+ 	/* Check for Client Spoofing */
+ 	if (client != 0) {
+@@ -1370,7 +1432,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+ 	// set to full support in case they're a gm with items in disabled expansion slots...but, have their gm flag off...
+ 	// item loss will occur when they use the 'empty' slots, if this is not done
+ 	m_inv.SetGMInventory(true);
+-	loaditems = database.GetInventory(this); /* Load Character Inventory */
++	// Recheck already-issued ingress authorization just before GetInventory,
++	// which rewrites runtime GUID metadata. No timeout lease takeover.
++	if (Housing::CheckCustodyAdmission(database, CharacterID(), RuleB(Housing, EnablePlayerHousing)) !=
++		Housing::InventoryAdmission::Allowed) {
++		RejectInventorySessionAdmission();
++		Disconnect();
++		return;
++	}
++	if (RuleB(Housing, EnablePlayerHousing) && !HasInventorySessionReservation()) {
++		RejectInventorySessionAdmission();
++		Disconnect();
++		return;
++	}
++	loaditems = Housing::HousePreload::LoadInventoryWithHouseBindings(*this,database,RuleB(Housing,EnablePlayerHousing));
++	if (RuleB(Housing, EnablePlayerHousing) && !loaditems) {
++		RejectInventorySessionAdmission();
++		Disconnect();
++		return;
++	}
+ 	database.LoadCharacterBandolier(cid, &m_pp); /* Load Character Bandolier */
+ 	database.LoadCharacterBindPoint(cid, &m_pp); /* Load Character Bind */
+ 	database.LoadCharacterMaterialColor(cid, &m_pp); /* Load Character Material */
+@@ -4705,7 +4785,34 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
+ 		);
+ 	}
+ 
++	if (Housing::HouseRuntime::HandleVerifiedGuildLobbyDoor(*this,currentdoor->GetDoorID(),within_distance)) return;
++
++	// Original type160 housing markers send ordinary ClickDoor. Open the
++	// native neighborhood list in inspect mode; selection sends796c and the
++	// existing purchase handler independently authorizes the selected plot.
++	if (RuleB(Housing, EnablePlayerHousing) && zone && zone->GetZoneID() == 712 &&
++		!zone->GetInstanceVersion() && zone->GetInstanceID() &&
++		ClientVersion() == EQ::versions::ClientVersion::RoF2 && currentdoor->GetOpenType() == 160) {
++		if (within_distance && Connected() && ClientDataLoaded() && SendHousingZoneCatalogChecked()) {
++			const auto payload = Housing::PlotSearchOpen::InspectMode();
++			auto *open = new EQApplicationPacket(OP_RealEstatePlotSearchOpen, payload.size());
++			std::memcpy(open->pBuffer, payload.data(), payload.size()); // Set AFTER native Show resets the mode byte.
++			FastQueuePacket(&open);
++			LogInfo("Native housing plot marker opened inspect-mode search actor [{}] door [{}]", CharacterID(), currentdoor->GetDoorID());
++		}
++		return;
++	}
++
++
+ 	// don't spam scripts with client controlled doors if not within distance
++	if (RuleB(Housing, EnablePlayerHousing) && zone->GetZoneID() == 344 &&
++		currentdoor->GetDoorID() == 77 && within_distance &&
++		ClientVersion() == EQ::versions::ClientVersion::RoF2) {
++		m_housing_gate_open = true;
++		SendHousingNeighborhoods();
++		return;
++	}
++
+ 	if (within_distance) {
+ 		int quest_return = 0;
+ 		if (parse->PlayerHasQuestSub(EVENT_CLICK_DOOR)) {
+@@ -6470,8 +6577,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
+ 	return;
+ }
+ 
++bool HandleHousingPlotFind(Client*,const EQApplicationPacket*);
++
+ void Client::Handle_OP_FindPersonRequest(const EQApplicationPacket *app)
+ {
++	if (HandleHousingPlotFind(this,app)) return;
+ 	if (app->size != sizeof(FindPersonRequest_Struct))
+ 		printf("Error in FindPersonRequest_Struct. Expected size of: %zu, but got: %i\n", sizeof(FindPersonRequest_Struct), app->size);
+ 	else {
+@@ -17072,8 +17205,8 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
+ 
+ 	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
+ 	if (guild) {
+-		guild->tribute.favor += favor;
+-		guild_mgr.UpdateDbGuildFavor(GuildID(), guild->tribute.favor);
++		auto credited=guild_mgr.AdjustDbGuildFavor(GuildID(),int64(favor));
++		if(!credited)return;guild->tribute.favor=*credited;
+ 		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
+ 
+ 		if (inst->IsStackable()) {
+@@ -17130,8 +17263,8 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
+ 	auto favor = quantity * RuleI(Guild, TributePlatConversionRate);
+ 	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
+ 	if (guild) {
+-		guild->tribute.favor += favor;
+-		guild_mgr.UpdateDbGuildFavor(GuildID(), guild->tribute.favor);
++		auto credited=guild_mgr.AdjustDbGuildFavor(GuildID(),int64(favor));
++		if(!credited)return;guild->tribute.favor=*credited;
+ 		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
+ 
+ 		TakePlatinum(quantity, false);
+diff --git a/zone/client_packet.h b/zone/client_packet.h
+index 0840f5e..c686342 100644
+--- a/zone/client_packet.h
++++ b/zone/client_packet.h
+@@ -1,4 +1,27 @@
+ 	/* Connecting OpCode Handlers */
++	void Handle_OP_RealEstateNeighborhood(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateTrophy(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateTrophyToggle(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateAnchorConfirm(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateGo(const EQApplicationPacket *app);
++	bool HandleHousingHouseGo(const EQApplicationPacket *app);
++	void Handle_OP_RealEstatePurchase(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateInspect(const EQApplicationPacket *app);
++	void Handle_OP_RealEstatePlacementBegin(const EQApplicationPacket *app);
++	void Handle_OP_RealEstatePlacementCommit(const EQApplicationPacket *app);
++	void Handle_OP_RealEstatePickup(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateStoreAll(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateLoadLayout(const EQApplicationPacket *app);
++	void Handle_OP_RealEstatePack(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateItemOperation(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateMetadata(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateInteraction(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateEscrow(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateTransfer(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateSale(const EQApplicationPacket *app);
++	void SendHousingChairMenu(uint32_t estate,uint32_t item,std::array<uint32_t,2> mouse,const std::string& claimed_guid={});
++	void SendHousingPlacedScene();
++	void SendHousingNeighborhoods(const std::string& name_filter = "", const std::string& player_filter = "", bool owned_only = false, uint32_t context = 0);
+ 	void Handle_Connect_0x3e33(const EQApplicationPacket *app);
+ 	void Handle_Connect_OP_ApproveZone(const EQApplicationPacket *app);
+ 	void Handle_Connect_OP_ClientError(const EQApplicationPacket *app);
+diff --git a/zone/client_process.cpp b/zone/client_process.cpp
+index e149857..46c6097 100644
+--- a/zone/client_process.cpp
++++ b/zone/client_process.cpp
+@@ -515,6 +515,8 @@ bool Client::Process() {
+ 			ShieldAbilityFinish();
+ 		}
+ 
++		ProcessHousingTrophyBenefits();
++        ProcessHousingGuildTrophyBenefits();
+ 		SpellProcess();
+ 		if (endupkeep_timer.Check() && !dead) {
+ 			DoEnduranceUpkeep();
+@@ -578,7 +580,8 @@ bool Client::Process() {
+ 	if (client_state == DISCONNECTED) {
+ 		OnDisconnect(true);
+ 		std::cout << "Client disconnected (cs=d): " << GetName() << std::endl;
+-		RecordPlayerEventLog(PlayerEvent::POSSIBLE_HACK, PlayerEvent::PossibleHackEvent{.message = "/MQInstantCamp: Possible instant camp disconnect"});
++		if (!m_inventory_session_rejected && (!RuleB(Housing, EnablePlayerHousing) || ClientDataLoaded()))
++			RecordPlayerEventLog(PlayerEvent::POSSIBLE_HACK, PlayerEvent::PossibleHackEvent{.message = "/MQInstantCamp: Possible instant camp disconnect"});
+ 		return false;
+ 	}
+ 
+@@ -699,6 +702,14 @@ bool Client::Process() {
+ 
+ /* Just a set of actions preformed all over in Client::Process */
+ void Client::OnDisconnect(bool hard_disconnect) {
++	if (m_inventory_session_rejected ||
++		(RuleB(Housing, EnablePlayerHousing) && (!ClientDataLoaded() || !HasInventorySessionReservation()))) {
++		// No empty-profile saves, real-actor trade resets, quest callbacks or
++		// ingame/presence writes from a losing/unloaded ingress object.
++		Disconnect();
++		return;
++	}
++
+ 	if (hard_disconnect) {
+ 		LeaveGroup();
+ 
+diff --git a/zone/common.h b/zone/common.h
+index 6a11f72..b7e6aa6 100644
+--- a/zone/common.h
++++ b/zone/common.h
+@@ -269,6 +269,8 @@ struct Buffs_Struct {
+ };
+ 
+ struct StatBonuses {
++	int32 ExpandMaxActiveTrophyBenefits; // SPA432, original base4 capped10
++
+ 	int32	AC;
+ 	int64	HP;
+ 	int64	HPRegen;
+diff --git a/zone/entity.cpp b/zone/entity.cpp
+index 37fa9b4..84713ff 100644
+--- a/zone/entity.cpp
++++ b/zone/entity.cpp
+@@ -32,6 +32,7 @@
+ #include "../common/guilds.h"
+ 
+ #include "entity.h"
++#include "inventory_session_owner.h"
+ #include "dynamic_zone.h"
+ #include "guild_mgr.h"
+ #include "petitions.h"
+@@ -2654,7 +2655,9 @@ void EntityList::RemoveAllMobs()
+ 			++it;
+ 			continue;
+ 		}
++		auto inventory_ticket = it->second->IsClient() ? it->second->CastToClient()->InventorySessionReleaseTicket() : nullptr;
+ 		safe_delete(it->second);
++		if (inventory_ticket) inventory_ticket->ReleaseAfterCompleteDelete();
+ 		free_ids.push(it->first);
+ 		it = mob_list.erase(it);
+ 	}
+@@ -2800,7 +2803,9 @@ bool EntityList::RemoveMob(uint16 delete_id)
+ 		else if (client_list.count(delete_id)) {
+ 			entity_list.RemoveClient(delete_id);
+ 		}
++		auto inventory_ticket = it->second->IsClient() ? it->second->CastToClient()->InventorySessionReleaseTicket() : nullptr;
+ 		safe_delete(it->second);
++		if (inventory_ticket) inventory_ticket->ReleaseAfterCompleteDelete();
+ 		if (!corpse_list.count(delete_id)) {
+ 			free_ids.push(it->first);
+ 		}
+diff --git a/zone/gm_commands/invsnapshot.cpp b/zone/gm_commands/invsnapshot.cpp
+index 425c04f..b787fab 100755
+--- a/zone/gm_commands/invsnapshot.cpp
++++ b/zone/gm_commands/invsnapshot.cpp
+@@ -1,4 +1,5 @@
+ #include "../client.h"
++#include "../../common/housing/admission_guard.h"
+ 
+ void command_invsnapshot(Client *c, const Seperator *sep)
+ {
+@@ -228,6 +229,12 @@ void command_invsnapshot(Client *c, const Seperator *sep)
+ 			return;
+ 		}
+ 
++		if (Housing::CheckInventoryMaintenance(RuleB(Housing, EnablePlayerHousing)) !=
++			Housing::InventoryAdmission::Allowed) {
++			c->Message(Chat::Red, "Inventory restore is unavailable while housing is enabled: a transaction-safe offline maintenance adapter is required. No items were changed.");
++			return;
++		}
++
+ 		uint32 timestamp = Strings::ToUnsignedInt(sep->arg[2]);
+ 
+ 		if (!database.ValidateCharacterInvSnapshotTimestamp(tc->CharacterID(), timestamp)) {
+diff --git a/zone/guild.cpp b/zone/guild.cpp
+index 9c48b5e..ca4a35f 100644
+--- a/zone/guild.cpp
++++ b/zone/guild.cpp
+@@ -240,6 +240,7 @@ void Client::SendGuildMembers() {
+ 
+ void Client::RefreshGuildInfo()
+ {
++ InvalidateHousingGuildTrophyBenefits(true);
+ 	uint32 OldGuildID = guild_id;
+ 
+ 	guildrank = GUILD_RANK_NONE;
+@@ -437,6 +438,7 @@ void EntityList::GuildSetPreRoFBankerFlag(uint32 guild_id, uint32 guild_rank, bo
+ 
+ void Client::SetGuildRank(uint32 rank)
+ {
++ InvalidateHousingGuildTrophyBenefits(true);
+ 	guildrank = rank;
+ }
+ 
+@@ -447,6 +449,7 @@ void Client::SetGuildTributeOptIn(bool state)
+ 
+ void Client::SetGuildID(uint32 g_id)
+ {
++ InvalidateHousingGuildTrophyBenefits(true);
+ 	guild_id = g_id;
+ }
+ 
+diff --git a/zone/inventory.cpp b/zone/inventory.cpp
+index 1c2b62c..25b70c2 100644
+--- a/zone/inventory.cpp
++++ b/zone/inventory.cpp
+@@ -28,6 +28,7 @@
+ #include "../common/evolving_items.h"
+ #include "../common/repositories/character_corpse_items_repository.h"
+ #include "queryserv.h"
++#include "housing_house_inventory_swap.h"
+ 
+ extern WorldServer worldserver;
+ extern QueryServ  *QServ;
+@@ -1600,6 +1601,15 @@ bool Client::IsBankSlot(uint32 slot)
+ // Moves items around both internally and in the database
+ // In the future, this can be optimized by pushing all changes through one database REPLACE call
+ bool Client::SwapItem(MoveItem_Struct* move_in) {
++	if (!move_in) return false;
++	const auto house_swap = Housing::HouseInventory::TryZoneSwap(*this, move_in->from_slot, move_in->to_slot, move_in->number_in_stack);
++	if (house_swap == Housing::HouseInventory::SwapDisposition::Rejected) return false;
++	if (house_swap == Housing::HouseInventory::SwapDisposition::Moved) {
++		if (move_in->from_slot == EQ::invslot::slotCursor) SendCursorBuffer();
++		CalcBonuses();
++		ApplyWeaponsStance();
++		return true;
++	}
+ 
+ 	uint32 src_slot_check = move_in->from_slot;
+ 	uint32 dst_slot_check = move_in->to_slot;
+diff --git a/zone/main.cpp b/zone/main.cpp
+index 4f59160..3801d95 100644
+--- a/zone/main.cpp
++++ b/zone/main.cpp
+@@ -60,6 +60,8 @@
+ #include "../common/net/eqstream.h"
+ 
+ #include <signal.h>
++#include "housing_inventory_bridge.h"
++#include "housing_house_runtime.h"
+ #include <chrono>
+ 
+ #ifdef _CRTDBG_MAP_ALLOC
+@@ -110,6 +112,7 @@ double frame_time = 0.0;
+ void Shutdown();
+ void UpdateWindowTitle(char *iNewTitle);
+ void CatchSignal(int sig_num);
++namespace { volatile sig_atomic_t housing_shutdown_requested = 0; }
+ 
+ extern void MapOpcodes();
+ 
+@@ -527,7 +530,23 @@ int main(int argc, char **argv)
+ 	std::chrono::time_point<std::chrono::system_clock> frame_prev = std::chrono::system_clock::now();
+ 	std::unique_ptr<EQ::Net::WebsocketServer>          ws_server;
+ 
++	// Inventory reconciliation relies on this serial simulation thread. Signals
++	// request shutdown; they must never run lifecycle saves inside a transaction.
++	Housing::InventoryBridge::RegisterZoneThreadAtSafeStartup();
++	if (!Housing::HouseRuntime::LoadPersonalTestAtSafeStartup()) {
++		LogError("Invalid isolated personal-house test manifest or resource witness");
++		return 1;
++	}
++	// Original RoF2 LEFT click verified 2026-10-16 in lobby344/v0/i0:
++	// Door40 at +48.4/624.75; legacy same-position2 is not this native door.
++	// The dedicated runtime hook rechecks actual source, range and fresh guild
++	// authority. Other doors/versions keep their existing quest behavior.
++	if (!Housing::HouseRuntime::ConfigureVerifiedGuildLobbyDoorAtSafeStartup({344, 0, 0}, 40)) {
++		LogError("Unable to register the verified RoF2 Guild Lobby left door");
++		return 1;
++	}
+ 	auto loop_fn = [&](EQ::Timer *t) {
++		if (housing_shutdown_requested) { Shutdown(); return; }
+ 		//Advance the timer to our current point in time
+ 		Timer::SetCurrentTime();
+ 
+@@ -686,18 +705,17 @@ int main(int argc, char **argv)
+ 
+ void Shutdown()
+ {
+-	zone->Shutdown(true);
++	if (zone) zone->Shutdown(true);
+ 	LogInfo("Shutting down...");
+ 	EQEmuLogSys::Instance()->CloseFileLogs();
+ 	EQ::EventLoop::Get().Shutdown();
+ }
+ 
+-void CatchSignal(int sig_num)
++void CatchSignal(int)
+ {
+-#ifdef _WINDOWS
+-	LogInfo("Recieved signal: [{}]", sig_num);
+-#endif
+-	Shutdown();
++	// Only an async-signal-safe flag write. Normal loop performs shutdown after
++	// any synchronous inventory transaction/recovery barrier has returned.
++	housing_shutdown_requested = 1;
+ }
+ 
+ /* Update Window Title with relevant information */
+diff --git a/zone/map.cpp b/zone/map.cpp
+index bf6ff68..5757c1a 100644
+--- a/zone/map.cpp
++++ b/zone/map.cpp
+@@ -262,6 +262,23 @@ bool Map::CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const {
+ }
+ 
+ // returns true if a collision happens
++bool Map::IntersectsBox(const glm::vec3& minimum,const glm::vec3& maximum) const {
++ if(!imp||!imp->rm)return true;
++ return imp->rm->overlapsBox(&minimum.x,&maximum.x);
++}
++
++bool Map::IntersectsBoxExceptTriangles(const glm::vec3& minimum,const glm::vec3& maximum,uint32_t source_a,uint32_t source_b) const {
++ if(!imp||!imp->rm)return true;
++ return imp->rm->overlapsBoxExceptTriangles(&minimum.x,&maximum.x,source_a,source_b);
++}
++
++std::vector<uint32_t> Map::SourceMountPatch(const glm::vec3& minimum,const glm::vec3& maximum,uint32_t axis,uint32_t a,uint32_t b,const std::vector<uint32_t>& candidates) const {
++ if(!imp||!imp->rm)return {};return imp->rm->sourceMountPatch(&minimum.x,&maximum.x,axis,a,b,candidates);
++}
++bool Map::IntersectsBoxExceptTriangleList(const glm::vec3& minimum,const glm::vec3& maximum,const std::vector<uint32_t>& sources) const {
++ if(!imp||!imp->rm)return true;return imp->rm->overlapsBoxExceptTriangleList(&minimum.x,&maximum.x,sources);
++}
++
+ bool Map::DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, float &distance) const {
+ 	if(!imp)
+ 		return false;
+diff --git a/zone/map.h b/zone/map.h
+index 20fad6e..5c3e782 100644
+--- a/zone/map.h
++++ b/zone/map.h
+@@ -44,6 +44,12 @@ public:
+ 	bool LineIntersectsZone(glm::vec3 start, glm::vec3 end, float step, glm::vec3 *result) const;
+ 	bool LineIntersectsZoneNoZLeaps(glm::vec3 start, glm::vec3 end, float step_mag, glm::vec3 *result) const;
+ 	bool CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const;
++	bool IntersectsBox(const glm::vec3& minimum,const glm::vec3& maximum) const;
++	// Housing-only trusted source contact; all other triangles remain blockers.
++	bool IntersectsBoxExceptTriangles(const glm::vec3& minimum,const glm::vec3& maximum,uint32_t source_a,uint32_t source_b) const;
++ std::vector<uint32_t> SourceMountPatch(const glm::vec3& minimum,const glm::vec3& maximum,uint32_t axis,uint32_t source_a,uint32_t source_b,const std::vector<uint32_t>& candidates) const;
++ bool IntersectsBoxExceptTriangleList(const glm::vec3& minimum,const glm::vec3& maximum,const std::vector<uint32_t>& sources) const;
++
+ 	bool DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, float &distance) const;
+ 
+ #ifdef USE_MAP_MMFS
+diff --git a/zone/raycast_mesh.cpp b/zone/raycast_mesh.cpp
+index 20c3f6b..e484df3 100644
+--- a/zone/raycast_mesh.cpp
++++ b/zone/raycast_mesh.cpp
+@@ -1,3 +1,8 @@
++#include <mutex>
++#include <tuple>
++#include <memory>
++#include "../common/housing/mount_surface_patch.h"
++#include "../common/housing/exterior_exit_geometry.h"
+ #include "raycast_mesh.h"
+ #include "../common/memory/ksm.hpp"
+ #include "../common/eqemu_logsys.h"
+@@ -644,6 +649,14 @@ public:
+ 		}
+ 
+ 
++ bool overlapsBox(const Housing::ExteriorExit::Box& box,const RmReal *vertices,RmUint32 vcount,const RmUint32 *indices,RmUint32 tcount,const TriVector& leaf,RmUint32 ignore_a=TRI_EOF,RmUint32 ignore_b=TRI_EOF,const std::vector<RmUint32>* source_list=nullptr) const {
++  for(unsigned i=0;i<3;++i)if(mBounds.mMax[i]<box.minimum[i]||mBounds.mMin[i]>box.maximum[i])return false;
++  if(mLeafTriangleIndex!=TRI_EOF){if(mLeafTriangleIndex>=leaf.size())return true;auto count=leaf[mLeafTriangleIndex];if(count>leaf.size()-mLeafTriangleIndex-1)return true;
++   for(RmUint32 j=0;j<count;++j){auto tri=leaf[mLeafTriangleIndex+1+j];if(tri>=tcount)return true;if(tri==ignore_a||tri==ignore_b||(source_list&&std::binary_search(source_list->begin(),source_list->end(),tri)))continue;std::array<Housing::ExteriorExit::Point,3> points;for(unsigned k=0;k<3;++k){auto index=indices[3*tri+k];if(index>=vcount)return true;for(unsigned i=0;i<3;++i)points[k][i]=vertices[3*index+i];}if(Housing::ExteriorExit::TriangleOverlap(box,points))return true;}return false;
++  }
++  return (mLeft&&mLeft->overlapsBox(box,vertices,vcount,indices,tcount,leaf,ignore_a,ignore_b,source_list))||(mRight&&mRight->overlapsBox(box,vertices,vcount,indices,tcount,leaf,ignore_a,ignore_b,source_list));
++ }
++
+ 		virtual void raycast(bool &hit,
+ 							const RmReal *from,
+ 							const RmReal *to,
+@@ -737,8 +750,48 @@ public:
+ 
+ class MyRaycastMesh : public RaycastMesh, public NodeInterface
+ {
++ // Source geometry is immutable for this mesh's lifetime. Cache only source
++ // topology; never cache a pose/contact/coverage/collision/authorization result.
++ struct MountTopology {std::vector<Housing::MountSurfacePatch::Triangle> triangles;std::vector<RmUint32> ids;};
++ using MountKey=std::tuple<RmUint32,RmUint32,RmUint32,std::vector<RmUint32>>;
++ mutable std::mutex mMountMutex;
++ mutable std::map<MountKey,std::shared_ptr<const MountTopology>> mMountTopology;
+ public:
+ 
++ bool overlapsBox(const RmReal *minimum,const RmReal *maximum) const override {
++  Housing::ExteriorExit::Box box;for(unsigned i=0;i<3;++i){box.minimum[i]=minimum[i];box.maximum[i]=maximum[i];if(!std::isfinite(minimum[i])||!std::isfinite(maximum[i])||minimum[i]>maximum[i])return true;}
++  return !mRoot||mRoot->overlapsBox(box,mVertices,mVcount,mIndices,mTcount,mLeafTriangles);
++ }
++
++ bool overlapsBoxExceptTriangles(const RmReal *minimum,const RmReal *maximum,RmUint32 source_a,RmUint32 source_b) const override {
++  if(source_a==source_b||source_a>=mTcount||source_b>=mTcount)return true;
++  Housing::ExteriorExit::Box box;for(unsigned i=0;i<3;++i){box.minimum[i]=minimum[i];box.maximum[i]=maximum[i];if(!std::isfinite(minimum[i])||!std::isfinite(maximum[i])||minimum[i]>maximum[i])return true;}
++  return !mRoot||mRoot->overlapsBox(box,mVertices,mVcount,mIndices,mTcount,mLeafTriangles,source_a,source_b);
++ }
++
++ std::vector<RmUint32> sourceMountPatch(const RmReal *minimum,const RmReal *maximum,RmUint32 axis,RmUint32 a,RmUint32 b,const std::vector<RmUint32>& candidates) const override {
++  if(!mRoot||axis>2||candidates.empty()||!std::is_sorted(candidates.begin(),candidates.end())||std::adjacent_find(candidates.begin(),candidates.end())!=candidates.end())return {};
++  try{
++   for(unsigned k=0;k<3;++k)if(!std::isfinite(minimum[k])||!std::isfinite(maximum[k])||minimum[k]>=maximum[k])return {};
++   MountKey key{axis,a,b,candidates};std::shared_ptr<const MountTopology> prepared;
++   {std::lock_guard<std::mutex> lock(mMountMutex);auto found=mMountTopology.find(key);
++    if(found!=mMountTopology.end())prepared=found->second;
++    else{auto entry=std::make_shared<MountTopology>();std::vector<Housing::MountSurfacePatch::Triangle> triangles;triangles.reserve(candidates.size());
++     for(auto id:candidates){if(id>=mTcount)return {};Housing::MountSurfacePatch::Triangle t;t.id=id;for(unsigned j=0;j<3;++j){auto index=mIndices[3*id+j];if(index>=mVcount)return {};for(unsigned k=0;k<3;++k)t.vertices[j][k]=mVertices[3*index+k];}triangles.push_back(t);}
++     entry->ids=Housing::MountSurfacePatch::Connected(triangles,axis,a,b);for(const auto&t:triangles)if(std::binary_search(entry->ids.begin(),entry->ids.end(),t.id))entry->triangles.push_back(t);
++     prepared=entry;mMountTopology.emplace(std::move(key),std::move(entry));
++    }
++   }
++   if(!prepared||prepared->ids.empty())return {};std::vector<const Housing::MountSurfacePatch::Triangle*> patch;for(const auto&t:prepared->triangles)patch.push_back(&t);
++   return Housing::MountSurfacePatch::Covered(patch,axis,{minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]})?prepared->ids:std::vector<RmUint32>{};
++  }catch(...){return {};}
++ }
++ bool overlapsBoxExceptTriangleList(const RmReal *minimum,const RmReal *maximum,const std::vector<RmUint32>& sources) const override {
++  if(sources.empty()||!std::is_sorted(sources.begin(),sources.end())||std::adjacent_find(sources.begin(),sources.end())!=sources.end()||sources.back()>=mTcount)return true;
++  Housing::ExteriorExit::Box box;for(unsigned i=0;i<3;++i){box.minimum[i]=minimum[i];box.maximum[i]=maximum[i];if(!std::isfinite(minimum[i])||!std::isfinite(maximum[i])||minimum[i]>maximum[i])return true;}
++  return !mRoot||mRoot->overlapsBox(box,mVertices,mVcount,mIndices,mTcount,mLeafTriangles,TRI_EOF,TRI_EOF,&sources);
++ }
++
+ 	MyRaycastMesh(RmUint32 vcount,const RmReal *vertices,RmUint32 tcount,const RmUint32 *indices,RmUint32 maxDepth,RmUint32 minLeafSize,RmReal minAxisSize)
+ 	{
+ 		mRaycastFrame = 0;
+diff --git a/zone/raycast_mesh.h b/zone/raycast_mesh.h
+index 1aaa100..d5b5151 100644
+--- a/zone/raycast_mesh.h
++++ b/zone/raycast_mesh.h
+@@ -30,12 +30,15 @@
+ //
+ // 
+ 
++#include <vector>
++
+ typedef float RmReal;
+ typedef unsigned int RmUint32;
+ 
+ class RaycastMesh
+ {
+ public:
++	virtual bool overlapsBox(const RmReal *minimum,const RmReal *maximum) const = 0;
+ 	virtual bool raycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
+ 	virtual bool bruteForceRaycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
+ 
+@@ -44,6 +47,14 @@ public:
+ 	virtual void release(void) = 0;
+ protected:
+ 	virtual ~RaycastMesh(void) { };
++	public:
++	// Appended virtual: existing slots unchanged; derived legacy implementations
++	// conservatively retain every triangle. Trusted caller supplies reviewed IDs.
++	virtual bool overlapsBoxExceptTriangles(const RmReal *minimum,const RmReal *maximum,RmUint32 source_a,RmUint32 source_b) const {return overlapsBox(minimum,maximum);}
++ virtual std::vector<RmUint32> sourceMountPatch(const RmReal*,const RmReal*,RmUint32,RmUint32,RmUint32,const std::vector<RmUint32>&) const {return {};}
++ virtual bool overlapsBoxExceptTriangleList(const RmReal *minimum,const RmReal *maximum,const std::vector<RmUint32>&) const {return overlapsBox(minimum,maximum);}
++
++
+ };
+ 
+ 
+diff --git a/zone/spell_effects.cpp b/zone/spell_effects.cpp
+index 42078e3..ab38e84 100644
+--- a/zone/spell_effects.cpp
++++ b/zone/spell_effects.cpp
+@@ -499,6 +499,16 @@ bool Mob::SpellEffect(Mob* caster, uint16 spell_id, float partial, int level_ove
+ 				break;
+ 			}
+ 
++            case SpellEffect::TeleporttoAnchor:
++            case SpellEffect::TranslocatetoAnchor:
++            {
++                // Target/group selection is already performed by the normal
++                // spell engine. SPA437 uses caster anchors; SPA438 uses each
++                // recipient's own anchor (pinned original spell descriptions).
++                if(IsClient()&&caster&&caster->IsClient()&&spell.base_value[i]>0)
++                    CastToClient()->ApplyHousingAnchorSpell(caster->CastToClient(),uint32_t(spell.base_value[i]),effect==SpellEffect::TranslocatetoAnchor);
++                break;
++            }
+ 			case SpellEffect::Translocate:
+ 			{
+ #ifdef SPELL_EFFECT_SPAM
+diff --git a/zone/tribute.cpp b/zone/tribute.cpp
+index f9a9e73..0689cb9 100644
+--- a/zone/tribute.cpp
++++ b/zone/tribute.cpp
+@@ -544,7 +544,7 @@ void Client::SendGuildFavorAndTimer(uint32 guild_id)
+ 
+ 		gtsa->guild_favor   = guild->tribute.favor;
+ 		gtsa->tribute_timer = guild->tribute.time_remaining;
+-		gtsa->trophy_timer  = 0; //not yet implemented
++		gtsa->trophy_timer  = HousingGuildTrophyRemaining();
+ 
+ 		QueuePacket(outapp);
+ 		safe_delete(outapp);
+diff --git a/zone/worldserver.cpp b/zone/worldserver.cpp
+index 747302e..faad4cb 100644
+--- a/zone/worldserver.cpp
++++ b/zone/worldserver.cpp
+@@ -212,7 +212,17 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
+ 	ServerPacket *pack = &tpack;
+ 
+ 	switch (opcode) {
+-	case 0:
++	case ServerOP_HousingGuildTrophyRefresh: {if(pack->size!=sizeof(uint32))break;uint32 guild=0;std::memcpy(&guild,pack->pBuffer,sizeof guild);for(const auto& entry:entity_list.GetClientList()){auto* client=entry.second;if(client->GuildID()==guild||client->m_housing_guild_trophy_guild==guild)client->InvalidateHousingGuildTrophyBenefits();}break;}
++    case ServerOP_HousingGuildTrophyMember: {if(pack->size!=sizeof(GuildTributeOptInOutReply_Struct))break;const auto* member=reinterpret_cast<const GuildTributeOptInOutReply_Struct*>(pack->pBuffer);for(const auto& entry:entity_list.GetClientList()){auto* client=entry.second;if(client->GuildID()==member->guild_id&&client->ClientVersion()==EQ::versions::ClientVersion::RoF2){EQApplicationPacket packet(OP_GuildOptInOut,pack->size);std::memcpy(packet.pBuffer,pack->pBuffer,pack->size);client->QueuePacket(&packet);}}break;}
++	case ServerOP_HousingUpkeepRefresh: {
++        if(pack->size==0)Client::HousingUpkeepChanged();
++        break;
++    }
++    case ServerOP_HousingTrophyRefresh: {
++        if(pack->size==0)for(const auto& entry:entity_list.GetClientList())entry.second->InvalidateHousingTrophyBenefits();
++        break;
++    }
++    case 0:
+ 	case ServerOP_KeepAlive: {
+ 		break;
+ 	}
+@@ -404,9 +414,13 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
+ 
+ 			if (ztz->response <= 0) {
+ 				zc2->success = ZoningMessage::ZoneNotReady;
+-				entity->CastToMob()->SetZone(ztz->current_zone_id, ztz->current_instance_id);
+-				entity->CastToClient()->SetZoning(false);
+-				entity->CastToClient()->SetLockSavePosition(false);
++				entity->CastToClient()->RestoreRejectedZonePosition();
++				strn0cpy(zc2->char_name, entity->CastToMob()->GetName(), 64);
++				zc2->zoneID = ztz->current_zone_id;
++				zc2->instanceID = ztz->current_instance_id;
++				zc2->x = entity->CastToMob()->GetX();
++				zc2->y = entity->CastToMob()->GetY();
++				zc2->z = entity->CastToMob()->GetZ();
+ 
+ 				LogZoning("ZoneToZone (ZoneNotReady) client [{}] guild_id [{}] requested_zone [{}] requested_zone_id [{}] requested_instance_id [{}] current_zone [{}] current_zone_id [{}] current_instance_id [{}] response [{}] admin [{}] ignorerestrictions [{}] ",
+ 					ztz->name,
+diff --git a/zone/zonedb.cpp b/zone/zonedb.cpp
+index 0dc1436..a753315 100644
+--- a/zone/zonedb.cpp
++++ b/zone/zonedb.cpp
+@@ -10,6 +10,7 @@
+ #include "merc.h"
+ #include "zone.h"
+ #include "zonedb.h"
++#include "../common/housing/admission_guard.h"
+ #include "aura.h"
+ #include "../common/repositories/blocked_spells_repository.h"
+ #include "../common/repositories/character_tribute_repository.h"
+@@ -1579,6 +1580,12 @@ void ZoneDatabase::DivergeCharacterInventoryFromInvSnapshot(uint32 character_id,
+ }
+ 
+ bool ZoneDatabase::RestoreCharacterInvSnapshot(uint32 character_id, uint32 timestamp) {
++	if (Housing::CheckInventoryMaintenance(RuleB(Housing, EnablePlayerHousing)) !=
++		Housing::InventoryAdmission::Allowed) {
++		LogError("Inventory restore for character [{}] refused before deletion: housing requires an atomic offline maintenance adapter", character_id);
++		return false;
++	}
++
+ 	// we should know what we're doing by the time we call this function..but,
+ 	// this is to prevent inventory deletions where no timestamp entries exists
+ 	if (!ValidateCharacterInvSnapshotTimestamp(character_id, timestamp)) {
+diff --git a/zone/zoning.cpp b/zone/zoning.cpp
+index 96ad15d..84dfaa3 100644
+--- a/zone/zoning.cpp
++++ b/zone/zoning.cpp
+@@ -383,6 +383,29 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
+ 	}
+ }
+ 
++void Client::RestoreRejectedZonePosition() {
++	// DoZoneSuccess saves the destination before world accepts the transfer.
++	// On rejection both the live position and durable profile must return to
++	// this zone; resetting only zone/instance leaves destination coordinates.
++	m_Position = m_zone_transfer_origin_valid ? m_zone_transfer_origin :
++		glm::vec4(m_RewindLocation.x, m_RewindLocation.y, m_RewindLocation.z, m_Position.w);
++	m_zone_transfer_origin_valid = false;
++	SetZone(zone->GetZoneID(), zone->GetInstanceID());
++	m_pp.zone_id = zone->GetZoneID();
++	m_pp.zoneInstance = zone->GetInstanceID();
++	m_pp.x = m_Position.x;
++	m_pp.y = m_Position.y;
++	m_pp.z = m_Position.z;
++	m_pp.heading = m_Position.w;
++	bZoning = false;
++	m_lock_save_position = false;
++	zone_mode = ZoneUnsolicited;
++	m_ZoneSummonLocation = glm::vec4();
++	zonesummon_id = 0;
++	zonesummon_ignorerestrictions = 0;
++	SaveCharacterData();
++}
++
+ void Client::SendZoneCancel(ZoneChange_Struct *zc) {
+ 	//effectively zone them right back to where they were
+ 	//unless we find a better way to stop the zoning process.
+@@ -410,15 +433,9 @@ void Client::SendZoneCancel(ZoneChange_Struct *zc) {
+ 	zc2->success = 1;
+ 	zc2->instanceID = zone->GetInstanceID();
+ 
+-	// this fixes an issue where when we do a zone cancel what often ends up happening is we are sending
+-	// the client the wrong coordinates to zone back to. Often times it is the x,y,z of the destination zone
+-	// because we saved the destination x,y,z on the client profile before we rejected the zone request.
+-	// we're using rewind location because it should be where the client relatively was before we rejected the zone request.
+-	// it also prevents the client from getting caught up in a zone loop because if we sent them exactly back to where they
+-	// originated the request we could end up in a situation where the client is caught in a zone loop.
+-	m_Position.x = m_RewindLocation.x;
+-	m_Position.y = m_RewindLocation.y;
+-	m_Position.z = m_RewindLocation.z;
++	// Unsolicited zone lines still use rewind to avoid a zone-line loop;
++	// solicited transfers use their captured source position.
++	RestoreRejectedZonePosition();
+ 	zc2->x       = m_Position.x;
+ 	zc2->y       = m_Position.y;
+ 	zc2->z       = m_Position.z;
+@@ -450,6 +467,7 @@ void Client::SendZoneCancel(ZoneChange_Struct *zc) {
+ 
+ void Client::SendZoneError(ZoneChange_Struct *zc, int8 err)
+ {
++	RestoreRejectedZonePosition();
+ 	LogError("Zone [{}] is not available because target wasn't found or character insufficent level", zc->zoneID);
+ 	cheat_manager.SetExemptStatus(Port, true);
+ 	EQApplicationPacket *outapp = nullptr;
+@@ -487,6 +505,10 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 instanc
+ 	//this is called once the client is fully allowed to zone here
+ 	//it takes care of all the activities which occur when a client zones out
+ 
++	if (!m_zone_transfer_origin_valid) {
++		m_zone_transfer_origin = m_Position;
++		m_zone_transfer_origin_valid = true;
++	}
+ 	SendLogoutPackets();
+ 
+ 	/* Dont clear aggro until the zone is successful */
+@@ -538,6 +560,7 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 instanc
+ 	m_lock_save_position = true;
+ 
+ 	if (zone_id == zone->GetZoneID() && instance_id == zone->GetInstanceID()) {
++		m_zone_transfer_origin_valid = false;
+ 		// No need to ask worldserver if we're zoning to ourselves (most
+ 		// likely to a bind point), also fixes a bug since the default response was failure
+ 		auto outapp = new EQApplicationPacket(OP_ZoneChange, sizeof(ZoneChange_Struct));
+@@ -867,6 +890,9 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
+ 		return;
+ 	}
+ 	iZoneNameLength = strlen(pZoneName);
++	// GM/bind modes below also overwrite m_Position before OP_ZoneChange.
++	m_zone_transfer_origin = m_Position;
++	m_zone_transfer_origin_valid = true;
+ 	glm::vec4 zone_safe_point;
+ 	switch(zm) {
+ 		case EvacToSafeCoords:
+@@ -1064,6 +1090,7 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
+ 		{
+ 			if(zm != EvacToSafeCoords && zm != ZoneToSafeCoords && zm != ZoneToBindPoint)
+ 			{
++				m_zone_transfer_origin_valid = false;
+ 				m_ZoneSummonLocation = glm::vec4();
+ 				zonesummon_id = 0;
+ 				zonesummon_ignorerestrictions = 0;

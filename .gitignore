@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+build/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.eqg
+*.map
+.env
+credentials.json
+eqemu_config.json
+*.orig
+*.log

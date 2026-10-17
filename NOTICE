@@ -1,0 +1,16 @@
+EQEmu RoF2 Housing is an experimental housing-only source overlay for EQEmu.
+Upstream: https://github.com/EQEmu/EQEmu
+Integration base: 8175ae61874cbf20d7b05102821f6f8a4f4d1c39
+Upstream GPLv3 license text is retained in LICENSE. Preserve existing source notices.
+
+EverQuest and related names/assets belong to their respective owners. This
+project is not affiliated with or endorsed by Daybreak Games. Original client
+executables, DLLs, archives, maps, textures and other game asset files are not
+included. Operators must supply lawful originals separately. Compiled numeric
+registries and original-protocol observations retain their technical provenance
+in source comments; no claim of ownership of EverQuest assets is made.
+
+The publication excludes unrelated petition/mercenary changes, personal runtime
+configuration, accounts/credentials, database dumps, packet captures, research
+binaries/disassembly and unfinished external implementation drafts. It is not a
+claim of complete protocol knowledge or Live-equivalent housing behavior.

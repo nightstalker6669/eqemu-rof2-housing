@@ -1,0 +1,319 @@
+{
+  "client_build": "May10 2013 RoF2",
+  "client_sha256": "2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e",
+  "real_estate_count": 41,
+  "guild_trophy_count": 6,
+  "complete_protocol": false,
+  "messages": [
+    {
+      "name": "OP_RealEstateNeighborhood",
+      "opcode": "0x2691",
+      "direction": "C2S/S2C",
+      "description": "search/My Plots/My Items/owners/plot search; neighborhood list type5/subtype0 or1; owners type5/subtype2; plot search type5/subtype4 or5; single plot inspection type4 or8"
+    },
+    {
+      "name": "OP_RealEstateGo",
+      "opcode": "0x218c",
+      "direction": "C2S",
+      "description": "neighborhood Go / placed-house Enter"
+    },
+    {
+      "name": "OP_RealEstateDefinitions",
+      "opcode": "0x2698",
+      "direction": "S2C",
+      "description": "full definition+cost catalog replacement"
+    },
+    {
+      "name": "OP_RealEstateRegions",
+      "opcode": "0x49df",
+      "direction": "S2C",
+      "description": "full region bootstrap"
+    },
+    {
+      "name": "OP_RealEstateSnapshot",
+      "opcode": "0x63fd",
+      "direction": "S2C",
+      "description": "full estate snapshot"
+    },
+    {
+      "name": "OP_RealEstateZoneContext",
+      "opcode": "0x6fd0",
+      "direction": "S2C",
+      "description": "full estate snapshot establishing zone root"
+    },
+    {
+      "name": "OP_RealEstateInspect",
+      "opcode": "0x796c",
+      "direction": "C2S",
+      "description": "selected plot inspection"
+    },
+    {
+      "name": "OP_RealEstatePlotSearchOpen",
+      "opcode": "0x2b35",
+      "direction": "S2C",
+      "description": "open Plot Search in inspect mode"
+    },
+    {
+      "name": "OP_RealEstateOwnedList",
+      "opcode": "0x2aa7",
+      "direction": "S2C",
+      "description": "full estate-ID array replacement"
+    },
+    {
+      "name": "OP_RealEstateAccess",
+      "opcode": "0x485d",
+      "direction": "S2C",
+      "description": "full permission snapshot/replacement"
+    },
+    {
+      "name": "OP_RealEstateAccessEdit",
+      "opcode": "0x3146",
+      "direction": "C2S",
+      "description": "full permission snapshot/replacement"
+    },
+    {
+      "name": "OP_RealEstatePurchase",
+      "opcode": "0x45be",
+      "direction": "C2S/S2C",
+      "description": "buy fixed envelope; management-window show acknowledgement"
+    },
+    {
+      "name": "OP_RealEstateSale",
+      "opcode": "0x792c",
+      "direction": "C2S",
+      "description": "native Move Out / sale fixed envelope"
+    },
+    {
+      "name": "OP_RealEstateTransfer",
+      "opcode": "0x507f",
+      "direction": "C2S",
+      "description": "ownership transfer fixed envelope"
+    },
+    {
+      "name": "OP_RealEstateEscrow",
+      "opcode": "0x2aa6",
+      "direction": "C2S/S2C",
+      "description": "deposit/withdraw/select/day/week/withdraw-all; action response/cursor assignment"
+    },
+    {
+      "name": "OP_RealEstateItemList",
+      "opcode": "0x1cef",
+      "direction": "S2C",
+      "description": "full estate furniture list"
+    },
+    {
+      "name": "OP_RealEstateItemDelta",
+      "opcode": "0x087f",
+      "direction": "S2C",
+      "description": "upsert furniture entries"
+    },
+    {
+      "name": "OP_RealEstatePlacementBegin",
+      "opcode": "0x626e",
+      "direction": "C2S/S2C",
+      "description": "cursor/stored-item Begin; preview actor + setup suffix"
+    },
+    {
+      "name": "OP_RealEstatePlacementCommit",
+      "opcode": "0x711a",
+      "direction": "C2S",
+      "description": "transform commit"
+    },
+    {
+      "name": "OP_RealEstateWorldItem",
+      "opcode": "0x1045",
+      "direction": "S2C",
+      "description": "rendered actor create/update"
+    },
+    {
+      "name": "OP_RealEstateWorldRemove",
+      "opcode": "0x2a9e",
+      "direction": "S2C",
+      "description": "actor retirement reader prefix"
+    },
+    {
+      "name": "OP_RealEstatePlacementSource",
+      "opcode": "0x2523",
+      "direction": "S2C",
+      "description": "retarget active preview source/IDs reader prefix"
+    },
+    {
+      "name": "OP_RealEstatePlacementEnd",
+      "opcode": "0x6213",
+      "direction": "S2C",
+      "description": "cancel/end active preview"
+    },
+    {
+      "name": "OP_RealEstateOperationResult",
+      "opcode": "0x1228",
+      "direction": "S2C",
+      "description": "shared housing result"
+    },
+    {
+      "name": "OP_RealEstatePickup",
+      "opcode": "0x2036",
+      "direction": "C2S",
+      "description": "whole/split pickup to inventory"
+    },
+    {
+      "name": "OP_RealEstateItemOperation",
+      "opcode": "0x3424",
+      "direction": "C2S",
+      "description": "storage operation"
+    },
+    {
+      "name": "OP_RealEstatePack",
+      "opcode": "0x613d",
+      "direction": "C2S",
+      "description": "pack/unpack current context"
+    },
+    {
+      "name": "OP_RealEstateStoreAll",
+      "opcode": "0x6917",
+      "direction": "C2S",
+      "description": "stow all in current context"
+    },
+    {
+      "name": "OP_RealEstateLoadLayout",
+      "opcode": "0x5b41",
+      "direction": "C2S",
+      "description": "mixed-source layout load"
+    },
+    {
+      "name": "OP_RealEstateItemMenu",
+      "opcode": "0x21ec",
+      "direction": "C2S/S2C",
+      "description": "placed-actor right-click menu query; housing-list action menu query; fixed40-record action menu"
+    },
+    {
+      "name": "OP_RealEstateItemQuery",
+      "opcode": "0x050c",
+      "direction": "C2S",
+      "description": "actor fallback/menu action8 query"
+    },
+    {
+      "name": "OP_RealEstateExit",
+      "opcode": "0x1da9",
+      "direction": "C2S",
+      "description": "leave current real estate"
+    },
+    {
+      "name": "OP_RealEstateTrophyToggle",
+      "opcode": "0x756a",
+      "direction": "C2S",
+      "description": "enable/disable personal trophy benefits"
+    },
+    {
+      "name": "OP_RealEstateTrophy",
+      "opcode": "0x4b65",
+      "direction": "C2S/S2C",
+      "description": "absolute benefit slot/tier selection; absolute benefit slot/tier selection"
+    },
+    {
+      "name": "OP_RealEstateTrophyList",
+      "opcode": "0x7697",
+      "direction": "S2C",
+      "description": "active trophy state reader prefix"
+    },
+    {
+      "name": "OP_RealEstateTrophyTimer",
+      "opcode": "0x51ae",
+      "direction": "S2C",
+      "description": "timer"
+    },
+    {
+      "name": "OP_RealEstateTrophyClear",
+      "opcode": "0x08bf",
+      "direction": "S2C",
+      "description": "clear active benefits"
+    },
+    {
+      "name": "OP_RealEstateAnchorConfirm",
+      "opcode": "0x7bb1",
+      "direction": "C2S/S2C",
+      "description": "anchor transport offer; accepted offer object"
+    },
+    {
+      "name": "OP_RealEstateOwnerItemPurge",
+      "opcode": "0x1967",
+      "direction": "S2C",
+      "description": "purge estate cached entries by owner name"
+    },
+    {
+      "name": "OP_RealEstateOwnedItemList",
+      "opcode": "0x3e00",
+      "direction": "S2C",
+      "description": "full estate-ID array replacement"
+    },
+    {
+      "name": "OP_RealEstateArchivedList",
+      "opcode": "0x66df",
+      "direction": "S2C",
+      "description": "full estate-ID array replacement"
+    },
+    {
+      "name": "OP_GuildTrophyAvailable",
+      "opcode": "0x7db5",
+      "direction": "S2C",
+      "description": "u32 guild,u32 count,u32 benefitIDs[count]"
+    },
+    {
+      "name": "OP_GuildTrophyActive",
+      "opcode": "0x7dd2",
+      "direction": "S2C",
+      "description": "Minimal consumer-covered52bytes: guild,favor,timer,u32enabled,u32opaque,IDs[4],tiers[4]; full original server length not asserted"
+    },
+    {
+      "name": "OP_GuildTrophyToggle",
+      "opcode": "0x039d",
+      "direction": "C2S",
+      "description": "12bytes; DWORD0 bool; tail8 uninitialized/opaque, never identity"
+    },
+    {
+      "name": "OP_GuildTrophySave",
+      "opcode": "0x7c1d",
+      "direction": "C2S",
+      "description": "68bytes; IDs DWORDs20..35, tiers36..51; remaining bytes opaque"
+    },
+    {
+      "name": "OP_GuildTrophyModify",
+      "opcode": "0x7a41",
+      "direction": "C2S/S2C",
+      "description": "C2S80bytes with initialized boolean byte0; implemented S2C acknowledgement boolean byte"
+    },
+    {
+      "name": "OP_GuildTrophyOptIn",
+      "opcode": "0x02bc",
+      "direction": "C2S",
+      "description": "80bytes; boolDWORD4,name[64]@8; packetguild/tail not authority"
+    }
+  ],
+  "unresolved_related": [
+    {
+      "opcode": "0x76c6",
+      "direction": "S2C",
+      "known": "estateID@0, addFlag@104; min105; intervening bytes/fullwire unknown",
+      "evidence": "OWNED-GENERAL-SYNCHRONIZATION.md"
+    },
+    {
+      "opcode": "0x7ad1",
+      "direction": "C2S",
+      "known": "148bytes action5, estate/item first8 +140zero bytes; semantic unknown"
+    },
+    {
+      "opcode": "0x58c7",
+      "direction": "C2S",
+      "known": "8bytes estate/item fallbackUse; exactsuccess unknown"
+    },
+    {
+      "opcode": "0x51e3",
+      "direction": "C2S",
+      "known": "12bytes estate/item/menuparameter; semantic unknown"
+    },
+    {
+      "opcode": "0x64a3",
+      "direction": "C2S",
+      "known": "12bytes estate/item/menuparameter; semantic unknown"
+    }
+  ]
+}
