@@ -637,6 +637,27 @@ namespace Housing::NativeAccess {
             return context.snapshot;
         });
     }
+    Result<bool> Service::SetVotingOptOut(const LiveItems::Lease& lease,EstateId estate,uint32_t native,bool opted_out,LiveItems::InventorySessionFence& fence)
+    {
+        std::lock_guard<std::mutex> guard(mutex_);
+        if(!enabled_)return {{},Error::Disabled};
+        if(!LeaseShape(lease)||!AccessPolicy::PositiveIdentity(estate)||!AccessPolicy::PositiveIdentity(native))return {{},Error::InvalidArgument};
+        if(!fence.HeldFor(lease.actor,lease.epoch,lease.session_key))return {{},Error::UnheldFence};
+        if(!database_||database_->GetStatus()!=DBcore::Connected)return {{},Error::DatabaseFailure};
+        return Run<bool>(*database_,[&]{
+            auto& db=*database_;Verify(db);
+            auto storage=Query(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_estate_preferences' AND engine='InnoDB'");
+            if(storage.RowCount()!=1||Number(storage.begin()[0])!=1)throw Failure{Error::DatabaseFailure};
+            auto domain=Query(db,"SELECT id FROM housing_current_estates WHERE id="+std::to_string(estate)+" FOR UPDATE");
+            if(domain.RowCount()!=1)throw Failure{Error::NotFound};
+            Authenticate(db,lease,true);auto context=Plot(db,lease,estate,native,fence);
+            Populate(context,Load(db,context));
+            if(!context.snapshot.actor_access.Allows(AccessPolicy::Capability::Manage))throw Failure{Error::Unauthorized};
+            Query(db,"INSERT INTO housing_estate_preferences(estate_id,voting_opted_out) VALUES ("+std::to_string(estate)+","+std::to_string(opted_out?1:0)+") ON DUPLICATE KEY UPDATE voting_opted_out=VALUES(voting_opted_out)");
+            if(!fence.HeldFor(lease.actor,lease.epoch,lease.session_key))throw Failure{Error::UnheldFence};
+            return opted_out;
+        });
+    }
     Result<Receipt> Service::Replace(const Request& request,LiveItems::InventorySessionFence& fence)
     {
         std::lock_guard<std::mutex> guard(mutex_);

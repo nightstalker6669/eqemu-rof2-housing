@@ -27,6 +27,7 @@
 #include "../common/rulesys.h"
 #include <openssl/rand.h>
 #include <utility>
+#include <set>
 #include <chrono>
 #include <cstring>
 #include <thread>
@@ -382,10 +383,46 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
     }
     bool Bridge::TransferFrameMatches(const OwnershipTransfer::Request&r,const OwnershipTransfer::Source&s)const noexcept{
         try{if(!HeldFor(r.lease.actor,r.lease.epoch,r.lease.session_key)||r.lease.token!=lease_.token||!zone||zone->GetZoneID()!=712||zone->GetInstanceVersion()||zone->GetInstanceID()!=r.source.instance_id||!client_.Connected()||!client_.ClientDataLoaded()||s.route.instance_id!=r.source.instance_id||r.position!=std::array<float,3>{client_.GetX(),client_.GetY(),client_.GetZ()})return false;
+        if(transfer_expected_source_){const auto&e=*transfer_expected_source_;if(e.estate_id!=s.estate_id||e.native_plot_id!=s.native_plot_id||e.acl_revision!=s.acl_revision||e.catalog_revision!=s.catalog_revision||e.catalog_key!=s.catalog_key||e.definitions_sha256!=s.definitions_sha256||e.regions_sha256!=s.regions_sha256||e.contents_sha256!=s.contents_sha256)return false;}
         auto*mob=client_.GetTarget();if(!mob||!mob->IsClient())return false;auto*target=mob->CastToClient();return target!=&client_&&target->Connected()&&target->ClientDataLoaded()&&target->HasInventorySessionReservation()&&target->GetID()==r.recipient.runtime_entity_id&&target->CharacterID()==r.recipient.actor.character_id&&target->AccountID()==r.recipient.actor.account_id&&std::string(target->GetName())==r.recipient.name;
         }catch(...){return false;}
     }
-    OwnershipTransfer::Result<OwnershipTransfer::Receipt> Bridge::TransferPersonalPlot(const std::string&key,const std::array<uint8_t,EstateWire::PurchaseSize>&wire){using Error=OwnershipTransfer::Error;if(!Enter())return {{},Error::UnheldFence};bool issued=false;try{if(!Open()||!zone||zone->GetZoneID()!=712||zone->GetInstanceVersion()){Leave();return {{},Error::Unauthorized};}auto*mob=client_.GetTarget();if(!mob||!mob->IsClient()){Leave();return {{},Error::Unauthorized};}auto*target=mob->CastToClient();OwnershipTransfer::Request request;request.key=key;request.lease=lease_;request.wire=wire;request.source={712,0,uint16_t(zone->GetInstanceID())};request.position={client_.GetX(),client_.GetY(),client_.GetZ()};request.recipient={{target->CharacterID(),target->AccountID()},target->GetID(),target->GetName()};auto service=FreshOwnershipTransfer();if(!service){Leave();return {{},Error::DatabaseFailure};}issued=true;OwnershipTransfer::Result<OwnershipTransfer::Receipt> result;try{result=service->Transfer(request,*this,*this);}catch(...){result.error=Error::CommitUncertain;}
+    bool Bridge::TransferContentsReviewedUnderTransaction(Database& db,const OwnershipTransfer::Request& r,const OwnershipTransfer::Source& source,LiveItems::InventorySessionFence& fence)const{
+        try{
+            if(!HeldFor(r.lease.actor,r.lease.epoch,r.lease.session_key)||!house_policies_.scene||!house_policies_.room)return false;
+            auto yard=Scene::Service::ReadSceneUnderTransaction(db,r.lease,source.estate_id,fence,house_policies_.scene.get(),house_policies_.crates.get());
+            if(!yard||yard.value.native_plot_id!=source.native_plot_id||yard.value.acl_revision!=source.acl_revision||yard.value.current_catalog_revision!=source.catalog_revision)return false;
+            std::map<uint64_t,LiveItems::InventoryRow> seen;
+            auto add=[&](const LiveItems::Stored& item){return item.estate_id==source.estate_id&&item.custody_id&&seen.emplace(item.custody_id,item.row).second;};
+            std::set<uint64_t> houses;
+            for(const auto& item:yard.value.items){if(!add(item.stored))return false;if(item.house&&!houses.insert(item.house->house_id).second)return false;}
+            // Packed houses retain rooms: include them in the complete transfer
+            // graph, using conservation reads that cannot admit or unpack them.
+            for(const auto& item:yard.value.crate_contents){if(!add(item.stored))return false;if(item.house&&!houses.insert(item.house->house_id).second)return false;}
+            for(const auto& item:yard.value.vault_items)if(!add(item.stored))return false;
+            for(auto house:houses){
+                auto room=Scene::Service::ReadAttachedInteriorUnderTransaction(db,r.lease,source.estate_id,house,fence,*house_policies_.scene,house_policies_.room.get(),true,house_policies_.crates.get(),Scene::AttachedRead::TransferConservation);
+                if(!room||!room.value.house||room.value.house->house_id!=house||!room.value.room_profile)return false;
+                for(const auto& item:room.value.contents)if(!add(item.stored))return false;
+                for(const auto& item:room.value.crate_contents)if(!add(item.stored))return false;
+                for(const auto& item:room.value.vault_items)if(!add(item.stored))return false;
+            }
+            auto rows=db.QueryDatabase("SELECT custody_id,owner_character_id,schema_descriptor,HEX(row_blob) FROM housing_live_item_custody WHERE estate_id="+std::to_string(source.estate_id)+" ORDER BY custody_id FOR UPDATE",false);
+            if(!rows.Success()||rows.RowCount()!=seen.size())return false;
+            for(auto row=rows.begin();row!=rows.end();++row){
+                if(!row[0]||!row[1]||!row[2]||!row[3]||std::string(row[2])!=LiveItems::Service::SchemaDescriptor())return false;
+                auto item=seen.find(std::stoull(row[0]));if(item==seen.end()||item->second.values.character_id!=std::stoul(row[1]))return false;
+                const auto raw=CustodyCodec::Encode(item->second);static constexpr char hex[]="0123456789ABCDEF";std::string encoded;for(auto b:raw){encoded+=hex[b>>4];encoded+=hex[b&15];}if(encoded!=row[3])return false;
+                seen.erase(item);
+            }
+            return seen.empty();
+        }catch(...){return false;}
+    }
+    OwnershipTransfer::Result<OwnershipTransfer::Receipt> Bridge::InspectPersonalPlotTransfer(const std::string&key,const std::array<uint8_t,EstateWire::PurchaseSize>&wire){return ExecutePersonalPlotTransfer(key,wire,true,nullptr);}
+    OwnershipTransfer::Result<OwnershipTransfer::Receipt> Bridge::TransferPersonalPlot(const std::string&key,const std::array<uint8_t,EstateWire::PurchaseSize>&wire,const OwnershipTransfer::Source&expected){return ExecutePersonalPlotTransfer(key,wire,false,&expected);}
+    OwnershipTransfer::Result<OwnershipTransfer::Receipt> Bridge::ExecutePersonalPlotTransfer(const std::string&key,const std::array<uint8_t,EstateWire::PurchaseSize>&wire,bool inspect,const OwnershipTransfer::Source*expected){
+    struct ExpectedScope{const OwnershipTransfer::Source*&slot;ExpectedScope(const OwnershipTransfer::Source*&s,const OwnershipTransfer::Source*e):slot(s){slot=e;}~ExpectedScope(){slot=nullptr;}} scope(transfer_expected_source_,expected);
+    using Error=OwnershipTransfer::Error;if(!Enter())return {{},Error::UnheldFence};bool issued=false;try{if(!Open()||!zone||zone->GetZoneID()!=712||zone->GetInstanceVersion()){Leave();return {{},Error::Unauthorized};}auto*mob=client_.GetTarget();if(!mob||!mob->IsClient()){Leave();return {{},Error::Unauthorized};}auto*target=mob->CastToClient();OwnershipTransfer::Request request;request.key=key;request.lease=lease_;request.wire=wire;request.source={712,0,uint16_t(zone->GetInstanceID())};request.position={client_.GetX(),client_.GetY(),client_.GetZ()};request.recipient={{target->CharacterID(),target->AccountID()},target->GetID(),target->GetName()};auto service=FreshOwnershipTransfer();if(!service){Leave();return {{},Error::DatabaseFailure};}issued=true;OwnershipTransfer::Result<OwnershipTransfer::Receipt> result;try{result=inspect?service->Inspect(request,*this,*this):service->Transfer(request,*this,*this);}catch(...){result.error=Error::CommitUncertain;}
         if(result.error==Error::CommitUncertain){service.reset();for(;;){try{service=FreshOwnershipTransfer();if(service){result=service->Resolve(request,*this);if(result)break;if(result.error==Error::NotFound){Leave();return {{},Error::DatabaseFailure};}}}catch(...){}service.reset();Wait();}}
         // Metadata is already authoritative SQL. No item/coin memory application
         // or invented507f acknowledgement is needed; fresh views follow release.
@@ -733,6 +770,22 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
             auto result=service->ReadPlaced(lease_,estate,*this);
             Leave();return result;
         }catch(...){Leave();return {{},LiveItems::Error::DatabaseFailure};}
+    }
+    LiveItems::Result<HouseSwap::Receipt> Bridge::SwapHouse(const std::string& key,EstateId estate,const std::array<uint8_t,24>& wire){
+        using Error=LiveItems::Error;if(!RuleB(Housing,EnableNativeHouseSwap))return {{},Error::Disabled};
+        if(!Enter())return {{},Error::UnheldFence};
+        if(!zone||zone->GetZoneID()!=712||zone->GetInstanceVersion()||!house_policies_.scene||!house_policies_.room){Leave();return {{},Error::Unauthorized};}
+        HouseSwap::Request request;request.key=key;request.estate=estate;request.wire=wire;bool uncertain=false;
+        for(;;){try{
+            if(!Open()){Leave();return {{},Error::StaleLease};}request.lease=lease_;
+            const auto* config=EQEmuConfig::get();auto db=std::make_unique<Database>();
+            if(config&&db->Connect(config->DatabaseHost,config->DatabaseUsername,config->DatabasePassword,config->DatabaseDB,config->DatabasePort,"housing-house-swap-exclusive")){
+                HouseSwap::Service service(std::move(db),{true,true});auto result=uncertain?service.Resolve(request,*this):service.Swap(request,*this,*house_policies_.scene,*house_policies_.room,house_policies_.crates.get());
+                if(result){trophy_sources_changed_=true;Leave();return result;}
+                if(result.error==Error::CommitUncertain)uncertain=true;
+                else if(!uncertain||result.error==Error::NotFound){Leave();return result;}
+            }else if(!uncertain){Leave();return {{},Error::DatabaseFailure};}
+        }catch(...){uncertain=true;}Wait();}
     }
     LiveItems::Result<InteriorStorage::Receipt> Bridge::ChangeStorage(InteriorStorage::Request request){
         if(!Enter())return {{},LiveItems::Error::UnheldFence};
@@ -1137,6 +1190,16 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
             auto service=FreshAccess();if(!service){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
             auto result=service->Read(lease_,estate,native,*this);Leave();return result;
         }catch(...){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
+    }
+    NativeAccess::Result<bool> Bridge::SetVotingOptOut(EstateId estate,uint32_t native,bool opted_out){
+        if(!Enter())return {{},NativeAccess::Error::UnheldFence};
+        try{
+            if(!Open()){Leave();return {{},NativeAccess::Error::StaleLease};}
+            auto service=FreshAccess();if(!service){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
+            auto result=service->SetVotingOptOut(lease_,estate,native,opted_out,*this);Leave();return result;
+        }catch(...){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
+        // No retry on uncertain commit: callers restore the fresh preference.
+        // There is no inventory/currency handoff or client-supplied replay token.
     }
     NativeAccess::Result<NativeAccess::Receipt> Bridge::ReplaceAccess(NativeAccess::Request request){
         if(!Enter())return {{},NativeAccess::Error::UnheldFence};

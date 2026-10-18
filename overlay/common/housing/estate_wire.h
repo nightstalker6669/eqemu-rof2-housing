@@ -50,8 +50,15 @@ struct PlotSearchRequest {
  uint32_t mode{},context{};std::string owner_query;
  std::array<uint8_t,NeighborhoodWire::SearchSize> source{}; // Includes opaque native filters/padding.
 };
+struct VotingOptOutRequest { uint32_t estate_id{}; bool opted_out{}; };
+inline std::optional<VotingOptOutRequest> DecodeVotingOptOut(const uint8_t* p,size_t size) {
+ if(!p||size!=8||p[4]>1)return {};
+ const auto id=NeighborhoodWire::Detail::Read32(p);if(!id||id==UINT32_MAX)return {};
+ // Native6573 initializes only byte4; bytes5..7 are stale, not a DWORD Boolean.
+ return VotingOptOutRequest{id,p[4]!=0};
+}
 struct PurchaseRequest {
- uint32_t estate_id{}, sentinel_a{}, sentinel_b{}, price_component{}, upkeep_component{}, opaque_guild_word{};
+ uint32_t estate_id{}, sentinel_a{}, sentinel_b{}, price_component{}, upkeep_component{}, client_cached_guild_roster_count{};
  std::array<uint8_t,160> reserved{};
  std::array<uint8_t,3> flags{};
  uint8_t padding{};
@@ -177,7 +184,8 @@ inline std::optional<PurchaseRequest> DecodePurchase(const uint8_t* p,size_t siz
  r.sentinel_a=Detail::Read32(p+4);r.sentinel_b=Detail::Read32(p+8);
  std::memcpy(r.reserved.data(),p+12,r.reserved.size());
  r.price_component=Detail::Read32(p+172);r.upkeep_component=Detail::Read32(p+176);
- r.opaque_guild_word=Detail::Read32(p+180);std::memcpy(r.flags.data(),p+184,3);r.padding=p[187];
+ // Native guild-manager cached roster count. Never use it as guild authority or a funding selector.
+ r.client_cached_guild_roster_count=Detail::Read32(p+180);std::memcpy(r.flags.data(),p+184,3);r.padding=p[187];
  return r;
 }
 } // namespace Housing::EstateWire

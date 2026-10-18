@@ -172,7 +172,8 @@ ExteriorExitContext LockedExitGeometry(Database& db,const LiveItems::Lease& leas
  }
  return out;
 }
-InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route source,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,bool egress,bool include_contents,const Housing::InteriorContent::ProfilePolicy* room_policy=nullptr,const Snapshot* attached_parent=nullptr,const CrateBinding::CustodyContext* crates=nullptr,bool remote_anchor=false,uint64_t anchor_custody=0,bool management_view=false,bool strict_placed=false){
+InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route source,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,bool egress,bool include_contents,const Housing::InteriorContent::ProfilePolicy* room_policy=nullptr,const Snapshot* attached_parent=nullptr,const CrateBinding::CustodyContext* crates=nullptr,bool remote_anchor=false,uint64_t anchor_custody=0,bool management_view=false,bool strict_placed=false,AttachedRead read=AttachedRead::Storage){
+ if(read==AttachedRead::TransferConservation&&(!attached_parent||egress||remote_anchor||anchor_custody||management_view||strict_placed))throw Failure{Error::InvalidArgument};
  if(remote_anchor&&(!attached_parent||egress))throw Failure{Error::InvalidArgument};
  if(!source.zone_id||!source.instance_id||source.instance_id>32000||!l.actor.character_id||!l.actor.account_id||!l.epoch||!Key(l.session_key))throw Failure{Error::InvalidArgument};
  if(!fence.HeldFor(l.actor,l.epoch,l.session_key))throw Failure{Error::UnheldFence};
@@ -195,7 +196,7 @@ InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route sou
   else if(kind==2){if(h[6]||h[7]||!h[8]||!std::stoull(h[8]))throw Failure{Error::Conflict};binding.location={HouseBinding::Location::Kind::Custody,0,0,std::stoull(h[8])};}
   else throw Failure{Error::Conflict};
   // A contained house retains its interior for conservation and egress only.
-  if(!egress&&binding.location.kind==HouseBinding::Location::Kind::Custody&&CrateMemberScope::Locked(db,binding.location.custody_id))throw Failure{Error::Unauthorized};
+  if(!egress&&binding.location.kind==HouseBinding::Location::Kind::Custody&&CrateMemberScope::Locked(db,binding.location.custody_id)&&read!=AttachedRead::TransferConservation)throw Failure{Error::Unauthorized};
   HouseBinding::Interior interior{Number(h[9]),Number(h[10]),Number(h[11]),uint16_t(Number(h[12])),uint8_t(Number(h[13])),h[14]?h[14]:"",std::stoull(h[15])};
   if(!interior.native_estate_id||interior.native_estate_id==UINT32_MAX||!Key(interior.catalog_key)||!interior.catalog_revision)throw Failure{Error::Conflict};binding.interior=interior;
   const auto key=Quote(db,interior.catalog_key);
@@ -217,8 +218,19 @@ InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route sou
   std::optional<ContentBinding::HouseRoute> reviewed;
   if(attached_parent){
    if(egress||attached_parent->estate_id!=context.estate_id||attached_parent->native_plot_id!=context.native_plot_id||attached_parent->current_catalog_revision!=context.catalog_revision||attached_parent->route.zone_id!=context.neighborhood.zone_id||attached_parent->route.zone_version!=context.neighborhood.zone_version||attached_parent->route.instance_id!=context.neighborhood.instance_id)throw Failure{Error::Conflict};
-   const auto selected=std::find_if(attached_parent->items.begin(),attached_parent->items.end(),[&](const auto& item){return item.house&&item.house->house_id==binding.house_id;});
-   if(selected==attached_parent->items.end()||selected->house->revision!=binding.revision||selected->house->location.custody_id!=binding.location.custody_id)throw Failure{Error::Conflict};
+   const Item* selected=nullptr;
+   auto find=[&](const std::vector<Item>& items){for(const auto& item:items)if(item.house&&item.house->house_id==binding.house_id){if(selected)throw Failure{Error::Conflict};selected=&item;}};
+   find(attached_parent->items);
+   if(read==AttachedRead::TransferConservation)find(attached_parent->crate_contents);
+   if(!selected||selected->house->revision!=binding.revision||selected->house->location.custody_id!=binding.location.custody_id)throw Failure{Error::Conflict};
+   if(selected->contained_in_crate){
+    // LockedExterior already authenticates the complete current crate graph.
+    // Require this exact member and a placed, reviewed containing crate too.
+    const auto& m=selected->crate_membership;
+    if(read!=AttachedRead::TransferConservation||!selected->stored.stowed||!m||m->crate_id!=selected->contained_in_crate||m->origin_house_id||m->origin_native_estate_id!=context.native_plot_id)throw Failure{Error::Conflict};
+    auto container=std::find_if(attached_parent->items.begin(),attached_parent->items.end(),[&](const auto& item){return item.crate&&item.crate->binding.crate_id==m->crate_id;});
+    if(container==attached_parent->items.end()||container->stored.stowed||container->contained_in_crate||container->crate->inventory_character_id||container->crate->binding.estate_id!=context.estate_id||container->crate->binding.parent_native_estate_id!=context.native_plot_id)throw Failure{Error::Conflict};
+   }
    reviewed=remote_anchor?policy.ReviewedAnchorHouseUnderTransaction(db,fence,l,selected->stored,binding,child):policy.ReviewedAttachedInteriorUnderTransaction(db,fence,l,*attached_parent,*selected);
   }else{
    auto membership=Q(db,"SELECT charid FROM instance_list_player WHERE id="+std::to_string(source.instance_id)+" AND charid="+std::to_string(l.actor.character_id)+" FOR UPDATE");if(membership.RowCount()!=1)throw Failure{Error::Unauthorized};
@@ -242,7 +254,7 @@ InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route sou
    const auto actual=ContentBinding::DecodeIdentity(row[7],row[8]);if(!actual||!ContentBinding::Same(*actual,expected))throw Failure{Error::Conflict};
    if(management_view){out.access.effective.capabilities&=RentState::ManagementCapabilities;return out;}
    if(include_contents&&HouseItemScope::Installed(db)){
-    if(room_policy){auto current=Housing::InteriorContent::ReadProfileUnderTransaction(db,l,source,fence,policy,*room_policy,attached_parent&&!remote_anchor?std::optional<Housing::InteriorContent::AttachedSelection>{{context.estate_id,binding.house_id,attached_parent->route,crates}}:std::nullopt,remote_anchor?std::optional<Housing::InteriorContent::AnchorSelection>{{context.estate_id,binding.house_id}}:std::nullopt);if(!current)throw Failure{current.error};if(!current.value.context.house||current.value.context.house->house_id!=binding.house_id||current.value.context.house->revision!=binding.revision)throw Failure{Error::Conflict};out.profile_revision=current.value.profile_revision;out.room_profile=std::make_shared<const Housing::InteriorContent::Profile>(std::move(current.value.room));}
+    if(room_policy){auto current=Housing::InteriorContent::ReadProfileUnderTransaction(db,l,source,fence,policy,*room_policy,attached_parent&&!remote_anchor?std::optional<Housing::InteriorContent::AttachedSelection>{{context.estate_id,binding.house_id,attached_parent->route,crates,read}}:std::nullopt,remote_anchor?std::optional<Housing::InteriorContent::AnchorSelection>{{context.estate_id,binding.house_id}}:std::nullopt);if(!current)throw Failure{current.error};if(!current.value.context.house||current.value.context.house->house_id!=binding.house_id||current.value.context.house->revision!=binding.revision)throw Failure{Error::Conflict};out.profile_revision=current.value.profile_revision;out.room_profile=std::make_shared<const Housing::InteriorContent::Profile>(std::move(current.value.room));}
     const uint64_t content_limit=out.room_profile?out.room_profile->definition.max_items:1000;
 
     const bool have_vault=VaultStorage::Installed(db);
@@ -405,8 +417,18 @@ Snapshot LockedExterior(Database& db,const LiveItems::Lease& l,EstateId estate,L
    if(child.type!=2||definition.type!=8)throw Failure{Error::Unauthorized};
    house_route=houses->ReviewedLobbyRouteUnderTransaction(db,fence,l,s,*binding,child,*lobby,lobby_guild);
   }else if(occupied){
-   if(binding->house_id!=occupied->house->house_id||binding->revision!=occupied->house->revision||binding->location.custody_id!=occupied->house->location.custody_id)throw Failure{Error::Conflict};
-   house_route=houses->ReviewedInteriorUnderTransaction(db,fence,l,*binding,occupied->context);
+   if(binding->house_id==occupied->house->house_id){
+    if(binding->revision!=occupied->house->revision||binding->location.custody_id!=occupied->house->location.custody_id)throw Failure{Error::Conflict};
+    house_route=houses->ReviewedInteriorUnderTransaction(db,fence,l,*binding,occupied->context);
+   }else{
+    // The occupied host was independently authenticated above. Other house
+    // tokens may be retained in this same yard's storage after a swap. Review
+    // their immutable content against that genuine physical source; never
+    // admit a second placed house or invent neighborhood position authority.
+    if(!ItemStorage::Locked(db,s.custody_id).stowed)throw Failure{Error::Conflict};
+    auto content=occupied->context;content.creator_character_id=creator;content.house_definition=child;
+    house_route=houses->ReviewedInteriorUnderTransaction(db,fence,l,*binding,content);
+   }
   }else house_route=remote_house?houses->ReviewedAnchorHouseUnderTransaction(db,fence,l,s,*binding,child):houses->ReviewedRouteUnderTransaction(db,fence,l,s,*binding,child);
   if(!house_route)throw Failure{Error::Unauthorized};item.house=std::move(binding);
  }
@@ -538,12 +560,15 @@ LiveItems::Result<LobbyAdmission> Service::AdmitOwnGuildHallFromLobby(const Live
   Q(db,"COMMIT");active=false;return {std::move(result),Error::None};
  }catch(const Failure& f){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {{},f.error};}catch(...){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {{},Error::DatabaseFailure};}
 }
-LiveItems::Result<InteriorSnapshot> Service::ReadAttachedInteriorUnderTransaction(Database& db,const LiveItems::Lease& l,EstateId estate,uint64_t house_id,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,const Housing::InteriorContent::ProfilePolicy* room_policy,bool contents,const CrateBinding::CustodyContext* crates){
+LiveItems::Result<InteriorSnapshot> Service::ReadAttachedInteriorUnderTransaction(Database& db,const LiveItems::Lease& l,EstateId estate,uint64_t house_id,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,const Housing::InteriorContent::ProfilePolicy* room_policy,bool contents,const CrateBinding::CustodyContext* crates,AttachedRead read){
  if(!house_id||!estate||(contents&&!room_policy))return {{},Error::InvalidArgument};
  try{
-  auto parent=LockedExterior(db,l,estate,fence,nullptr,&policy,nullptr,crates);auto selected=std::find_if(parent.items.begin(),parent.items.end(),[&](const auto& item){return item.house&&item.house->house_id==house_id;});
-  if(selected==parent.items.end()||!selected->house->interior)return {{},Error::NotFound};const auto& i=*selected->house->interior;
-  return {LockedInterior(db,l,{i.zone_id,i.zone_version,i.instance_id},fence,policy,false,contents,room_policy,&parent,crates),Error::None};
+  auto parent=LockedExterior(db,l,estate,fence,nullptr,&policy,nullptr,crates);
+  const Item* selected=nullptr;
+  auto find=[&](const std::vector<Item>& items){for(const auto& item:items)if(item.house&&item.house->house_id==house_id){if(selected)throw Failure{Error::Conflict};selected=&item;}};
+  find(parent.items);if(read==AttachedRead::TransferConservation)find(parent.crate_contents);
+  if(!selected||!selected->house->interior)return {{},Error::NotFound};const auto& i=*selected->house->interior;
+  return {LockedInterior(db,l,{i.zone_id,i.zone_version,i.instance_id},fence,policy,false,contents,room_policy,&parent,crates,false,0,false,false,read),Error::None};
  }catch(const Failure& f){return {{},f.error};}catch(...){return {{},Error::DatabaseFailure};}
 }
 LiveItems::Result<InteriorSnapshot> Service::ReadCurrentAttachedInteriorUnderTransaction(Database& db,const LiveItems::Lease& l,uint64_t house_id,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,const Housing::InteriorContent::ProfilePolicy* room_policy,const CrateBinding::CustodyContext* crates){

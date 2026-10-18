@@ -126,6 +126,7 @@ struct PlacementFacts {
     PlacementPolicy::Operation operation=PlacementPolicy::Operation::Add;
     PlacementStage stage=PlacementStage::Preview;
     uint64_t catalog_revision=0,placed_children=0;
+    bool storage_only=false;
     uint16_t neighborhood_instance=0;
     AccessPolicy::EffectiveAccess access;
     EstateWire::Definition plot_definition,house_definition;

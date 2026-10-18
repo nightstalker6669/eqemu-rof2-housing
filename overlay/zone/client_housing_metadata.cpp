@@ -9,6 +9,7 @@
 #include <cstring>
 
 extern Zone* zone;
+bool SendHousingVotingPreferenceSnapshot(Client*,uint32_t);
 namespace {
 bool NativeMetadata(Client* client){
  return RuleB(Housing,EnablePlayerHousing)&&client->ClientVersion()==EQ::versions::ClientVersion::RoF2&&client->Connected()&&client->ClientDataLoaded()&&client->HasInventorySessionReservation()&&zone&&zone->GetZoneID()==712&&zone->GetInstanceID()!=0;
@@ -44,6 +45,26 @@ void MetadataBroadcast() noexcept {
   entry.second->SendHousingZoneCatalog();entry.second->SendHousingPlacedScene();
  }}catch(const std::exception&){LogError("Native housing metadata viewer refresh unavailable");}
 }
+}
+void Client::Handle_OP_RealEstateVotingOptOut(const EQApplicationPacket* app){
+ if(!NativeMetadata(this)||!app)return;
+ try{
+  const auto request=Housing::EstateWire::DecodeVotingOptOut(app->pBuffer,app->size);if(!request)return;
+  const auto estate=MetadataEstate(request->estate_id);auto* bridge=GetHousingInventoryBridge();
+  if(!estate||!bridge){SendHousingVotingPreferenceSnapshot(this,request->estate_id);return;}
+  const auto result=bridge->SetVotingOptOut(*estate,request->estate_id,request->opted_out);
+  // Native6573 has no recovered acknowledgement. Publish the fresh63fd state;
+  // never echo the proposed checkbox on failure or repeat an uncertain write.
+  // Native5b09d0 already updated the initiating client's cached estate flag
+  // before6573 was sent. No acknowledgement is recovered for this opcode.
+  // On success, leave that matching value in place instead of rebuilding UI.
+  // Plot-search inspection is independently one-shot in the original client.
+  // Only rejected/uncertain writes require self restoration.
+  if(result){
+   LogInfo("Native housing voting preference saved actor [{}] plot [{}] opted_out [{}]",CharacterID(),request->estate_id,request->opted_out);
+   for(const auto& entry:entity_list.GetClientList())if(entry.second&&entry.second!=this&&NativeMetadata(entry.second))SendHousingVotingPreferenceSnapshot(entry.second,request->estate_id);
+  }else {SendHousingVotingPreferenceSnapshot(this,request->estate_id);Message(Chat::Red,"The property voting preference could not be confirmed.");}
+ }catch(...){LogError("Native housing voting preference unavailable");SendHousingZoneCatalog();}
 }
 void Client::Handle_OP_RealEstateMetadata(const EQApplicationPacket* app){
  if(!NativeMetadata(this))return;

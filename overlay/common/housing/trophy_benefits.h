@@ -17,9 +17,9 @@ inline bool Valid(const Definition& d){
 }
 // Eligibility is supplied only by locked, current server custody/placement
 // authority. A client benefit ID and an inventory copy never supply it.
-struct View {TrophyAnchorWire::Benefits selected;std::vector<uint32_t> stat_items;uint32_t remaining_ms=0,charged=0;std::optional<uint32_t> favor_after;bool insufficient_favor=false,billing_unavailable=false;};
+struct View {TrophyAnchorWire::Benefits selected;std::vector<uint32_t> stat_items;std::array<uint32_t,10> stat_item_slots{};uint32_t remaining_ms=0,charged=0;std::optional<uint32_t> favor_after;bool insufficient_favor=false,billing_unavailable=false;};
 inline void Revalidate(View& out,const Catalog& definitions,const std::set<uint32_t>& eligible,uint32_t level,uint32_t capacity,bool paid_authorized=false){
- std::set<uint32_t> seen;uint32_t count=0;bool paid=false;out.stat_items.clear();
+ std::set<uint32_t> seen;uint32_t count=0;bool paid=false;out.stat_items.clear();out.stat_item_slots.fill(0);
  for(size_t i=0;i<10;++i){const auto id=out.selected.ids[i];const auto tier=out.selected.tiers[i];auto found=definitions.find(id);
   if(id==UINT32_MAX) {out.selected.tiers[i]=-1;continue;}
   if(count>=capacity||found==definitions.end()||!Valid(found->second)||!eligible.count(id)||!seen.insert(id).second||tier<0||size_t(tier)>=found->second.tiers.size()||level<found->second.tiers[tier].minimum_level){out.selected.ids[i]=UINT32_MAX;out.selected.tiers[i]=-1;continue;}
@@ -28,7 +28,7 @@ inline void Revalidate(View& out,const Catalog& definitions,const std::set<uint3
  // Paid favor accounting and original cadence are not recovered. Never grant
  // a paid tier for free or borrow the unrelated ordinary tribute timer.
  if((paid&&!paid_authorized)||!count)out.selected.enabled=0;
- if(out.selected.enabled)for(size_t i=0;i<10;++i)if(out.selected.ids[i]!=UINT32_MAX)out.stat_items.push_back(definitions.at(out.selected.ids[i]).tiers[out.selected.tiers[i]].stat_item_id);
+ if(out.selected.enabled)for(size_t i=0;i<10;++i)if(out.selected.ids[i]!=UINT32_MAX){out.stat_item_slots[i]=definitions.at(out.selected.ids[i]).tiers[out.selected.tiers[i]].stat_item_id;out.stat_items.push_back(out.stat_item_slots[i]);}
 }
 inline bool Select(View& view,const TrophyAnchorWire::Selection& selection,const Catalog& defs,const std::set<uint32_t>& eligible,uint32_t level,uint32_t capacity){
  if(selection.slot>=10)return false;auto next=view;
@@ -42,7 +42,7 @@ inline bool Select(View& view,const TrophyAnchorWire::Selection& selection,const
  next.selected.enabled=0;Revalidate(next,defs,eligible,level,capacity);view=std::move(next);return true;
 }
 inline bool Toggle(View& view,bool enable,const Catalog& defs,const std::set<uint32_t>& eligible,uint32_t level,uint32_t capacity){
- Revalidate(view,defs,eligible,level,capacity);if(!enable){view.selected.enabled=0;view.stat_items.clear();return true;}
+ Revalidate(view,defs,eligible,level,capacity);if(!enable){view.selected.enabled=0;view.stat_items.clear();view.stat_item_slots.fill(0);return true;}
  bool any=false;for(size_t i=0;i<10;++i)if(view.selected.ids[i]!=UINT32_MAX){any=true;if(defs.at(view.selected.ids[i]).tiers[view.selected.tiers[i]].cost)return false;}
  if(!any)return false;view.selected.enabled=1;Revalidate(view,defs,eligible,level,capacity);return true;
 }

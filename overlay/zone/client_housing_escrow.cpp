@@ -33,6 +33,14 @@ std::unique_ptr<EQApplicationPacket> EscrowPacket(const std::vector<uint8_t>& by
  auto packet=std::make_unique<EQApplicationPacket>(OP_RealEstateEscrow,bytes.size());std::memcpy(packet->pBuffer,bytes.data(),bytes.size());return packet;
 }
 void EscrowQueue(Client* client,std::unique_ptr<EQApplicationPacket> packet){auto* raw=packet.release();client->FastQueuePacket(&raw);}
+// Original5ad930 consumes a result DWORD;0 is silent and1 selects the
+// generic sale refusal. Do not translate unrelated service errors into its
+// more specific native reasons. Original full emitted size is unresolved.
+void SaleResult(Client* client,uint32_t status){
+ std::vector<uint8_t> bytes;Housing::NeighborhoodWire::Detail::Write32(bytes,status);
+ EQApplicationPacket packet(OP_RealEstateSaleResult,bytes.size());std::memcpy(packet.pBuffer,bytes.data(),bytes.size());client->QueuePacket(&packet);
+ LogInfo("Native plot sale result actor [{}] status [{}]",client->CharacterID(),status);
+}
 void EscrowRejected(Client* client,const Housing::EscrowWire::Message& request,bool known_committed=false){
  const auto bytes=Housing::InventoryBridge::EscrowResponse::Rejected(request,
   Housing::InventoryBridge::CoinProfile::Snapshot(client->GetPP()).cursor,known_committed);
@@ -93,15 +101,15 @@ void Client::Handle_OP_RealEstateEscrow(const EQApplicationPacket* app){
  }
 }
 
-// Confirmation100 uses792c. Confirmation101/507f transfers ownership and has
-// no registered handler. Never treat its target character claim as Move Out.
+// Confirmation100 uses792c;101/507f routes to the separate ownership
+// transfer handler. Never treat its target character claim as Move Out.
 void Client::Handle_OP_RealEstateSale(const EQApplicationPacket* app){
  if(!NativeEscrowContext(this)||!app)return;
  bool completed=false;
  try{
   auto request=Housing::SaleWire::Decode(app->pBuffer,app->size);if(!request)return;
   auto* bridge=GetHousingInventoryBridge();const auto estate=bridge?bridge->ConsumeRetirementInspection(request->estate_id):std::nullopt;
-  if(!estate||!bridge){SendHousingZoneCatalog();return;}
+  if(!estate||!bridge){SaleResult(this,1);SendHousingZoneCatalog();return;}
   const auto key=EscrowKey();auto empty=bridge->RetireEmptyPlot(key,*estate,request->estate_id);completed=bool(empty);
   if(!completed&&empty.error==Housing::LiveItems::Error::UnsupportedItem&&RuleB(Housing,EnableNativeFurniturePlacement)){
    auto occupied=bridge->MoveOutOccupied(key,*estate,request->estate_id,true);
@@ -115,9 +123,9 @@ void Client::Handle_OP_RealEstateSale(const EQApplicationPacket* app){
     if(occupied.value.refunded)SendMoneyUpdate();
    }
   }
-  if(!completed)Message(Chat::Red,"Move Out could not be completed. The current plot, escrow, inventory or storage state is not supported for this return.");
-  //63fd ownership invalidation and the complete2aa7 owned list are existing
-  // authoritative cache paths. No unknown792c response format is invented.
+  SaleResult(this,completed?0:1);
+  // Native result0 is silent.63fd ownership invalidation and the complete
+  //2aa7 owned list remain the authoritative cache paths after known commit.
   SendHousingZoneCatalog();SendHousingPlacedScene();if(completed)EscrowBroadcast();
  }catch(const std::exception&){LogError("Native Move Out refresh unavailable");EscrowBroadcast();}
 }

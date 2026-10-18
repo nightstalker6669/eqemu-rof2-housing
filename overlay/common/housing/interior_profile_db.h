@@ -7,7 +7,7 @@
 namespace Housing::InteriorContent {
 struct Snapshot {Scene::InteriorSnapshot context;Profile room;uint64_t profile_revision=0;};
 struct AnchorSelection {EstateId estate_id=0;uint64_t house_id=0;};
-struct AttachedSelection {EstateId estate_id=0;uint64_t house_id=0;Route physical_source;const CrateBinding::CustodyContext* crates=nullptr;};
+struct AttachedSelection {EstateId estate_id=0;uint64_t house_id=0;Route physical_source;const CrateBinding::CustodyContext* crates=nullptr;Scene::AttachedRead read=Scene::AttachedRead::Storage;};
 class ProfilePolicy {
 public:
  virtual ~ProfilePolicy()=default;
@@ -24,7 +24,7 @@ public:
 inline LiveItems::Result<Snapshot> ReadProfileUnderTransaction(Database& db,const LiveItems::Lease& lease,Route source,LiveItems::InventorySessionFence& fence,const Scene::HouseScenePolicy& house_policy,const ProfilePolicy& profile_policy,const std::optional<AttachedSelection>& attached={},const std::optional<AnchorSelection>& anchor={}){
  using Error=LiveItems::Error;
  if(attached&&anchor)return {{},Error::InvalidArgument};
- auto context=anchor?Scene::Service::ReadAnchorAttachedInteriorUnderTransaction(db,lease,anchor->estate_id,anchor->house_id,fence,house_policy):attached?Scene::Service::ReadAttachedInteriorUnderTransaction(db,lease,attached->estate_id,attached->house_id,fence,house_policy,nullptr,false,attached->crates):Scene::Service::ReadInteriorUnderTransaction(db,lease,source,fence,house_policy);if(!context)return {{},context.error};
+ auto context=anchor?Scene::Service::ReadAnchorAttachedInteriorUnderTransaction(db,lease,anchor->estate_id,anchor->house_id,fence,house_policy):attached?Scene::Service::ReadAttachedInteriorUnderTransaction(db,lease,attached->estate_id,attached->house_id,fence,house_policy,nullptr,false,attached->crates,attached->read):Scene::Service::ReadInteriorUnderTransaction(db,lease,source,fence,house_policy);if(!context)return {{},context.error};
  if(context.value.context.source.zone_id!=source.zone_id||context.value.context.source.zone_version!=source.zone_version||context.value.context.source.instance_id!=source.instance_id)return {{},Error::Conflict};
  if(attached&&(!context.value.exterior_source||context.value.exterior_source->zone_id!=attached->physical_source.zone_id||context.value.exterior_source->zone_version!=attached->physical_source.zone_version||context.value.exterior_source->instance_id!=attached->physical_source.instance_id))return {{},Error::Conflict};
  try{

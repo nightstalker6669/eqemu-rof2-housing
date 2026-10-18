@@ -4,6 +4,8 @@ An experimental implementation of EverQuest personal and guild housing for EQEmu
 
 This repository publishes the housing implementation, recovered client opcode/packet documentation, database schemas, integration patch, and a candid account of working behavior and remaining work. It is a housing-only source overlay for EQEmu, not a complete server distribution or a finished recreation of Live.
 
+Snapshot updated **October 18, 2026**. See the [change summary](docs/UPDATES-2026-10-18.md) for the current implementation and protocol additions.
+
 ## What works
 
 The original client has completed the following representative workflows against the development server:
@@ -14,15 +16,21 @@ The original client has completed the following representative workflows against
 - Store part of an item stack in a yard vault or house closet and retrieve part again without losing or duplicating the stack.
 - Display My Plots and My Items and invoke a local Find path.
 - Retire an empty owned plot through the native Move Out UI.
+- Swap a reviewed furnished personal house through the native Swap Houses menu and confirmation; retain the old house token/interior and move contents into replacement storage.
+- Transfer a reviewed furnished personal plot with recipient consent, preserving content and creator identities; refuse acceptance after contents change.
+- Pack a furnished house into a moving crate, transfer its plot, then unpack and enter its retained interior as the recipient.
+- Show a closet-stored chair inside its house, place it and return it to inventory. An optional yard-view failure no longer erases the independently authorized room list.
 
 The server implementation also includes instanced neighborhoods/interiors; estate ownership and ACLs; furniture scenes and geometry checks; inventory custody and recovery; house and crate identity; packing/unpacking; layout transactions; escrow/upkeep machinery; guild hall routing; and personal/guild trophy and anchor machinery. **Implemented code and original-client acceptance are distinct evidence levels.** See [status](docs/STATUS.md).
 
 ## Protocol work
 
-The published runtime mapping inventory contains **41 real-estate opcodes and 6 additional guild-trophy opcodes**. This is not a claim that every housing message, layout, or behavior is known.
+The published runtime mapping inventory contains **54 mappings: 48 real-estate opcodes and 6 additional guild-trophy opcodes**, with **67 opcode numbers documented**. This is not a claim that every housing message, layout, or behavior is known.
 
 - [Opcode table](protocol/OPCODES.md)
 - [Machine-readable mapping inventory](protocol/opcodes.json)
+- [All 67 recovered layouts and structs](protocol/STRUCTS.md)
+- [Machine-readable recovered layouts](protocol/recovered-layouts.json)
 - [Packet layouts and shared schemas](protocol/housing-wire-reference.json)
 - Authoritative codecs: [`overlay/common/housing`](overlay/common/housing)
 - [Unresolved messages and fields](docs/KNOWN-GAPS.md)
@@ -52,7 +60,7 @@ Read [INSTALL.md](docs/INSTALL.md) before building or applying schemas. This sna
 
 ## What is not finished
 
-The largest remaining gaps are fresh personal-catalog crate support, packing nonplaceable vault belongings during move-out, same-plot/rebought-generation furnished-house relocation, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, original paid economics/lifecycle behavior, authentic missing content values, and final protocol/native acceptance coverage.
+Remaining work includes fresh personal-catalog crate support, packing nonplaceable vault belongings during move-out, same-plot/rebought-generation furnished-house relocation, parent-yard/crate display from inside a house, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, original paid economics/lifecycle behavior, authentic trophy catalogue values, and further original-client acceptance. Furnished same-plot house swaps and reviewed furnished plot transfers now have representative native acceptance; those do not close the separate relocation/lifecycle gaps.
 
 The local test purchase policy used one copper and no upkeep. **Those are explicitly experimental settings, not recovered Live prices or rules.** No personal database, local credentials, or unfinished draft patches are published here.
 

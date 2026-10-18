@@ -2,17 +2,13 @@
 
 ## Protocol completeness
 
-At least these related messages remain insufficiently understood and are not mapped by this snapshot:
+The reference documents67 opcode numbers;54 have active mapping entries and13 do not. The full list and per-direction extent/meaning limits are in [recovered layouts](../protocol/STRUCTS.md). Mapped values can still lack active producers, retain opaque fields or implement a narrower emulator compatibility profile.
 
-| Value | Direction | Recovered evidence / unresolved part |
-|---|---|---|
-| `0x76c6` | Server -> client | Estate ID at 0, add flag at 104, minimum 105 bytes; intervening/full payload remains unknown |
-| `0x7ad1` | Client -> server | 148-byte action-5 sender, estate/item prefix; complete operation meaning unresolved |
-| `0x58c7` | Client -> server | Eight-byte estate/item fallback-use request; successful behavior unresolved |
-| `0x51e3` | Client -> server | Twelve-byte estate/item/menu parameter; semantic action unresolved |
-| `0x64a3` | Client -> server | Twelve-byte estate/item/menu parameter; semantic action unresolved |
+Unresolved operations include membership deltas0x0c13/0x76c6, access invalidation0x3968, text submission0x3c8b, custom interaction0x51e3, menu action19/0x64a3 and action5/0x7ad1. Several other recovered but inactive messages are cache/item update variants with working snapshot alternatives; an inactive opcode is not automatically an independent missing gameplay feature.
 
-This is an identified open list, not proof that no additional unknown branch exists. Some mapped messages retain opaque padding/fields or unsupported variants. Internal `ServerOP_Housing*` messages are project-defined server coordination, not recovered Live client opcodes.
+0x58c7 is now mapped as OP_RealEstateItemInspect. Project names and implemented effects are not proof that all original operation semantics or response variants are recovered. Original incoming full emitted extents remain unknown for several consumer-covered layouts, including transfer consent and some result messages. The two one-DWORD result senders are explicit emulator profiles.
+
+Internal ServerOP_Housing messages are emulator coordination, not recovered Live client opcodes. This is an identified documented catalogue, not proof that no further message exists.
 
 ## Crates and lifecycle
 
@@ -20,6 +16,10 @@ This is an identified open list, not proof that no additional unknown branch exi
 - The existing occupied-property path rejects nonplaceable vault payloads rather than fully packing them. The draft successor is not in this export.
 - Replacing a loaded furnished crate after retiring and rebuying the same plot hits an existing house-relocation constraint when the parent native ID is unchanged across ownership generations.
 - Complete original inactive-owner eviction, guild dissolution, refunds and overflow delivery rules remain unfinished.
+
+## Interior versus parent-yard presentation
+
+A valid house interior no longer loses its room list when the optional yard read refuses. Yard/crate enumeration from inside still needs a separately authenticated parent-scene policy. The separate exterior House N/A observation immediately after unpack has not been established as repaired. The completed closet chair cycle does not claim otherwise.
 
 ## Placement fidelity
 
@@ -30,7 +30,7 @@ This is an identified open list, not proof that no additional unknown branch exi
 
 ## Content and economics
 
-Original numeric data is not inferred from modern Live or illustrative help examples. Remaining unknowns include per-template vault/NPC capacities, some guild-hall capacities, original tariffs/upkeep/currency ordering and trophy benefits/costs. Some published manifests/policies deliberately disable unknown categories; those technical limits must not be advertised as historical rules.
+Original numeric data is not inferred from modern Live or illustrative help examples. Remaining unknowns include per-template vault/NPC capacities, some guild-hall capacities, original tariffs/upkeep/currency ordering and trophy benefits/costs. The candidate ledger contains42 source candidates and90 tiers, with35 specific later cost observations (34 undisputed) and55 unpriced tiers. None is an authenticated May2013 catalogue record. See [candidate data](../protocol/trophy-catalogue-candidates.json); it is not deployable original content. Some published manifests/policies deliberately disable unknown categories; those technical limits must not be advertised as historical rules.
 
 The Standard guild hall uses the accepted basic guild-hall interior geometry but a separate persistent housing instance. This does not imply the ordinary Guild Lobby fallback hall supports neighborhood furnishing.
 

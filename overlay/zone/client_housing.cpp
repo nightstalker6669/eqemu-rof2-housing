@@ -152,6 +152,11 @@ std::optional<HousingView> LoadHousingView(Client* c) {
   if(n.neighborhood_id!=view.neighborhood)continue;
   Housing::EstateWire::EstateSnapshot state;state.estate_id=n.native_id.value;state.static_id=n.static_id;
   state.parent_id=n.parent_key.empty()?0:view.ids.at(n.parent_key);state.definition_id=n.definition_id;
+  // Plot addresses are the catalog-backed display fallback for native cached
+  // estate names (including transfer consent). No custom name is persisted.
+  const auto display_definition=std::find_if(view.data.catalog.definitions.begin(),view.data.catalog.definitions.end(),[&](const auto& d){return d.id==n.definition_id;});
+  if(display_definition==view.data.catalog.definitions.end()){rollback();return std::nullopt;}
+  if(display_definition->type==4||display_definition->type==8)state.dynamic_name=display_definition->address;
   if(n.parent_key.empty()){if(view.root){rollback();return std::nullopt;}view.root=n.native_id.value;}
   for(const auto& child:view.data.catalog.nodes)if(child.parent_key==n.key)state.children.push_back(child.native_id.value);
   // A house is both an outer item and its own native estate. Native validators
@@ -167,6 +172,9 @@ std::optional<HousingView> LoadHousingView(Client* c) {
    if(kind==1&&o[2])state.owner_name=state.owner_handle=o[2];
    else if(kind==3&&o[3]){state.guild_id=id;state.owner_name=state.owner_handle=o[3];}
    else {rollback();return std::nullopt;}
+   auto preference=QueryView(*db,"SELECT voting_opted_out FROM housing_estate_preferences WHERE estate_id="+std::to_string(n.ownership_estate_id));
+   if(!preference.Success()||preference.RowCount()>1){rollback();return std::nullopt;}
+   if(preference.RowCount()){if(!preference.begin()[0]||Strings::ToUnsignedInt(preference.begin()[0])>1){rollback();return std::nullopt;}state.voting_opted_out=uint8_t(Strings::ToUnsignedInt(preference.begin()[0]));}
    const auto definition=std::find_if(view.data.catalog.definitions.begin(),view.data.catalog.definitions.end(),[&](const auto& d){return d.id==n.definition_id;});
    if(definition==view.data.catalog.definitions.end()){rollback();return std::nullopt;}
    state.expiry_time=Housing::RentState::Plot(*db,n.ownership_estate_id,n.native_id.value,false).expired_since;
@@ -355,6 +363,8 @@ struct Pending {
  bool cursor_notified=false;
 };
 struct Session {
+ struct Swap {std::string key;bool completed=false;};
+ std::map<std::vector<uint8_t>,Swap> house_swaps;
  struct VaultPending {std::string key;LiveItems::InventoryRow row;LiveItems::VaultContext context;std::optional<VaultStorage::Item> item;std::optional<LiveItems::VaultTransferRequest> transfer;int32_t serial=0;bool completed=false,partition=false;};
  std::map<std::vector<uint8_t>,VaultPending> vault_actions;
  bool geometry_preview_only=false;
@@ -575,16 +585,20 @@ Housing::PlacementWire::Actor FurnitureActor(const EQ::ItemInstance& item,const 
  actor.disable_rotation=d->HousingDisableRotation;actor.disable_free=d->HousingDisableFreePlacement;
  actor.min_max_default_scale_heading_pitch_roll={d->HousingMinimumScale,d->HousingMaximumScale,std::clamp(1.f,d->HousingMinimumScale,d->HousingMaximumScale),0,0,0};return actor;
 }
-Bytes FurnitureEntry(Client* c,const Housing::LiveItems::Stored& row,const EQ::ItemInstance& item,const std::string* creator=nullptr,const Housing::HouseBinding::Binding* house=nullptr){
+Bytes FurnitureEntry(Client* c,const Housing::LiveItems::Stored& row,const EQ::ItemInstance& item,const std::string* creator=nullptr,const Housing::HouseBinding::Binding* house=nullptr,bool self_owner_display=false){
  if(!row.placement||(!creator&&row.row.values.character_id!=c->CharacterID())||(house?!Housing::HousePresentation::Model(row,*house,item):(!KnownFurniture(item)&&!Housing::CratePlacement::Model(item)))||!Housing::InventoryBridge::MatchesProjection(row.row,const_cast<EQ::ItemInstance&>(item)))throw std::invalid_argument("Unsupported current furniture row");
  if(house&&(!house->interior||item.GetHousingHouseID()!=house->house_id||item.GetHousingEstateID()!=house->interior->native_estate_id))throw std::invalid_argument("House presentation identity mismatch");
  const auto& p=*row.placement;auto embedded=RoF2::SerializeHousingItem(item,EQ::invslot::slotCursor);if(!embedded)throw std::invalid_argument("Furniture ItemPtr unavailable");
  Bytes bytes;auto w=[&](uint32_t v){Housing::NeighborhoodWire::Detail::Write32(bytes,v);};w(p.reservation.native_estate_id);w(p.reservation.native_item_id);bytes.push_back(row.stowed?0:1);w(Housing::UpkeepCycle::Expired(database,row.custody_id,p.reservation.native_item_id));
  const auto& t=p.transform;for(float v:{t.heading,t.pitch,t.roll,t.scale,t.position[1],t.position[0],t.position[2]})Housing::PlacementWire::Detail::Float(bytes,v); // ItemPosition is X,Y,Z; worldactor is Y,X,Z.
- // OwnerName and OwnerHandle belong to the item creator. There is no recovered
- // separate handle source; retain the existing name-as-handle presentation.
+ // The native personal-trophy enumerator excludes nonempty OwnerName as
+ // foreign-owned (5B4DD4). Advertise self ownership only on this viewer's personal property with an
+ // empty display name; preserve every foreign creator and the owner handle.
+ // This compatibility convention never changes canonical custody ownership.
  const std::string owner=creator?*creator:std::string(c->GetName());if(owner.empty()||owner.size()>63||owner.find('\0')!=std::string::npos)throw std::invalid_argument("Invalid furniture creator");
- for(int n=0;n<2;++n){w(owner.size());bytes.insert(bytes.end(),owner.begin(),owner.end());}
+ const std::string display_owner=self_owner_display&&row.row.values.character_id==c->CharacterID()?std::string{}:owner;
+ w(display_owner.size());bytes.insert(bytes.end(),display_owner.begin(),display_owner.end());
+ w(owner.size());bytes.insert(bytes.end(),owner.begin(),owner.end());
  bytes.insert(bytes.end(),embedded->begin(),embedded->end());return bytes;
 }
 struct FurnitureScene {uint32_t estate=0;Bytes list;std::map<uint32_t,Session::World> worlds;std::map<uint32_t,Bytes> entries;std::vector<Bytes> list_deltas;};
@@ -645,7 +659,7 @@ std::optional<FurnitureScene> FurnitureReadScene(Client* c,Session& session,Hous
   if(!FurnitureCurrentCatalog(row,target,snapshot->current_catalog_revision))return {};
   const auto id=row.placement->reservation.native_item_id;auto cache=session.presentations.find(id);
   if(cache==session.presentations.end()){auto rebuilt=Housing::InventoryBridge::Reconstruct(database,row.row);if(!rebuilt)return {};cache=session.presentations.emplace(id,std::move(rebuilt.value.item)).first;}
-  if(!cache->second||!Housing::SceneProjection::SynchronizeCharges(row.row,*cache->second)||!Housing::HousePresentation::Project(entry,*cache->second))return {};auto bytes=FurnitureEntry(c,row,*cache->second,&entry.creator_name,entry.house.get());if(bytes.size()>65523)return {};
+  if(!cache->second||!Housing::SceneProjection::SynchronizeCharges(row.row,*cache->second)||!Housing::HousePresentation::Project(entry,*cache->second))return {};auto bytes=FurnitureEntry(c,row,*cache->second,&entry.creator_name,entry.house.get(),snapshot->definition.type==4&&snapshot->access.implicit_owner);if(bytes.size()>65523)return {};
   if(!scene.entries.emplace(id,std::move(bytes)).second)return {};
   if(render_world&&!row.stowed)scene.worlds.emplace(id,Session::World{FurnitureGuid(*cache->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cache->second,*row.placement,entry.house.get()))});
  }
@@ -686,7 +700,7 @@ std::optional<FurnitureScene> FurnitureReadRoomScene(Client* c,Session& session,
   if(cached==session.presentations.end()){auto rebuilt=Housing::InventoryBridge::Reconstruct(database,row.row);if(!rebuilt)return {};cached=session.presentations.emplace(id,std::move(rebuilt.value.item)).first;}
   if(!cached->second||!Housing::SceneProjection::SynchronizeCharges(row.row,*cached->second))return {};
   if(entry.crate&&!Housing::CratePresentation::Project(entry,snapshot.house->house_id,scene.estate,*cached->second))return {};
-  auto bytes=FurnitureEntry(c,row,*cached->second,&entry.creator_name);if(bytes.size()>65523||!scene.entries.emplace(id,bytes).second)return {};
+  auto bytes=FurnitureEntry(c,row,*cached->second,&entry.creator_name,nullptr,snapshot.access.owner_kind==Housing::OwnerKind::Character&&snapshot.access.owner_id==c->CharacterID());if(bytes.size()>65523||!scene.entries.emplace(id,bytes).second)return {};
   if(render_world&&!row.stowed)scene.worlds.emplace(id,Session::World{FurnitureGuid(*cached->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cached->second,*row.placement))});next_cache.emplace(id,entry);
  }
  if(!FurnitureVaultEntries(session,scene,snapshot.vault_items))return {};
@@ -1147,7 +1161,13 @@ void Client::SendHousingPlacedScene(){
      if(yard){FurnitureSendScene(this,session,*yard);retained.push_back(yard->estate);}
     }
    }
-   else{session.room_items.clear();session.room_context.reset();while(!session.sent_worlds.empty())FurniturePurgeScene(this,session,session.sent_worlds.begin()->first);return;}
+   else{
+    if(!room){session.room_items.clear();session.room_context.reset();}
+    // The current room was independently authorized above. An unavailable
+    // parent-yard projection must not erase its list or mutation context.
+    // The retained-estate sweep below still removes every stale parent scene.
+    LogInfo("Native parent furniture scene unavailable actor [{}] code [{}]; retaining authorized room",CharacterID(),int(parent.error));
+   }
   }else{session.room_items.clear();session.room_context.reset();}
   // Current Enter-authorized read view; every mutation rechecks its typed capability.
   if(!view->interior)for(const auto& node:view->data.catalog.nodes){
@@ -1240,6 +1260,71 @@ bool Client::HandleHousingHouseGo(const EQApplicationPacket* app){
  return true;
 }
 
+bool SendHousingVotingPreferenceSnapshot(Client* client,uint32_t native){
+ try{
+  auto view=LoadHousingView(client);if(!view)return false;
+  auto state=view->states.find(native);if(state==view->states.end())return false;
+  const auto definition=std::find_if(view->data.catalog.definitions.begin(),view->data.catalog.definitions.end(),[&](const auto& d){return d.id==state->second.definition_id;});
+  if(definition==view->data.catalog.definitions.end()||(definition->type!=4&&definition->type!=8))return false;
+  // The native purchase title is refreshed from DynamicName by63fd. Retain
+  // the same default address that796c inspection displays when no custom name exists.
+  if(state->second.dynamic_name.empty())state->second.dynamic_name=definition->address;
+  SendEstatePayload(client,OP_RealEstateSnapshot,Housing::EstateWire::EncodeEstateSnapshot(state->second));return true;
+ }catch(...){LogError("Housing voting snapshot unavailable");return false;}
+}
+
+void Client::Handle_OP_RealEstateItemInspect(const EQApplicationPacket* app){
+ if(!NativeFurniture(this)||!Connected()||!ClientDataLoaded()||!HasInventorySessionReservation()||!app)return;
+ try{
+  auto request=Housing::InteractionWire::DecodeItemInspect(app->pBuffer,app->size);if(!request||!m_housing_placement_session)return;
+  auto& session=*m_housing_placement_session;auto cached=session.presentations.find(request->item_id);
+  if(cached==session.presentations.end()||!cached->second)return;
+  auto view=LoadHousingView(this);auto* bridge=GetHousingInventoryBridge();if(!view||!bridge)return;
+  auto target=FurniturePlot(this,*view,*cached->second,request->estate_id);if(!target)return;
+  // Re-read current authorized scene/custody and synchronize presentation before
+  // serializing. Cached IDs alone never grant inspection of another estate.
+  auto current=FurnitureCurrentScene(this,session,*bridge,*target);
+  if(!current||current->estate!=request->estate_id||!current->entries.count(request->item_id))return;
+  cached=session.presentations.find(request->item_id);if(cached==session.presentations.end()||!cached->second)return;
+  auto body=RoF2::SerializeHousingItem(*cached->second,EQ::invslot::slotCursor);if(!body)return;
+  // Original58c7 consumes a direct FullItemPtr: no estate IDs, result or item-type prefix.
+  SendEstatePayload(this,OP_RealEstateItemInspect,*body);
+  LogInfo("Native housing item inspection actor [{}] estate [{}] item [{}] bytes [{}]",CharacterID(),request->estate_id,request->item_id,body->size());
+ }catch(...){LogError("Native housing item inspection unavailable");}
+}
+
+void Client::Handle_OP_RealEstateHouseSwap(const EQApplicationPacket* app){
+ if(!app||!NativeFurniture(this)||!RuleB(Housing,EnableNativeHouseSwap)||!ClientDataLoaded()||!HasInventorySessionReservation())return;
+ auto request=Housing::InteractionWire::DecodeHouseSwap(app->pBuffer,app->size);
+ if(!request){LogInfo("Native house swap invalid frame actor [{}] bytes [{}]",CharacterID(),app->size);return;}
+ LogInfo("Native house swap request actor [{}] current [{}:{}] replacement [{}:{}]",CharacterID(),request->current.estate_id,request->current.item_id,request->replacement.estate_id,request->replacement.item_id);
+ try{
+  auto* bridge=GetHousingInventoryBridge();auto view=LoadHousingView(this);if(!bridge||!view||view->interior){Message(Chat::Red,"House swaps must be started from the neighborhood plot.");return;}
+  auto node=std::find_if(view->data.catalog.nodes.begin(),view->data.catalog.nodes.end(),[&](const auto& n){return n.native_id.value==request->current.estate_id&&n.ownership_estate_id;});if(node==view->data.catalog.nodes.end())return;
+  auto scene=bridge->ReadScene(node->ownership_estate_id);if(!scene){Message(Chat::Red,"The plot's housing state could not be verified.");LogInfo("Native house swap scene unavailable actor [{}] code [{}]",CharacterID(),int(scene.error));return;}if(!FurniturePlayerInRegion(this,scene.value)){Message(Chat::Red,"Stand inside the plot before swapping its houses.");return;}
+  if(!m_housing_placement_session)m_housing_placement_session=std::make_shared<Session>();auto& session=*m_housing_placement_session;
+  Bytes bytes(app->pBuffer,app->pBuffer+app->size);auto old=session.house_swaps.find(bytes);
+  auto before=Housing::HouseSwapPreflight::Select(*request,scene.value,{CharacterID(),AccountID()});
+  if(old!=session.house_swaps.end()&&old->second.completed&&before){session.house_swaps.erase(old);old=session.house_swaps.end();}
+  if(old==session.house_swaps.end()){
+   if(!before){Message(Chat::Red,"Select a stored house in this plot while its current house is placed.");return;}
+   auto room=bridge->ReadAttachedInterior(node->ownership_estate_id,before.value.current.house->house_id);
+   if(!room){Message(Chat::Red,"The current house interior could not be verified.");return;}
+   if(std::any_of(room.value.contents.begin(),room.value.contents.end(),[](const auto& item){return item.crate&&!item.stored.stowed;})){MessageString(Chat::Red,5338);return;}
+   if(session.house_swaps.size()>=64)session.house_swaps.clear();
+   old=session.house_swaps.emplace(bytes,Session::Swap{FurnitureKey("houseswap:"),false}).first;
+  }
+  std::array<uint8_t,24> wire{};std::copy(bytes.begin(),bytes.end(),wire.begin());
+  auto result=bridge->SwapHouse(old->second.key,node->ownership_estate_id,wire);
+  if(!result){auto error=result.error;uint32_t message=error==Housing::LiveItems::Error::RealEstateFull?5331:error==Housing::LiveItems::Error::VaultFull?5332:error==Housing::LiveItems::Error::NpcFull?5333:0;if(message)MessageString(Chat::Red,message);else Message(Chat::Red,"The house swap could not be completed. Check permissions, occupants, and the plot's current state.");LogInfo("Native house swap rejected actor [{}] code [{}]",CharacterID(),int(error));return;}
+  old->second.completed=true;session.attached_rooms.clear();session.attached_crates.clear();session.attached_crate_rooms.clear();session.room_items.clear();session.storage_requests.clear();session.transfer_requests.clear();session.pending.reset();session.move.reset();
+  for(const auto& change:result.value.changes)if(change.before_native!=change.after_native)session.presentations.erase(change.before_native);
+  FurnitureBroadcastScenes(true);
+  Message(Chat::Yellow,"House swap completed. Items from the previous house are in the new house's storage.");
+  LogInfo("Native house swap completed actor [{}] old house [{}] new house [{}] changes [{}]",CharacterID(),result.value.old_house,result.value.new_house,result.value.changes.size());
+ }catch(...){LogError("Native house swap view unavailable");}
+}
+
 void Client::SendHousingChairMenu(uint32_t estate,uint32_t item,std::array<uint32_t,2> mouse,const std::string& claimed_guid){
  if(!NativeFurniture(this)||!ClientDataLoaded()||!HasInventorySessionReservation())return;
  try{
@@ -1255,11 +1340,12 @@ void Client::SendHousingChairMenu(uint32_t estate,uint32_t item,std::array<uint3
   if(!rent.Active()){FurnitureResult(this,rent.expired_since?24:1);return;}
   if(row->house&&Housing::UpkeepCycle::Expired(database,row->stored.custody_id,item)){FurnitureResult(this,25);return;}
   const auto distance=FurnitureDistance(this,*cache->second,row->stored.placement->transform);
-  if(!distance||*distance>20){FurnitureResult(this,20);return;}
+  if(row->stored.stowed?!FurniturePlayerInRegion(this,*current):(!distance||*distance>20)){FurnitureResult(this,20);return;}
+  const bool swap=RuleB(Housing,EnableNativeHouseSwap)&&row->house&&row->stored.stowed&&row->stored.row.values.character_id==CharacterID()&&std::any_of(current->items.begin(),current->items.end(),[&](const auto& placed){return placed.house&&!placed.stored.stowed&&placed.stored.row.values.character_id==CharacterID();})&&current->access.Allows(Housing::AccessPolicy::Capability::AddHouse)&&current->access.Allows(Housing::AccessPolicy::Capability::RemoveHouse);
   auto scene=FurnitureCurrentScene(this,session,*bridge,*target);if(!scene||!scene->entries.count(item)){FurnitureResult(this,9);return;}
   // Native5b74c4 item-owner match bypasses ordinary RemoveItem8/CanDrop.
   // Only the immutable creator receives Pickup; Move independently needs Move10.
-  auto payload=Housing::InteractionWire::EncodeChairMenu(estate,item,guid,cache->second->GetUnscaledItem()->Name,mouse,current->access.Allows(Housing::AccessPolicy::Capability::MoveItem),row->stored.row.values.character_id==CharacterID()&&(!row->house||current->access.Allows(Housing::AccessPolicy::Capability::RemoveHouse))&&(!row->crate||current->access.Allows(Housing::AccessPolicy::Capability::RemoveCrate)),bool(row->house)&&current->access.Allows(Housing::AccessPolicy::Capability::Enter));
+  auto payload=Housing::InteractionWire::EncodeChairMenu(estate,item,guid,cache->second->GetUnscaledItem()->Name,mouse,current->access.Allows(Housing::AccessPolicy::Capability::MoveItem),row->stored.row.values.character_id==CharacterID()&&(!row->house||current->access.Allows(Housing::AccessPolicy::Capability::RemoveHouse))&&(!row->crate||current->access.Allows(Housing::AccessPolicy::Capability::RemoveCrate)),bool(row->house)&&!row->stored.stowed&&current->access.Allows(Housing::AccessPolicy::Capability::Enter),true,swap);
   auto packet=std::make_unique<EQApplicationPacket>(OP_RealEstateItemMenu,payload.size());std::memcpy(packet->pBuffer,payload.data(),payload.size());
   FurnitureSendScene(this,session,*scene);auto* raw=packet.release();FastQueuePacket(&raw);
  }catch(const std::exception&){LogError("Native chair interaction menu unavailable");FurnitureResult(this,1);}
@@ -1455,7 +1541,7 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
    // presence creates a new operation; a duplicate after removal reuses receipt.
    if(prior!=session.inventory_storage_requests.end()&&prior->second.completed&&item){session.inventory_storage_requests.erase(prior);prior=session.inventory_storage_requests.end();}
    if(prior==session.inventory_storage_requests.end()){
-    if(!item||(!KnownFurniture(*item)&&!(action==6&&Housing::HousePlacement::Model(*item)))||!SourceGuid(source,*item)||(slot==33&&GetInv().CursorSize()!=1)){FurnitureResult(this,9);return;}
+    if(!item||(!KnownFurniture(*item)&&!((action==6||(action==3&&RuleB(Housing,EnableNativeHouseSwap)))&&Housing::HousePlacement::Model(*item)))||!SourceGuid(source,*item)||(slot==33&&GetInv().CursorSize()!=1)){FurnitureResult(this,9);return;}
     auto row=FurnitureInventory(this,slot);if(!row||!Housing::InventoryBridge::MatchesProjection(*row,*item)){FurnitureResult(this,9);return;}
     const auto quantity=Housing::StackPartitionApplication::Requested(*item,source.opaque);if(quantity&&((action!=2&&action!=3&&action!=6)||item->GetHousingHouseID()||item->GetHousingCrateID())){FurnitureResult(this,9);return;}
     if(session.pending&&!session.pending->completed&&!bridge->CancelPlacement(session.pending->reservation.native_item_id)){FurnitureResult(this,1);return;}session.pending.reset();session.move.reset();
@@ -1467,11 +1553,11 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
     }
     if(!target||(action!=6&&(action==2)!=bool(target->room)) ){FurnitureResult(this,23);return;}
     FurniturePending pending;pending.row=*row;pending.serial=item->GetSerialNumber();pending.source=source;pending.reserve_key=FurnitureKey("store-preview:");pending.store_key=FurnitureKey("inventory-store:");
-    if(action==6){
      if(Housing::HousePlacement::Model(*item)){
       if(item->GetHousingHouseID()){auto bound=bridge->ReadInventoryHouse(*row);if(!bound){FurnitureResult(this,9);return;}pending.house_before=bound.value;pending.house_identity=Housing::LiveItems::HouseIdentity{bound.value->house_id,bound.value->revision};}
       else {if(item->GetHousingEstateID()!=UINT32_MAX){FurnitureResult(this,9);return;}pending.house_identity=Housing::LiveItems::HouseIdentity{0,0};}
      }
+    if(action==6){
      Housing::LiveItems::Result<Housing::Scene::Snapshot> fresh;
      if(target->room){if(!view->interior){FurnitureResult(this,23);return;}auto read=bridge->ReadInterior();if(!read){FurnitureResult(this,23);return;}auto projected=FurnitureRoomCrateSnapshot(read.value);if(!projected){FurnitureResult(this,23);return;}fresh.value=std::move(*projected);}
      else fresh=bridge->ReadScene(target->node.ownership_estate_id);
@@ -1498,7 +1584,7 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
      if(room.exterior_source){request.current_source=room.context.source;request.exterior_source=room.exterior_source;request.exterior_estate_id=room.context.estate_id;pending.room_exterior_source=room.exterior_source;}
      auto allocated=bridge->ReserveInteriorPlacement(request,pending.crate_member);if(!allocated){FurnitureResult(this,FurniturePlacementResult(allocated.error));return;}pending.room=allocated.value;pending.reservation=allocated.value.placement;
     }else{
-     Housing::LiveItems::PreviewRequest request;request.request_key=pending.reserve_key;request.estate_id=target->node.ownership_estate_id;request.native_estate_id=target->node.native_id.value;request.catalog_key=target->key;request.catalog_revision=target->revision;request.expected=pending.row;request.verified_runtime_serial=pending.serial;
+     Housing::LiveItems::PreviewRequest request;request.request_key=pending.reserve_key;request.estate_id=target->node.ownership_estate_id;request.native_estate_id=target->node.native_id.value;request.catalog_key=target->key;request.catalog_revision=target->revision;request.expected=pending.row;request.verified_runtime_serial=pending.serial;request.house_storage_only=bool(pending.house_identity)&&!pending.crate_member;
      auto allocated=pending.crate_member?bridge->ReserveCratePlacement(request,*pending.crate_member):bridge->ReservePlacement(request);if(!allocated){FurnitureResult(this,FurniturePlacementResult(allocated.error));return;}pending.reservation=allocated.value;
     }
     prior=session.inventory_storage_requests.emplace(incoming,std::move(pending)).first;
@@ -1506,7 +1592,7 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
    auto& pending=prior->second;
    auto deletion=pending.completed?std::unique_ptr<EQApplicationPacket>{}:FurnitureCursorDeletion(slot);
    auto result=bridge->Store(pending.store_key,pending.reservation.estate_id,pending.row,Housing::LiveItems::Placed{pending.reservation,{0,0,0,1,{0,0,0}},1},pending.house_identity,pending.room,true,pending.room_exterior_source,std::nullopt,pending.crate_member,std::nullopt,source.opaque);
-   if(!result){FurnitureResult(this,FurniturePlacementResult(result.error));return;}pending.completed=true;if(result.value.partition){if(auto* remainder=GetInv().GetItem(int16_t(slot)))SendItemPacket(int16_t(slot),remainder,ItemPacketTrade);}else if(deletion){auto* packet=deletion.release();FastQueuePacket(&packet);}FurnitureResult(this,0);FurnitureBroadcastScenes();return;
+   if(!result){FurnitureResult(this,FurniturePlacementResult(result.error));return;}pending.completed=true;if(result.value.partition){if(auto* remainder=GetInv().GetItem(int16_t(slot)))SendItemPacket(int16_t(slot),remainder,ItemPacketTrade);}else if(deletion){auto* packet=deletion.release();FastQueuePacket(&packet);}FurnitureResult(this,0);FurnitureBroadcastScenes(bool(pending.house_identity));return;
   }
   if(!StoredSource(source)){FurnitureResult(this,1);return;}
   if(source.opaque){
@@ -1561,7 +1647,9 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
    }
    if(room_source)yard=FurnitureRoomCrateSnapshot(*room_source);
    else if(action==6){
-    if(shown==session.presentations.end()||!shown->second||!KnownFurniture(*shown->second)||!SourceGuid(source,*shown->second)){FurnitureResult(this,9);return;}
+    // Houses use the same fully reviewed current yard and crate transaction.
+    // Recognize their native selection here; later custody/ACL/room checks remain mandatory.
+    if(shown==session.presentations.end()||!shown->second||(!KnownFurniture(*shown->second)&&!Housing::HousePlacement::Model(*shown->second))||!SourceGuid(source,*shown->second)){FurnitureResult(this,9);return;}
     auto target=FurniturePlot(this,*view,*shown->second,source.estate_id);if(!target||target->room){FurnitureResult(this,23);return;}
     auto read=bridge->ReadScene(target->node.ownership_estate_id);if(read)yard=std::move(read.value);
    }else{auto read=bridge->ReadScene(crate_source->second.estate_id);if(read)yard=std::move(read.value);}

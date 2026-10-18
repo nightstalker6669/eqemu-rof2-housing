@@ -20,5 +20,11 @@ inline bool Within(const RegionWire::Region& region,const std::array<float,3>& p
  for(size_t axis=0;axis<3;++axis){double value=0,magnitude=0;for(size_t j=0;j<3;++j){const auto part=(double(point[j])-m[12+j])*inverse[j*3+axis];value+=part;magnitude+=std::abs(part);}const double guard=256*std::numeric_limits<float>::epsilon()*condition*(1+magnitude);if(!std::isfinite(value)||std::abs(value)+guard>=1)return false;}
  return true;
 }
+// Reviewed room profiles are unions of placement volumes. The first volume
+// alone need not contain the character (for example, at an interior stair).
+inline bool Within(const RegionWire::Region& primary,const std::vector<RegionWire::Region>& additional,const std::array<float,3>& point){
+ if(Within(primary,point))return true;
+ return std::any_of(additional.begin(),additional.end(),[&](const auto& region){return Within(region,point);});
+}
 }
 #endif

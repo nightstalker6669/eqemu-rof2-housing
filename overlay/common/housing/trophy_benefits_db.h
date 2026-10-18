@@ -83,7 +83,7 @@ inline LiveItems::Result<View> ExecuteUnderTransaction(Database& db,const LiveIt
     if(stored.custody_id!=std::stoull(row[1])||stored.row.values.item_id!=catalog.at(id).placed_item_id||stored.stowed||!stored.placement||!content.room||content.contained_in_crate)continue;
     eligible.insert(id);
     if(request.action==Action::Select&&request.selection.benefit_id==id&&request.selection_location){const auto& route=request.selection_location->route;const auto& source=current.context.source;
-     if(route.zone_id==source.zone_id&&route.zone_version==source.zone_version&&route.instance_id==source.instance_id&&Within(current.room_profile->region,request.selection_location->position))selection_at_source=true;
+     if(route.zone_id==source.zone_id&&route.zone_version==source.zone_version&&route.instance_id==source.instance_id&&Within(current.room_profile->region,current.room_profile->additional_regions,request.selection_location->position))selection_at_source=true;
     }
    }
   }

@@ -44,6 +44,8 @@ namespace Housing::NativeAccess {
         Result<Snapshot> Read(const LiveItems::Lease&, EstateId, uint32_t native_plot_id,
         LiveItems::InventorySessionFence&);
         Result<Receipt> Replace(const Request&, LiveItems::InventorySessionFence&);
+        // Absolute, idempotent preference setter under the same current route/lease/Manage checks.
+        Result<bool> SetVotingOptOut(const LiveItems::Lease&,EstateId,uint32_t native_plot_id,bool,LiveItems::InventorySessionFence&);
         // Exact historical own receipt under a genuine current session fence. Does not
         // repeat a mutation or require newly revoked Manage/estate ownership. The caller
         // must reread current ACL before sending fresh state; old outcomes are historical.

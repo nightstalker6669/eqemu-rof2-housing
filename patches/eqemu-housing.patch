@@ -1,8 +1,8 @@
 diff --git a/common/CMakeLists.txt b/common/CMakeLists.txt
-index 1a9028e..3115dc6 100644
+index 1a9028e..f1bb247 100644
 --- a/common/CMakeLists.txt
 +++ b/common/CMakeLists.txt
-@@ -16,6 +16,32 @@ SET(common_sources
+@@ -16,6 +16,33 @@ SET(common_sources
      database/database_dump_service.cpp
      database.cpp
      database_instances.cpp
@@ -17,6 +17,7 @@ index 1a9028e..3115dc6 100644
 +    housing/inventory_process_recovery.cpp
 +    housing/scene_service.cpp
 +    housing/interior_storage_service.cpp
++    housing/house_swap_service.cpp
 +    housing/native_access_service.cpp
 +    housing/native_plot_purchase.cpp
 +    housing/ownership_transfer_service.cpp
@@ -61,10 +62,10 @@ index 3052fd7..26adc93 100644
  	if (RuleB(Character, SoftDeletes)) {
  		delete_type = "soft-deleted";
 diff --git a/common/emu_oplist.h b/common/emu_oplist.h
-index 268fa97..f6378b8 100644
+index 268fa97..719cb82 100644
 --- a/common/emu_oplist.h
 +++ b/common/emu_oplist.h
-@@ -627,4 +627,58 @@ N(OP_ZoneSpawns),
+@@ -627,4 +627,65 @@ N(OP_ZoneSpawns),
  N(OP_ZoneUnavail),
  N(OP_ResetAA),
  N(OP_UnderWorld),
@@ -82,6 +83,9 @@ index 268fa97..f6378b8 100644
 +N(OP_RealEstatePurchase),
 +N(OP_RealEstateSale),
 +N(OP_RealEstateTransfer),
++N(OP_RealEstateSaleResult),
++N(OP_RealEstateTransferResult),
++N(OP_RealEstateTransferConsent),
 +N(OP_RealEstateEscrow),
 +N(OP_RealEstateItemList),
 +N(OP_RealEstateItemDelta),
@@ -99,7 +103,11 @@ index 268fa97..f6378b8 100644
 +N(OP_RealEstateLoadLayout),
 +N(OP_RealEstateItemMenu),
 +N(OP_RealEstateItemQuery),
++N(OP_RealEstateItemInspect),
++N(OP_RealEstateHouseSwap),
++N(OP_RealEstateVotingOptOut),
 +N(OP_RealEstateExit),
++N(OP_RealEstateTrophyOpen),
 +N(OP_RealEstateTrophyToggle),
 +N(OP_RealEstateTrophy),
 +N(OP_RealEstateTrophyList),
@@ -123,6 +131,26 @@ index 268fa97..f6378b8 100644
 +N(OP_GuildTrophyModify),
 +
 +N(OP_GuildTrophyOptIn),
+diff --git a/common/eq_packet_structs.h b/common/eq_packet_structs.h
+index 0a13492..0a44c49 100644
+--- a/common/eq_packet_structs.h
++++ b/common/eq_packet_structs.h
+@@ -3858,6 +3858,7 @@ struct Internal_GuildMemberEntry_Struct {
+ 	uint32	rank;						//network byte order
+ 	uint32	time_last_on;				//network byte order
+ 	uint32	tribute_enable;				//network byte order
++	uint32 trophy_enable; // Internal persisted housing trophy opt-in.
+ 	uint32	total_tribute;				//total guild tribute donated, network byte order
+ 	uint32	last_tribute;				//unix timestamp
+ //	char	public_note[1];				//variable length.
+@@ -3868,6 +3869,7 @@ struct Internal_GuildMemberEntry_Struct {
+ 
+ struct Internal_GuildMembers_Struct {	//just for display purposes, this is not actually used in the message encoding.
+ 	char	player_name[64];		//variable length.
++	uint32 guild_id; // Internal authoritative roster identity; not a wire layout.
+ 	uint32	count;				//network byte order
+ 	uint32	name_length;	//total length of all of the char names, excluding terminators
+ 	uint32	note_length;	//total length of all the public notes, excluding terminators
 diff --git a/common/guild_base.cpp b/common/guild_base.cpp
 index 3f34c36..7c102e8 100644
 --- a/common/guild_base.cpp
@@ -285,7 +313,7 @@ index 99edfb5..28312fe 100644
  		mutable CharacterEvolvingItemsRepository::CharacterEvolvingItems  m_evolving_details{};
  
 diff --git a/common/patches/rof2.cpp b/common/patches/rof2.cpp
-index b250a5d..7441b27 100644
+index b250a5d..b3d9892 100644
 --- a/common/patches/rof2.cpp
 +++ b/common/patches/rof2.cpp
 @@ -1,3 +1,5 @@
@@ -294,16 +322,17 @@ index b250a5d..7441b27 100644
  /*	EQEMu: Everquest Server Emulator
  
  	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
-@@ -21,6 +23,8 @@
+@@ -21,6 +23,9 @@
  #include "../eqemu_config.h"
  #include "../eqemu_logsys.h"
  #include "rof2.h"
++#include "../housing/trophy_stat_item.h"
 +#include "../housing/item_wire.h"
 +#include <cmath>
  #include "../opcodemgr.h"
  
  #include "../eq_stream_ident.h"
-@@ -52,6 +56,34 @@ namespace RoF2
+@@ -52,6 +57,34 @@ namespace RoF2
  
  	void SerializeItem(EQ::OutBuffer& ob, const EQ::ItemInstance *inst, int16 slot_id, uint8 depth, ItemPacketType packet_type);
  
@@ -338,7 +367,37 @@ index b250a5d..7441b27 100644
  	// server to client inventory location converters
  	static inline structs::InventorySlot_Struct ServerToRoF2Slot(uint32 server_slot);
  	static inline structs::InventorySlot_Struct ServerToRoF2CorpseSlot(uint32 server_corpse_slot);
-@@ -5599,6 +5725,10 @@ namespace RoF2
+@@ -1794,8 +1827,8 @@ namespace RoF2
+ 		*buffer = '\0';
+ 		buffer++;
+ 
+-		// Guild ID
+-		//*((uint32*)buffer) = htonl(2);
++		// Native guild identity drives trophy eligibility and guild permissions.
++		*((uint32*)buffer) = htonl(emu->guild_id);
+ 		buffer += sizeof(uint32);
+ 
+ 		//add member count.
+@@ -1837,7 +1870,7 @@ namespace RoF2
+ 				PutFieldN(rank);
+ 				PutFieldN(time_last_on);
+ 				PutFieldN(tribute_enable);
+-				e->unknown01 = 0;
++				e->unknown01 = htonl(emu_e->trophy_enable); // Native persisted trophy opt-in.
+ 				PutFieldN(total_tribute);
+ 				PutFieldN(last_tribute);
+ 				e->unknown_one = htonl(1);
+@@ -2081,7 +2114,8 @@ namespace RoF2
+                 EQ::OutBuffer           ob;
+                 EQ::OutBuffer::pos_type last_pos = ob.tellp();
+ 
+-                ob.write((const char *)__emu_buffer, 4);
++                const uint32 wire_type=(old_item_pkt->PacketType==Housing::TrophyStatItem::PersonalPacket||old_item_pkt->PacketType==Housing::TrophyStatItem::GuildPacket)?uint32(ItemPacketTributeItem):uint32(old_item_pkt->PacketType);
++                ob.write((const char *)&wire_type, 4);
+ 
+                 SerializeItem(ob, (const EQ::ItemInstance *)int_struct->inst, int_struct->slot_id, 0,
+                               old_item_pkt->PacketType);
+@@ -5599,6 +5633,10 @@ namespace RoF2
  
  	DECODE(OP_FindPersonRequest)
  	{
@@ -349,7 +408,20 @@ index b250a5d..7441b27 100644
  		DECODE_LENGTH_EXACT(structs::FindPersonRequest_Struct);
  		SETUP_DIRECT_DECODE(FindPersonRequest_Struct, structs::FindPersonRequest_Struct);
  
-@@ -6544,7 +6674,9 @@ namespace RoF2
+@@ -6464,6 +6502,12 @@ namespace RoF2
+ 
+ 		structs::InventorySlot_Struct slot_id{};
+ 		switch (packet_type) {
++        case Housing::TrophyStatItem::PersonalPacket:
++        case Housing::TrophyStatItem::GuildPacket:
++            if(slot_id_in<0||slot_id_in>=(packet_type==Housing::TrophyStatItem::PersonalPacket?10:4))return;
++            slot_id.Type=packet_type==Housing::TrophyStatItem::PersonalPacket?invtype::typeTrophyTribute:invtype::typeGuildTrophyTribute;
++            slot_id.Slot=slot_id_in;slot_id.SubIndex=0xffff;slot_id.AugIndex=0xffff;
++            break;
+ 		case ItemPacketLoot:
+ 			slot_id = ServerToRoF2CorpseSlot(slot_id_in);
+ 			break;
+@@ -6544,7 +6588,9 @@ namespace RoF2
  		hdrf.ornamentHeroModel = hero_model;
  		hdrf.unknown063 = 0;
  		hdrf.Copied = 0;
@@ -360,7 +432,7 @@ index b250a5d..7441b27 100644
  		hdrf.unknowna5 = 0;
  		hdrf.ItemClass = item->ItemClass;
  
-@@ -6880,7 +7012,7 @@ namespace RoF2
+@@ -6880,7 +6926,7 @@ namespace RoF2
  		//evolve_string; // Some String, but being evolution related is just a guess
  
  		iqbs.Heirloom = 0;
@@ -369,7 +441,7 @@ index b250a5d..7441b27 100644
  		iqbs.unknown28 = -1;
  		iqbs.unknown29 = packet_type == ItemPacketInvalid ? 0xFF : 0;
  		iqbs.unknown30 = -1;
-@@ -6890,7 +7022,29 @@ namespace RoF2
+@@ -6890,7 +6936,29 @@ namespace RoF2
  		iqbs.unknown38 = 0;
  		iqbs.unknown39 = packet_type == ItemPacketInvalid ? 0 : 1;;
  
@@ -433,10 +505,10 @@ index f5f00db..ef2cd1c 100644
  
  
 diff --git a/common/patches/rof2_structs.h b/common/patches/rof2_structs.h
-index b6ad6bb..0434b63 100644
+index b6ad6bb..4f1a9fd 100644
 --- a/common/patches/rof2_structs.h
 +++ b/common/patches/rof2_structs.h
-@@ -4765,7 +4786,7 @@ struct ItemSerializationHeaderFinish
+@@ -4765,7 +4765,7 @@ struct ItemSerializationHeaderFinish
  	uint32 ornamentHeroModel;
  	int32 unknown063;	// 0
  	uint8 Copied;		// Copied Flag - Possibly for items copied during server transfer?
@@ -665,15 +737,16 @@ index 8b4b859..2b7c8f5 100644
  
  #endif //EQEMU_INVENTORY_REPOSITORY_H
 diff --git a/common/ruletypes.h b/common/ruletypes.h
-index 1e08a9c..2e23741 100644
+index 1e08a9c..4c9c1df 100644
 --- a/common/ruletypes.h
 +++ b/common/ruletypes.h
-@@ -1178,6 +1178,13 @@ RULE_INT(EvolvingItems, DelayUponEquipping, 30000, "Delay in ms before an evolvi
+@@ -1178,6 +1178,14 @@ RULE_INT(EvolvingItems, DelayUponEquipping, 30000, "Delay in ms before an evolvi
  RULE_BOOL(EvolvingItems, DestroyAugmentsOnEvolve, false, "If this is enabled, any augments in an item will be destroyed when the item evolves. Otherwise, send augments to the player via the parcel system (requires that the Parcel System be enabled).")
  RULE_CATEGORY_END()
  
 +RULE_CATEGORY(Housing)
 +RULE_BOOL(Housing, EnablePlayerHousing, false, "Enable experimental native RoF2 housing; requires the optional housing schema and verified content.")
++RULE_BOOL(Housing, EnableNativeHouseSwap, false, "Enable reviewed native house storage and same-plot house swaps; requires the house-storage and swap journal schemas. Old house enters plot storage.")
 +RULE_BOOL(Housing, EnableNativeFurniturePlacement, false, "Enable native RoF2 furniture mutation handlers after inventory-session and placement validation; requires player housing and optional placement schema.")
 +RULE_BOOL(Housing, EnableNativeEscrowTransfers, false, "Enable native RoF2 cursor coin deposit and withdrawal after live currency-session validation; requires player housing and optional escrow schema.")
 +RULE_INT(Housing, ReviewedPersonalTransferLimit, 0, "Explicit reviewed personal plot ownership transfer limit (1 to 3); zero disables transfer until policy is reviewed. Not a recovered historical limit.")
@@ -708,7 +781,7 @@ index 9985c87..95f6138 100644
 +
  #endif
 diff --git a/common/shareddb.cpp b/common/shareddb.cpp
-index 0ef0cbe..90e8775 100644
+index 0ef0cbe..579f3b4 100644
 --- a/common/shareddb.cpp
 +++ b/common/shareddb.cpp
 @@ -1,3 +1,4 @@
@@ -844,13 +917,15 @@ index 0ef0cbe..90e8775 100644
  }
  
  std::map<uint32, uint32> SharedDatabase::GetItemRecastTimestamps(uint32 char_id)
-@@ -972,6 +1017,13 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+@@ -972,6 +1017,15 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
  		}
  	}
  
-+	// Optional housing schema. Missing/unreviewed definitions advertise no benefit.
++	// Optional housing schema. Both personal and guild sources need the native
++	// benefit ID. Domain permissions remain in their separate gameplay services.
++	// An ambiguous cross-domain ID or missing/unreviewed source advertises none.
 +	std::map<uint32_t,uint32_t> trophy_sources;
-+	auto trophy_rows=QueryDatabase(std::string("SELECT s.placed_item_id,s.benefit_id,s.source_sha256,s.source_description FROM housing_trophy_benefit_sources s JOIN tributes t ON t.id=s.benefit_id WHERE t.isguild=0"),false);
++	auto trophy_rows=QueryDatabase(std::string("SELECT s.placed_item_id,s.benefit_id,s.source_sha256,s.source_description FROM housing_trophy_benefit_sources s JOIN tributes t ON t.id=s.benefit_id WHERE t.isguild IN (0,1) AND NOT EXISTS (SELECT 1 FROM tributes other WHERE other.id=t.id AND other.isguild<>t.isguild)"),false);
 +	if(trophy_rows.Success())for(auto row=trophy_rows.begin();row.operator!=(trophy_rows.end());++row){
 +		if(row[0]&&row[1]&&row[2]&&row[3]&&row[3][0]&&Housing::TrophyBenefits::SourceDigest(row[2]))trophy_sources[Strings::ToUnsignedInt(row[0])]=Strings::ToUnsignedInt(row[1]);
 +	}
@@ -858,7 +933,7 @@ index 0ef0cbe..90e8775 100644
  	EQ::ItemData item;
  
  	const auto& l = ItemsRepository::All(*this);
-@@ -1004,6 +1056,26 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+@@ -1004,6 +1058,26 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
  		item.NoPet           = !disable_no_pet && e.nopet;
  		item.NoRent          = disable_no_rent ? std::numeric_limits<uint8>::max() : e.norent;
  		item.NoTransfer      = !disable_no_transfer && e.notransfer;
@@ -935,10 +1010,10 @@ index 11130d6..8385600 100644
  	constexpr int FinishingBlowLvl                = 440; // implemented[AA] - Sets the level Finishing blow can be triggered on an NPC
  	constexpr int DistanceRemoval                 = 441; // implemented - Buff is removed from target when target moves X amount of distance away from where initially hit.
 diff --git a/utils/patches/patch_RoF2.conf b/utils/patches/patch_RoF2.conf
-index 3533aaa..42751ba 100644
+index 3533aaa..b670c98 100644
 --- a/utils/patches/patch_RoF2.conf
 +++ b/utils/patches/patch_RoF2.conf
-@@ -749,3 +749,62 @@ OP_ChangePetName=0x5dab
+@@ -749,3 +749,74 @@ OP_ChangePetName=0x5dab
  
  OP_InvokeNameChangeImmediate=0x4fe2
  OP_InvokeNameChangeLazy=0x2f2e
@@ -980,6 +1055,7 @@ index 3533aaa..42751ba 100644
 +OP_RealEstateItemMenu=0x21ec
 +OP_RealEstateItemQuery=0x050c
 +OP_RealEstateExit=0x1da9
++OP_RealEstateTrophyOpen=0x51a9
 +OP_RealEstateTrophyToggle=0x756a
 +OP_RealEstateTrophy=0x4b65
 +OP_RealEstateTrophyList=0x7697
@@ -1001,6 +1077,17 @@ index 3533aaa..42751ba 100644
 +OP_GuildTrophyModify=0x7a41
 +
 +OP_GuildTrophyOptIn=0x02bc
++
++# Recovered native item description and voting preference requests.
++OP_RealEstateItemInspect=0x58c7
++OP_RealEstateVotingOptOut=0x6573
++
++OP_RealEstateHouseSwap=0x21ba
++
++# Original sale/transfer status consumers; u32 emulator response profile.
++OP_RealEstateSaleResult=0x66bf
++OP_RealEstateTransferResult=0x68ba
++OP_RealEstateTransferConsent=0x5a63
 diff --git a/world/CMakeLists.txt b/world/CMakeLists.txt
 index 1963c83..bf07b86 100644
 --- a/world/CMakeLists.txt
@@ -1014,10 +1101,15 @@ index 1963c83..bf07b86 100644
      world_config.cpp
      world_console_connection.cpp
 diff --git a/world/client.cpp b/world/client.cpp
-index a2d35a4..3a3c768 100644
+index a2d35a4..9fb4af1 100644
 --- a/world/client.cpp
 +++ b/world/client.cpp
-@@ -37,6 +37,8 @@
+@@ -1,3 +1,4 @@
++#include "../common/housing/guild_trophy_member_flag.h"
+ /*	EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.org)
+ 
+@@ -37,6 +38,8 @@
  #include "../common/opcodemgr.h"
  #include "../common/data_verification.h"
  #include "../common/data_bucket.h"
@@ -1026,7 +1118,7 @@ index a2d35a4..3a3c768 100644
  
  #include "client.h"
  #include "worlddb.h"
-@@ -781,6 +783,13 @@ bool Client::HandleCharacterCreatePacket(const EQApplicationPacket *app) {
+@@ -781,6 +784,13 @@ bool Client::HandleCharacterCreatePacket(const EQApplicationPacket *app) {
  }
  
  bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
@@ -1040,7 +1132,7 @@ index a2d35a4..3a3c768 100644
  	auto account_id = GetAccountID();
  	if (!account_id) {
  		LogInfo("Enter world with no logged in account.");
-@@ -844,6 +853,19 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
+@@ -844,6 +854,19 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
  		return true;
  	}
  
@@ -1060,7 +1152,7 @@ index a2d35a4..3a3c768 100644
  	charid      = e.id;
  	zone_id     = e.zone_id;
  	instance_id = e.zone_instance;
-@@ -1072,7 +1094,9 @@ bool Client::HandleDeleteCharacterPacket(const EQApplicationPacket *app) {
+@@ -1072,7 +1095,9 @@ bool Client::HandleDeleteCharacterPacket(const EQApplicationPacket *app) {
  	uint32 char_acct_id = database.GetAccountIDByChar((char*)app->pBuffer);
  	if(char_acct_id == GetAccountID()) {
  		LogInfo("Delete character: [{}]", (const char*)app->pBuffer);
@@ -1071,7 +1163,7 @@ index a2d35a4..3a3c768 100644
  		SendCharInfo();
  	}
  
-@@ -1253,10 +1277,83 @@ bool Client::Process() {
+@@ -1253,10 +1278,83 @@ bool Client::Process() {
  		LogInfo("Client disconnected (not active in process)");
  		return false;
  	}
@@ -1155,7 +1247,7 @@ index a2d35a4..3a3c768 100644
  bool Client::HandleChecksumPacket(const EQApplicationPacket *app)
  {
  	// Is checksum verification turned on
-@@ -1398,6 +1495,21 @@ bool Client::ChecksumVerificationCRCBaseData(uint64 checksum)
+@@ -1398,6 +1496,21 @@ bool Client::ChecksumVerificationCRCBaseData(uint64 checksum)
  }
  
  void Client::EnterWorld(bool TryBootup) {
@@ -1177,7 +1269,7 @@ index a2d35a4..3a3c768 100644
  	if (zone_id == 0)
  		return;
  
-@@ -2465,7 +2577,7 @@ void Client::SendGuildTributeFavorAndTimer(uint32 favor, uint32 time_remaining)
+@@ -2465,7 +2578,7 @@ void Client::SendGuildTributeFavorAndTimer(uint32 favor, uint32 time_remaining)
  		gtsa->guild_id      = GetCLE()->GuildID();
  		gtsa->guild_favor   = guild->tribute.favor;
  		gtsa->tribute_timer = guild->tribute.time_remaining;
@@ -1186,6 +1278,15 @@ index a2d35a4..3a3c768 100644
  
  		QueuePacket(outapp);
  		safe_delete(outapp);
+@@ -2480,7 +2593,7 @@ void Client::SendGuildTributeOptInToggle(const GuildTributeMemberToggle *in)
+ 	data->guild_id              = in->guild_id;
+ 	data->no_donations          = in->no_donations;
+ 	data->tribute_toggle        = in->tribute_toggle;
+-	data->tribute_trophy_toggle = 0; //not yet implemented
++	data->tribute_trophy_toggle = Housing::GuildTrophyMemberFlag(database, in->guild_id, in->char_id);
+ 	data->time                  = time(nullptr);
+ 	data->command               = in->command;
+ 	strn0cpy(data->player_name, in->player_name, sizeof(data->player_name));
 diff --git a/world/client.h b/world/client.h
 index 5890cfc..8768eec 100644
 --- a/world/client.h
@@ -1651,7 +1752,7 @@ index 5ed9edd..ec514db 100644
  		return false;
  
 diff --git a/zone/client.h b/zone/client.h
-index d5e8f3e..9431a5d 100644
+index d5e8f3e..555c3e5 100644
 --- a/zone/client.h
 +++ b/zone/client.h
 @@ -1,3 +1,4 @@
@@ -1659,19 +1760,20 @@ index d5e8f3e..9431a5d 100644
  /* EQEMu: Everquest Server Emulator
  	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.org)
  
-@@ -33,6 +34,11 @@ struct DynamicZoneLocation;
+@@ -33,6 +34,12 @@ struct DynamicZoneLocation;
  enum WaterRegionType : int;
  enum class DynamicZoneMemberStatus;
  
 +namespace Housing::InventoryBridge { class Bridge; }
 +namespace Housing::NativePlacement { struct Session; }
 +namespace Housing::AnchorTransport {struct Pending;}
++namespace Housing::TransferConsent {struct Pending;}
 +namespace Housing::InventorySessions { class ZoneReservation; }
 +
  namespace EQ
  {
  	struct ItemData;
-@@ -263,6 +269,13 @@ public:
+@@ -263,6 +270,13 @@ public:
  
  	Client(EQStreamInterface * ieqs);
  	Client(); // mocking / testing
@@ -1685,7 +1787,7 @@ index d5e8f3e..9431a5d 100644
  	~Client();
  
  	void ReconnectUCS();
-@@ -387,6 +400,11 @@ public:
+@@ -387,6 +401,11 @@ public:
  		std::list<void *> *event_details = nullptr
  	);
  	void SendZonePoints();
@@ -1697,7 +1799,7 @@ index d5e8f3e..9431a5d 100644
  	void SendBulkParcels();
  	void DoParcelCancel();
  	void DoParcelSend(const Parcel_Struct *parcel_in);
-@@ -1306,6 +1324,35 @@ public:
+@@ -1306,6 +1325,36 @@ public:
  	uint16 sacrifice_caster_id;
  	PendingTranslocate_Struct PendingTranslocateData;
  	void SendOPTranslocateConfirm(Mob *Caster, uint16 SpellID);
@@ -1723,17 +1825,18 @@ index d5e8f3e..9431a5d 100644
 +	bool m_housing_trophy_dirty=true;
 +	bool m_housing_trophy_ready=false;
 +	uint32_t m_housing_trophy_capacity=0xffffffff;
-+	void RefreshHousingTrophyBenefits(bool notify=true,bool recalculate=true,bool renew=false);
++	void RefreshHousingTrophyBenefits(bool notify=true,bool recalculate=true,bool renew=false,bool force_publish=false);
 +	std::chrono::steady_clock::time_point m_housing_trophy_deadline{};
 +	const std::vector<uint32_t>& HousingTrophyStatItems()const{return m_housing_trophy_stat_items;}
 +	std::vector<uint32_t> m_housing_trophy_stat_items;
 +	bool m_housing_trophy_sent=false;
++	std::chrono::steady_clock::time_point m_housing_trophy_open_last{};
 +	uint32_t HousingTrophyCapacity()const;
 +	void ApplyHousingAnchorSpell(Client* caster,uint32_t item_id,bool confirmation);
  
  	// Help Window
  	std::string SendBotCommandHelpWindow(const BotCommandHelpParams& params);
-@@ -2047,6 +2094,12 @@ private:
+@@ -2047,6 +2096,13 @@ private:
  
  	uint8 playeraction;
  
@@ -1743,10 +1846,11 @@ index d5e8f3e..9431a5d 100644
 +	std::shared_ptr<Housing::NativePlacement::Session> m_housing_placement_session;
 +	std::map<uint32_t,uint64_t> m_housing_acl_revisions;
 +	std::shared_ptr<Housing::AnchorTransport::Pending> m_housing_anchor_pending;
++ std::shared_ptr<Housing::TransferConsent::Pending> m_housing_transfer_incoming,m_housing_transfer_outgoing;
  	EQStreamInterface* eqs;
  
  	uint32 ip;
-@@ -2142,7 +2195,11 @@ private:
+@@ -2142,7 +2198,11 @@ private:
  public:
  	bool IsLockSavePosition() const;
  	void SetLockSavePosition(bool lock_save_position);
@@ -1759,7 +1863,7 @@ index d5e8f3e..9431a5d 100644
  	PlayerProfile_Struct m_pp;
  	ExtendedProfile_Struct m_epp;
 diff --git a/zone/client_packet.cpp b/zone/client_packet.cpp
-index a059bef..484044a 100644
+index a059bef..4ea55e7 100644
 --- a/zone/client_packet.cpp
 +++ b/zone/client_packet.cpp
 @@ -43,6 +43,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -1780,7 +1884,7 @@ index a059bef..484044a 100644
  #include "../common/repositories/account_repository.h"
  #include "../common/repositories/character_corpses_repository.h"
  #include "../common/repositories/guild_tributes_repository.h"
-@@ -128,6 +132,31 @@ void MapOpcodes()
+@@ -128,6 +132,36 @@ void MapOpcodes()
  	ConnectedOpcodes[OP_AdventureMerchantRequest] = &Client::Handle_OP_AdventureMerchantRequest;
  	ConnectedOpcodes[OP_AdventureMerchantSell] = &Client::Handle_OP_AdventureMerchantSell;
  	ConnectedOpcodes[OP_AdventureRequest] = &Client::Handle_OP_AdventureRequest;
@@ -1789,6 +1893,7 @@ index a059bef..484044a 100644
 +    ConnectedOpcodes[OP_GuildTrophySave]=&Client::Handle_OP_GuildTrophySave;
 +    ConnectedOpcodes[OP_GuildTrophyModify]=&Client::Handle_OP_GuildTrophyModify;
 +    ConnectedOpcodes[OP_GuildTrophyOptIn]=&Client::Handle_OP_GuildTrophyOptIn;
++    ConnectedOpcodes[OP_RealEstateTrophyOpen] = &Client::Handle_OP_RealEstateTrophyOpen;
 +    ConnectedOpcodes[OP_RealEstateTrophy] = &Client::Handle_OP_RealEstateTrophy;
 +	ConnectedOpcodes[OP_RealEstateTrophyToggle] = &Client::Handle_OP_RealEstateTrophyToggle;
 +	ConnectedOpcodes[OP_RealEstateAnchorConfirm] = &Client::Handle_OP_RealEstateAnchorConfirm;
@@ -1806,13 +1911,17 @@ index a059bef..484044a 100644
 +	ConnectedOpcodes[OP_RealEstateAccessEdit] = &Client::Handle_OP_RealEstateMetadata;
 +	ConnectedOpcodes[OP_RealEstateItemMenu] = &Client::Handle_OP_RealEstateInteraction;
 +	ConnectedOpcodes[OP_RealEstateItemQuery] = &Client::Handle_OP_RealEstateInteraction;
++	ConnectedOpcodes[OP_RealEstateItemInspect] = &Client::Handle_OP_RealEstateItemInspect;
++	ConnectedOpcodes[OP_RealEstateHouseSwap] = &Client::Handle_OP_RealEstateHouseSwap;
++	ConnectedOpcodes[OP_RealEstateVotingOptOut] = &Client::Handle_OP_RealEstateVotingOptOut;
 +	ConnectedOpcodes[OP_RealEstateEscrow] = &Client::Handle_OP_RealEstateEscrow;
 +	ConnectedOpcodes[OP_RealEstateTransfer] = &Client::Handle_OP_RealEstateTransfer;
++ ConnectedOpcodes[OP_RealEstateTransferConsent] = &Client::Handle_OP_RealEstateTransferConsent;
 +	ConnectedOpcodes[OP_RealEstateSale] = &Client::Handle_OP_RealEstateSale;
  	ConnectedOpcodes[OP_AdventureStatsRequest] = &Client::Handle_OP_AdventureStatsRequest;
  	ConnectedOpcodes[OP_AggroMeterLockTarget] = &Client::Handle_OP_AggroMeterLockTarget;
  	ConnectedOpcodes[OP_AltCurrencyMerchantRequest] = &Client::Handle_OP_AltCurrencyMerchantRequest;
-@@ -533,6 +562,7 @@ void Client::CompleteConnect()
+@@ -533,6 +567,7 @@ void Client::CompleteConnect()
  	UpdateWho();
  	client_state = CLIENT_CONNECTED;
  	SendAllPackets();
@@ -1820,7 +1929,7 @@ index a059bef..484044a 100644
  	hpupdate_timer.Start();
  	autosave_timer.Start();
  	SetDuelTarget(0);
-@@ -887,6 +917,12 @@ void Client::CompleteConnect()
+@@ -887,6 +922,12 @@ void Client::CompleteConnect()
  
  	CalcItemScale();
  	DoItemEnterZone();
@@ -1833,7 +1942,7 @@ index a059bef..484044a 100644
  
  	if (zone->GetZoneID() == Zones::GUILDHALL && GuildBanks)
  		GuildBanks->SendGuildBank(this);
-@@ -1261,6 +1297,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
+@@ -1261,6 +1302,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
  
  void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  {
@@ -1841,7 +1950,7 @@ index a059bef..484044a 100644
  	if (app->size != sizeof(ClientZoneEntry_Struct))
  		return;
  	ClientZoneEntry_Struct *cze = (ClientZoneEntry_Struct *)app->pBuffer;
-@@ -1282,6 +1319,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1282,6 +1324,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	Client* client = entity_list.GetClientByName(cze->char_name);
  	if (!zone->GetAuth(ip, cze->char_name, &WID, &account_id, &character_id, &admin, lskey, &tellsoff)) {
  		LogClientLogin("[{}] failed zone auth check", cze->char_name);
@@ -1854,7 +1963,7 @@ index a059bef..484044a 100644
  		if (nullptr != client) {
  			client->Save();
  			client->Kick("Failed auth check");
-@@ -1289,6 +1332,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1289,6 +1337,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  		return;
  	}
  
@@ -1880,7 +1989,7 @@ index a059bef..484044a 100644
  	strcpy(name, cze->char_name);
  	/* Check for Client Spoofing */
  	if (client != 0) {
-@@ -1370,7 +1432,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1370,7 +1437,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	// set to full support in case they're a gm with items in disabled expansion slots...but, have their gm flag off...
  	// item loss will occur when they use the 'empty' slots, if this is not done
  	m_inv.SetGMInventory(true);
@@ -1907,7 +2016,7 @@ index a059bef..484044a 100644
  	database.LoadCharacterBandolier(cid, &m_pp); /* Load Character Bandolier */
  	database.LoadCharacterBindPoint(cid, &m_pp); /* Load Character Bind */
  	database.LoadCharacterMaterialColor(cid, &m_pp); /* Load Character Material */
-@@ -4705,7 +4785,34 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
+@@ -4705,7 +4790,34 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
  		);
  	}
  
@@ -1942,7 +2051,7 @@ index a059bef..484044a 100644
  	if (within_distance) {
  		int quest_return = 0;
  		if (parse->PlayerHasQuestSub(EVENT_CLICK_DOOR)) {
-@@ -6470,8 +6577,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
+@@ -6470,8 +6582,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
  	return;
  }
  
@@ -1954,7 +2063,7 @@ index a059bef..484044a 100644
  	if (app->size != sizeof(FindPersonRequest_Struct))
  		printf("Error in FindPersonRequest_Struct. Expected size of: %zu, but got: %i\n", sizeof(FindPersonRequest_Struct), app->size);
  	else {
-@@ -17072,8 +17205,8 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
+@@ -17072,8 +17187,8 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
  
  	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
  	if (guild) {
@@ -1965,7 +2074,7 @@ index a059bef..484044a 100644
  		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
  
  		if (inst->IsStackable()) {
-@@ -17130,8 +17263,8 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
+@@ -17130,8 +17245,8 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
  	auto favor = quantity * RuleI(Guild, TributePlatConversionRate);
  	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
  	if (guild) {
@@ -1977,12 +2086,13 @@ index a059bef..484044a 100644
  
  		TakePlatinum(quantity, false);
 diff --git a/zone/client_packet.h b/zone/client_packet.h
-index 0840f5e..c686342 100644
+index 0840f5e..eaf2bbb 100644
 --- a/zone/client_packet.h
 +++ b/zone/client_packet.h
-@@ -1,4 +1,27 @@
+@@ -1,4 +1,32 @@
  	/* Connecting OpCode Handlers */
 +	void Handle_OP_RealEstateNeighborhood(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateTrophyOpen(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateTrophy(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateTrophyToggle(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateAnchorConfirm(const EQApplicationPacket *app);
@@ -1999,8 +2109,12 @@ index 0840f5e..c686342 100644
 +	void Handle_OP_RealEstateItemOperation(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateMetadata(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateInteraction(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateItemInspect(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateHouseSwap(const EQApplicationPacket *app);
++	void Handle_OP_RealEstateVotingOptOut(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateEscrow(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateTransfer(const EQApplicationPacket *app);
++ void Handle_OP_RealEstateTransferConsent(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateSale(const EQApplicationPacket *app);
 +	void SendHousingChairMenu(uint32_t estate,uint32_t item,std::array<uint32_t,2> mouse,const std::string& claimed_guid={});
 +	void SendHousingPlacedScene();
@@ -2142,6 +2256,41 @@ index 9c48b5e..ca4a35f 100644
  	guild_id = g_id;
  }
  
+diff --git a/zone/guild_mgr.cpp b/zone/guild_mgr.cpp
+index aa2d9fd..920c077 100644
+--- a/zone/guild_mgr.cpp
++++ b/zone/guild_mgr.cpp
+@@ -1427,6 +1427,14 @@ BaseGuildManager::GuildInfo* ZoneGuildManager::GetGuildByGuildID(uint32 guild_id
+ }
+ 
+ uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_name, uint32& length) {
++	// Optional housing migration; servers without it retain a false trophy flag.
++	std::map<uint32, uint32> trophy_members;
++	if (m_db && RuleB(Housing,EnablePlayerHousing)) {
++		auto flags = m_db->QueryDatabase("SELECT char_id,trophy_enable FROM guild_members WHERE guild_id=" + std::to_string(guild_id), false);
++		if (flags.Success()) for (auto row = flags.begin(); row != flags.end(); ++row)
++			if (row[0] && row[1]) trophy_members[Strings::ToUnsignedInt(row[0])] = Strings::ToUnsignedInt(row[1]) == 1 ? 1 : 0;
++	}
++
+ 	uint8* retbuffer;
+ 
+ 	std::vector<CharGuildInfo*> members;
+@@ -1454,6 +1462,7 @@ uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_na
+ 	retbuffer = new uint8[length];
+ 
+ 	auto gms = (Internal_GuildMembers_Struct*)retbuffer;
++	gms->guild_id = guild_id;
+ 
+ 	//fill in the global header
+ 	strcpy(gms->player_name, prefix_name);
+@@ -1514,6 +1523,7 @@ uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_na
+ 		PutField(rank);
+ 		PutField(time_last_on);
+ 		PutField(tribute_enable);
++		e->trophy_enable = trophy_members.count(ci->char_id) ? trophy_members.at(ci->char_id) : 0;
+ 		PutField(total_tribute);
+ 		PutField(last_tribute);
+ 		SlideStructString(note_buf, ci->public_note);
 diff --git a/zone/inventory.cpp b/zone/inventory.cpp
 index 1c2b62c..25b70c2 100644
 --- a/zone/inventory.cpp
@@ -2418,10 +2567,15 @@ index 42078e3..ab38e84 100644
  			{
  #ifdef SPELL_EFFECT_SPAM
 diff --git a/zone/tribute.cpp b/zone/tribute.cpp
-index f9a9e73..0689cb9 100644
+index f9a9e73..859af03 100644
 --- a/zone/tribute.cpp
 +++ b/zone/tribute.cpp
-@@ -544,7 +544,7 @@ void Client::SendGuildFavorAndTimer(uint32 guild_id)
+@@ -1,3 +1,4 @@
++#include "../common/housing/guild_trophy_member_flag.h"
+ /*	EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.net)
+ 
+@@ -544,7 +545,7 @@ void Client::SendGuildFavorAndTimer(uint32 guild_id)
  
  		gtsa->guild_favor   = guild->tribute.favor;
  		gtsa->tribute_timer = guild->tribute.time_remaining;
@@ -2430,11 +2584,25 @@ index f9a9e73..0689cb9 100644
  
  		QueuePacket(outapp);
  		safe_delete(outapp);
+@@ -560,7 +561,7 @@ void Client::SendGuildTributeOptInToggle(const GuildTributeMemberToggle* in)
+ 	data->guild_id              = in->guild_id;
+ 	data->no_donations          = in->no_donations;
+ 	data->tribute_toggle        = in->tribute_toggle;
+-	data->tribute_trophy_toggle = 0; //not yet implemented
++	data->tribute_trophy_toggle = Housing::GuildTrophyMemberFlag(database, in->guild_id, in->char_id);
+ 	data->time                  = time(nullptr);
+ 	data->command               = in->command;
+ 
 diff --git a/zone/worldserver.cpp b/zone/worldserver.cpp
-index 747302e..faad4cb 100644
+index 747302e..7bb3937 100644
 --- a/zone/worldserver.cpp
 +++ b/zone/worldserver.cpp
-@@ -212,7 +212,17 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
+@@ -1,3 +1,4 @@
++#include "../common/housing/guild_trophy_member_flag.h"
+ /*	EQEMu: Everquest Server Emulator
+ Copyright (C) 2001-2016 EQEMu Development Team (http://eqemu.org)
+ 
+@@ -212,7 +213,17 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
  	ServerPacket *pack = &tpack;
  
  	switch (opcode) {
@@ -2453,7 +2621,7 @@ index 747302e..faad4cb 100644
  	case ServerOP_KeepAlive: {
  		break;
  	}
-@@ -404,9 +414,13 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
+@@ -404,9 +415,13 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
  
  			if (ztz->response <= 0) {
  				zc2->success = ZoningMessage::ZoneNotReady;
@@ -2470,6 +2638,24 @@ index 747302e..faad4cb 100644
  
  				LogZoning("ZoneToZone (ZoneNotReady) client [{}] guild_id [{}] requested_zone [{}] requested_zone_id [{}] requested_instance_id [{}] current_zone [{}] current_zone_id [{}] current_instance_id [{}] response [{}] admin [{}] ignorerestrictions [{}] ",
  					ztz->name,
+@@ -3511,7 +3526,7 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
+ 		data->guild_id              = in->guild_id;
+ 		data->no_donations          = in->member_favor;
+ 		data->tribute_toggle        = in->member_enabled ? true : false;
+-		data->tribute_trophy_toggle = 0; // not yet implemented
++		data->tribute_trophy_toggle = Housing::GuildTrophyMemberFlag(database, in->guild_id, 0, in->player_name);
+ 		data->time                  = in->member_time;
+ 		data->command               = 1;
+ 		strn0cpy(data->player_name, in->player_name, sizeof(data->player_name));
+@@ -3553,7 +3568,7 @@ void WorldServer::HandleMessage(uint16 opcode, const EQ::Net::Packet &p)
+ 		strn0cpy(data->player_name, in->player_name, sizeof(data->player_name));
+ 		data->no_donations = in->no_donations;
+ 		data->tribute_toggle = in->tribute_toggle ? true : false;
+-		data->tribute_trophy_toggle = 0; //not yet implemented
++		data->tribute_trophy_toggle = Housing::GuildTrophyMemberFlag(database, in->guild_id, in->char_id);
+ 		data->time = in->member_last_donated;
+ 		data->command = in->command;
+ 
 diff --git a/zone/zonedb.cpp b/zone/zonedb.cpp
 index 0dc1436..a753315 100644
 --- a/zone/zonedb.cpp

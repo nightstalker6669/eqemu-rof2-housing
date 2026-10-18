@@ -11,6 +11,9 @@ namespace Housing::CrateMemberScope {struct Membership;}
 namespace Housing::Scene {
 struct Item { LiveItems::Stored stored; std::string creator_name,estate_owner_name;std::shared_ptr<const HouseBinding::Binding> house;std::optional<PlacementPolicy::ItemMetadata> metadata;std::optional<PlacementPolicy::Geometry> geometry;std::shared_ptr<const CrateBinding::Allocation> crate;uint64_t contained_in_crate=0;std::shared_ptr<const CrateMemberScope::Membership> crate_membership; };
 struct Snapshot;
+// Transfer conservation can inspect a packed house without opening it for
+// storage, placement, anchor use or admission. Ordinary readers stay strict.
+enum class AttachedRead { Storage, TransferConservation };
 // SERVER source proof only; never decoded from a client estate/instance request.
 struct LobbyRequest { Route source;uint8_t door_id=0; };
 
@@ -110,7 +113,7 @@ public:
  static LiveItems::Result<InteriorSnapshot> ReadTrophySourceUnderTransaction(Database&,const LiveItems::Lease&,EstateId,uint64_t house_id,uint64_t custody_id,LiveItems::InventorySessionFence&,const HouseScenePolicy&,const Housing::InteriorContent::ProfilePolicy&,const CrateBinding::CustodyContext* =nullptr);
  static LiveItems::Result<InteriorSnapshot> ReadAnchorAttachedInteriorUnderTransaction(
   Database&,const LiveItems::Lease&,EstateId,uint64_t house_id,LiveItems::InventorySessionFence&,const HouseScenePolicy&);
- static LiveItems::Result<InteriorSnapshot> ReadAttachedInteriorUnderTransaction(Database&,const LiveItems::Lease&,EstateId,uint64_t house_id,LiveItems::InventorySessionFence&,const HouseScenePolicy&,const Housing::InteriorContent::ProfilePolicy* =nullptr,bool include_contents=false,const CrateBinding::CustodyContext* crates=nullptr);
+ static LiveItems::Result<InteriorSnapshot> ReadAttachedInteriorUnderTransaction(Database&,const LiveItems::Lease&,EstateId,uint64_t house_id,LiveItems::InventorySessionFence&,const HouseScenePolicy&,const Housing::InteriorContent::ProfilePolicy* =nullptr,bool include_contents=false,const CrateBinding::CustodyContext* crates=nullptr,AttachedRead read=AttachedRead::Storage);
  LiveItems::Result<InteriorSnapshot> ReadAttachedInterior(const LiveItems::Lease&,EstateId,uint64_t house_id,LiveItems::InventorySessionFence&);
  // Resolve the current hosting estate from the placed house, then perform the
  // full attached read. Historical room item custody may retain an old estate.

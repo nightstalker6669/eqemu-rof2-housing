@@ -1,3 +1,4 @@
+#include "../common/housing/house_swap_service.h"
 #ifndef EQEMU_HOUSING_INVENTORY_BRIDGE_H
 #define EQEMU_HOUSING_INVENTORY_BRIDGE_H
 #include "housing_inventory_identity.h"
@@ -32,7 +33,8 @@ bool IsRegisteredZoneThread() noexcept;
 // uncertain COMMIT intentionally blocks the simulation until durable resolution.
 class Bridge final : private NativePlotPurchase::Fence, private OwnershipTransfer::Authority, public HouseBinding::HouseApplicationProof, private TrophyBenefits::FavorAuthority {
 public:
- OwnershipTransfer::Result<OwnershipTransfer::Receipt> TransferPersonalPlot(const std::string&,const std::array<uint8_t,EstateWire::PurchaseSize>&);
+ OwnershipTransfer::Result<OwnershipTransfer::Receipt> InspectPersonalPlotTransfer(const std::string&,const std::array<uint8_t,EstateWire::PurchaseSize>&);
+ OwnershipTransfer::Result<OwnershipTransfer::Receipt> TransferPersonalPlot(const std::string&,const std::array<uint8_t,EstateWire::PurchaseSize>&,const OwnershipTransfer::Source&);
  struct HousePolicies {
   std::unique_ptr<HouseBinding::CustodyContext> custody;
   std::unique_ptr<Scene::HouseScenePolicy> scene;
@@ -73,6 +75,7 @@ public:
  LiveItems::Result<LiveItems::MoveReceipt> MovePlaced(LiveItems::MoveRequest);
  LiveItems::Result<std::vector<InteriorStorage::Receipt>> StowAll(InteriorStorage::StowRequest);
  LiveItems::Result<InteriorStorage::Receipt> ChangeStorage(InteriorStorage::Request);
+ LiveItems::Result<HouseSwap::Receipt> SwapHouse(const std::string&,EstateId,const std::array<uint8_t,24>&);
  LiveItems::Result<InteriorStorage::TransferReceipt> TransferStorage(InteriorStorage::TransferRequest);
  LiveItems::Result<CrateStorage::Receipt> TransferCrate(CrateStorage::Request);
  LiveItems::Result<CrateStorage::BatchReceipt> PackCrate(CrateStorage::BatchRequest);
@@ -89,6 +92,7 @@ public:
  LiveItems::Result<Scene::InteriorSnapshot> ReadInteriorForManagement();
  NativeAccess::Result<NativeAccess::Snapshot> ReadAccess(EstateId,uint32_t native_plot_id);
  NativeAccess::Result<NativeAccess::Receipt> ReplaceAccess(NativeAccess::Request);
+ NativeAccess::Result<bool> SetVotingOptOut(EstateId,uint32_t native_plot_id,bool);
  LiveItems::Result<LiveItems::Receipt> ReturnCrateMember(const std::string& request_key,const LiveItems::Stored& server_cache,const LiveItems::CrateMemberContext&,uint32_t destination,std::optional<LiveItems::HouseIdentity> house=std::nullopt,uint32_t quantity=0);
  LiveItems::Result<LiveItems::Receipt> ReturnInterior(const std::string& request_key,const Scene::InteriorContent& server_cache,const LiveItems::InteriorMoveContext& current_context,uint32_t destination,std::optional<Route> room_exterior_source=std::nullopt,std::optional<LiveItems::CrateMemberContext> crate_member=std::nullopt,uint32_t quantity=0);
  LiveItems::Result<LiveItems::Receipt> Return(const std::string& request_key,EstateId,uint64_t custody_id,uint32_t destination,std::optional<LiveItems::HouseIdentity> house=std::nullopt,std::optional<LiveItems::CrateIdentity> crate=std::nullopt,uint32_t quantity=0);
@@ -109,6 +113,9 @@ public:
   const std::map<uint64_t,std::unique_ptr<EQ::ItemInstance>*>&,bool enabled=false);
  LiveItems::Result<bool> CloseSession(); // Lifecycle owner must call before Client destruction.
 private:
+ OwnershipTransfer::Result<OwnershipTransfer::Receipt> ExecutePersonalPlotTransfer(const std::string&,const std::array<uint8_t,EstateWire::PurchaseSize>&,bool,const OwnershipTransfer::Source*);
+ const OwnershipTransfer::Source* transfer_expected_source_=nullptr;
+ bool TransferContentsReviewedUnderTransaction(Database&,const OwnershipTransfer::Request&,const OwnershipTransfer::Source&,LiveItems::InventorySessionFence&)const override;
  bool TransferFrameMatches(const OwnershipTransfer::Request&,const OwnershipTransfer::Source&)const noexcept override;
  std::optional<uint32_t> CurrentFavorUnderFence(const LiveItems::Lease&)const noexcept override;
  bool HeldFor(AuthenticatedPurchaser,uint64_t,std::string_view)const noexcept override;

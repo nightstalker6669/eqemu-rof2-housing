@@ -1,14 +1,14 @@
 # Status at publication
 
-Snapshot: October 17, 2026. The housing development goal is paused at the user's requested checkpoint. Publishing this snapshot does not resume development or alter the running server.
+Snapshot: October 18, 2026. This is an experimental source publication. Housing remains incomplete; representative original-client acceptance is distinguished from implementation and static protocol recovery.
 
 | Area | Implementation / evidence | Remaining limit |
 |---|---|---|
 | Neighborhoods / ownership | Catalogs, regions, instancing, ownership and access services; native marker/inspection/purchase success | Complete original neighborhood content/economics and remote navigation matrix |
-| Personal house | Native merchant purchase, real-plot placement, persistence through restart, correct persistent interior entry | All house variants/capacities are not independently client-accepted |
-| Furniture | Scene, custody, placement/movement/pickup and storage code; representative native wall placement/pickup | Full floor/ceiling, curved/rotated and nonzero-centre behavior |
+| Personal house | Native merchant purchase, placement/persistence/interior entry; native furnished same-plot Swap Houses with contents moved to replacement storage | All house variants/capacities are not independently client-accepted |
+| Furniture | Scene/custody/geometry/storage; representative native wall cycle and closet-stored floor chair listing/placement/pickup; valid room survives optional yard-read refusal | Full floor/ceiling, curved/rotated and nonzero-centre behavior |
 | Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Full crate quantity acceptance still open |
-| Crates / houses | Stable identities, packing, unpacking, stored contents, relocation and recovery machinery | Fresh catalog crate definition/capacity gap; vault packing; same-plot/new-generation relocation |
+| Crates / houses | Stable identities and recovery; native furnished house-in-crate plot transfer, recipient unpack and retained interior entry | Fresh catalog crate definition/capacity gap; vault packing; same-plot/new-generation relocation |
 | Layouts | Native decoder and transactional mixed-source application/recovery | Complete original-client load-layout acceptance |
 | Guild housing | Guild ownership/ACL/current-membership checks, permanent interiors, source-bound routes and Guild Lobby left-door contract | Full additional hall profiles/capacities and final native routing matrix |
 | Trophies / anchors | Native messages, placement/source validation, benefits/billing/activation and transport machinery | Authentic benefit/cost/item classifications and full native gameplay acceptance |
@@ -27,3 +27,15 @@ Snapshot: October 17, 2026. The housing development goal is paused at the user's
 ## Unfinished work excluded from the implementation export
 
 The fresh personal crate catalog/capacity migration, vault-aware occupied packing successor, and faithful full floor-query integration remain separate unfinished work. They are documented as gaps, not published as completed implementation. No suites, fixtures, test reports, logs, accounts, private database contents, or original binary disassembly are included.
+
+
+## October 18 additions
+
+- Recipient-consented empty and reviewed furnished personal-property transfers use content-bound offers and revalidation at acceptance. Changed content or pending creator work refuses the transfer.
+- Packed-house conservation includes complete retained room contents without granting packed-house entry or storage access. New-owner house movement retains creator title and the house/crate creator invariant.
+- Native stored replacement-house admission, action17/21ba swap, contents migration and replacement interior entry are implemented and exercised for reviewed personal templates.
+- Voting preference, item inspection, sale/transfer result messages and transfer consent are integrated. Guild trophy roster flags and stat-item admission checks are updated.
+- Populated personal/guild trophy technical paths were exercised with explicitly synthetic catalogue assignments/prices and removed afterward. Original catalogue values are still incomplete; the candidate research ledger is not an activation seed.
+- Current protocol reference:54 mapped values,67 documented numbers.47 complete/20 partial documented layouts;30 complete/34 partial/3 unknown meanings. These categories are independent of gameplay support.
+
+A parent-yard scene containing a crate can still be unavailable while the character is inside a house, because its runtime read policy requires physical neighborhood presence. The authorized room is now retained and usable. The separate post-unpack exterior House N/A cache observation is not claimed fixed.

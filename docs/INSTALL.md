@@ -45,3 +45,14 @@ Apply housing/guild-trophy mappings from the integration patch to the actual RoF
 This repository is a research/development integration snapshot. A complete turnkey installer and full Live-equivalent acceptance are not supplied.
 
 Legacy configuration schema names are retained in the production crate parser for compatibility. The parser is published as `crate_content_loader.h`; it is a runtime dependency, not a test fixture.
+
+
+## October 18 optional schema additions
+
+Review and apply only the schemas for the feature you are provisioning, after the documented base housing schema sequence:
+
+- utils/sql/optional/2026_10_17_housing_estate_preferences.sql: per-ownership voting preference.
+- utils/sql/optional/2026_10_17_housing_house_storage.sql: stored replacement-house intent.
+- utils/sql/optional/2026_10_17_housing_house_swaps.sql: durable house-swap operation state.
+
+Housing:EnableNativeHouseSwap defaults false. Native swap admission requires supported reviewed templates, same plot/creator, current house and item capabilities, valid occupancy/custody/rent checks and no placed moving crate in the old interior. The integration does not provision historical catalogue content or enable every experimental rule automatically.

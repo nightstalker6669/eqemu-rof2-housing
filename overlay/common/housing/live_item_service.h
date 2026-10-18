@@ -24,7 +24,7 @@ struct Lease { AuthenticatedPurchaser actor; uint64_t epoch=0; std::string sessi
 struct Catalog { int32_t item_class=0,bag_slots=0,lore_group=0,no_drop=0; };
 struct Reservation {uint32_t native_item_id=0,native_estate_id=0;EstateId estate_id=0;std::string catalog_key;uint64_t catalog_revision=0;std::optional<ContentBinding::Identity> content_binding;};
 struct Placed {Reservation reservation;PlacementPolicy::Transform transform;uint64_t pose_revision=1;std::optional<NpcNativeFrame::Frame> npc_frame;};
-struct PreviewRequest {std::string request_key;Lease lease;EstateId estate_id=0;uint32_t native_estate_id=0;std::string catalog_key;uint64_t catalog_revision=0;InventoryRow expected;int32_t verified_runtime_serial=0;};
+struct PreviewRequest {std::string request_key;Lease lease;EstateId estate_id=0;uint32_t native_estate_id=0;std::string catalog_key;uint64_t catalog_revision=0;InventoryRow expected;int32_t verified_runtime_serial=0;bool house_storage_only=false;};
 struct InteriorPreviewRequest {std::string request_key;Lease lease;Route current_source;uint64_t expected_house_id=0,expected_house_revision=0,expected_profile_revision=0;InventoryRow expected;int32_t verified_runtime_serial=0;EstateId exterior_estate_id=0;std::optional<Route> exterior_source;};
 struct InteriorReservation {Reservation placement;uint64_t house_id=0,house_revision=0,profile_revision=0;Route source;std::array<uint8_t,32> content_digest{};};
 struct Stored { uint64_t custody_id=0; EstateId estate_id=0; InventoryRow row; Catalog catalog; std::optional<Placed> placement;uint64_t current_catalog_revision=0;uint64_t storage_revision=0;bool stowed=false; };

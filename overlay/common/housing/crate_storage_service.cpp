@@ -14,6 +14,26 @@
 namespace Housing::CrateStorage {
 namespace {
 using Error=LiveItems::Error;using Bytes=std::vector<uint8_t>;
+// Moving between a plot and its crate retains title and stable house identity.
+// A fresh reviewed house may be moved by an actor with house ACL capabilities;
+// this does not expand the separate inventory-return/title-transfer policy.
+bool ForeignMovement(Database& db,const Scene::Item& item,uint32_t crate_creator){
+ if(!item.house)return CrateForeignMember::EligibleUnderTransaction(db,item.stored.row);
+ const auto& stored=item.stored;const auto& h=*item.house;
+ // The crate member reader still requires matching house/crate creators.
+ // Preserve that structural invariant, including when packing a foreign house.
+ if(!crate_creator||stored.row.values.character_id!=crate_creator||
+    !ForeignFurnitureReturn::NormalMode()||!ForeignFurnitureReturn::Shape(stored.row,stored.catalog)||
+    !stored.placement||!h.interior||h.item_template_id!=stored.row.values.item_id||
+    h.location.kind!=HouseBinding::Location::Kind::Custody||h.location.custody_id!=stored.custody_id||
+    !stored.placement->reservation.content_binding||stored.placement->reservation.content_binding->version!=ContentBinding::HouseVersion)return false;
+ auto metadata=db.QueryDatabase("SELECT idfile,nodrop,loregroup,itemclass,bagslots,notransfer FROM items WHERE id="+std::to_string(h.item_template_id)+" FOR UPDATE",false);
+ if(!metadata.Success()||metadata.RowCount()!=1)return false;auto row=metadata.begin();for(unsigned i=0;i<6;++i)if(!row[i])return false;
+ try{return HouseGeometry::Lookup(h.item_template_id,row[0])&&std::stoll(row[1])==stored.catalog.no_drop&&
+  std::stoll(row[2])==stored.catalog.lore_group&&std::stoll(row[3])==stored.catalog.item_class&&
+  std::stoll(row[4])==stored.catalog.bag_slots&&std::stoll(row[5])==0;}catch(...){return false;}
+}
+
 struct Failure{Error error;};
 std::string Hex(const Bytes& bytes){const char* h="0123456789abcdef";std::string out;for(auto c:bytes){out+=h[c>>4];out+=h[c&15];}return out;}
 Bytes Unhex(const char* text){
@@ -82,7 +102,7 @@ static LiveItems::Result<Receipt> TransferCurrent(Database* database_,bool enabl
    const auto& members=r.to_crate?yard.items:yard.crate_contents;
    auto member=std::find_if(members.begin(),members.end(),[&](const auto& item){return item.stored.custody_id==r.custody_id;});
    if(member==members.end()||member->crate||!member->metadata||!member->geometry||!member->stored.placement||member->stored.placement->pose_revision!=r.pose_revision||member->stored.storage_revision!=r.storage_revision||(r.to_crate?bool(member->contained_in_crate):member->contained_in_crate!=r.crate_id))throw Failure{Error::Conflict};
-   if((member->stored.row.values.character_id!=r.lease.actor.character_id||member->stored.row.values.character_id!=crate->crate->created_by_character_id)&&!CrateForeignMember::EligibleUnderTransaction(db,member->stored.row))throw Failure{Error::UnsupportedItem};
+   if((member->stored.row.values.character_id!=r.lease.actor.character_id||member->stored.row.values.character_id!=crate->crate->created_by_character_id)&&!ForeignMovement(db,*member,crate->crate->created_by_character_id))throw Failure{Error::UnsupportedItem};
    if(!retiring&&!RentState::MutableItem(db,r.estate_id,r.native_plot_id,member->stored.custody_id))throw Failure{Error::Unauthorized};
    if(member->house&&(!house||(!retiring&&(!yard.access.Allows(AccessPolicy::Capability::AddHouse)||!yard.access.Allows(AccessPolicy::Capability::RemoveHouse)))))throw Failure{Error::Unauthorized};
    auto scope=CrateMemberScope::Locked(db,r.custody_id,bool(r.room));if(bool(scope)==r.to_crate)throw Failure{Error::Conflict};
@@ -173,7 +193,7 @@ LiveItems::Result<BatchReceipt> Service::Pack(const BatchRequest& r,LiveItems::I
     if(used+chosen.size()>=maximum)break;
     auto item=std::find_if(selected.begin(),selected.end(),[&](const auto& entry){return entry.stored.custody_id==candidate.custody_id;});
     if(item==selected.end()||!item->metadata||!item->geometry)continue;
-    if((item->stored.row.values.character_id!=r.lease.actor.character_id||item->stored.row.values.character_id!=container->crate->created_by_character_id)&&!CrateForeignMember::EligibleUnderTransaction(db,item->stored.row))continue;
+    if((item->stored.row.values.character_id!=r.lease.actor.character_id||item->stored.row.values.character_id!=container->crate->created_by_character_id)&&!ForeignMovement(db,*item,container->crate->created_by_character_id))continue;
     if(!RentState::MutableItem(db,r.estate_id,r.native_plot_id,item->stored.custody_id))throw Failure{Error::Unauthorized};
     if(item->house&&(!house||!yard.access.Allows(AccessPolicy::Capability::AddHouse)||!yard.access.Allows(AccessPolicy::Capability::RemoveHouse)))continue;
     if(r.packing&&item->house){auto houses=planned_houses;houses.push_back(CrateHouseRules::LockedHouse(db,item->house->house_id));if(!CrateHouseRules::Allowed(houses))continue;planned_houses=std::move(houses);}

@@ -131,6 +131,12 @@ void LiveHouseView(Database& db,Bundle& b){
   // Custody inventory/storage is not itself physical placement.
   if(!r[18]){hidden.insert(uint32_t(id));continue;}
   if(!Number(r[18])||Number(r[18])>=UINT32_MAX||Number(r[19])!=parent->native_id.value||Number(r[20])!=Number(r[15])||Number(r[15])!=parent->ownership_estate_id||!r[21]||std::string(r[21])!=b.key||Number(r[22])!=1||Number(r[23])!=ContentBinding::HouseVersion||!r[28]||Unhex(r[28]).size()!=32||!r[24]||Unhex(r[24],70000)!=CustodyCodec::Encode(source))throw Failure{Error::Conflict};
+  // A stored house keeps its permanent interior identity, but is not a
+  // physically placed child of the plot. Its item remains in the scene's
+  // storage list; omit only the interior from this placed-estate projection.
+  auto storage=Query(db,"SELECT stowed FROM housing_live_item_storage WHERE custody_id="+std::to_string(Number(r[13]))+" FOR UPDATE");
+  if(storage.RowCount()>1||(storage.RowCount()&&Number(storage.begin()[0])>1))throw Failure{Error::Conflict};
+  if(storage.RowCount()&&Number(storage.begin()[0])==1)hidden.insert(uint32_t(id));
  }
  // Allocator keys are reserved for ledger-managed nodes; never publish an
  // orphan allocation as an ordinary static catalog child.

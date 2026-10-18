@@ -6,9 +6,7 @@
 #include "../json/json.h"
 #include <sstream>
 namespace Housing::CrateTest {
-// Runtime parser for the explicit experimental crate content profile.
-// Legacy schema/namespace names are retained for configuration compatibility;
-// this is a production runtime dependency, not a fixture or test suite.
+// Explicit experimental test content, never a claim of recovered Live limits.
 struct Content {
  AuthenticatedPurchaser actor;EstateId estate_id=0;uint32_t native_plot_id=0,plot_definition_id=0,root_definition_id=0;
  uint16_t neighborhood_instance=0;uint64_t catalog_revision=0;std::string catalog_key,definitions_hex,regions_hex,map_sha256;

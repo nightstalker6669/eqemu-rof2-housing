@@ -12,6 +12,6 @@ inline std::optional<Bank> Save(const uint8_t* p,size_t size){if(!p||size!=68)re
 struct OptIn {bool enabled=false;std::string name;};
 inline std::optional<OptIn> Member(const uint8_t* p,size_t size){if(!p||size!=80||Read(p+4)>1)return {};size_t n=0;while(n<64&&p[8+n])++n;if(!n||n==64)return {};std::string name(reinterpret_cast<const char*>(p+8),n);for(auto c:name)if(!((c>='A'&&c<='Z')||(c>='a'&&c<='z')))return {};return OptIn{bool(Read(p+4)),name};} // guild/reference and tail never confer authority.
 inline std::vector<uint8_t> Available(uint32_t guild,const std::set<uint32_t>& ids){std::vector<uint8_t> p;Write(p,guild);Write(p,uint32_t(ids.size()));for(auto id:ids)Write(p,id);return p;}
-inline std::vector<uint8_t> Active(uint32_t guild,uint32_t favor,uint32_t timer,bool enabled,const Bank& b){std::vector<uint8_t> p;Write(p,guild);Write(p,favor);Write(p,timer);Write(p,uint32_t(enabled));Write(p,0);for(auto id:b.ids)Write(p,id);for(auto tier:b.tiers)Write(p,uint32_t(tier));return p;} // consumer through byte51, enabled is byte12.
+inline std::vector<uint8_t> Active(uint32_t guild,uint32_t favor,uint32_t remaining_ms,bool enabled,const Bank& b){std::vector<uint8_t> p;Write(p,guild);Write(p,favor);Write(p,remaining_ms);Write(p,uint32_t(enabled));Write(p,0);for(auto id:b.ids)Write(p,id);for(auto tier:b.tiers)Write(p,uint32_t(tier));return p;} // consumer through byte51, enabled is byte12.
 }
 #endif

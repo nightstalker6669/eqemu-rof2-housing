@@ -53,7 +53,7 @@ inline std::optional<Benefits> DecodeBenefits(const uint8_t* p,size_t n) {
  if(!p||n!=84)return {};Benefits s;s.enabled=Detail::Read(p);
  for(size_t i=0;i<Slots;++i){s.ids[i]=Detail::Read(p+4+4*i);s.tiers[i]=Detail::Signed(Detail::Read(p+44+4*i));}return s;
 }
-inline std::vector<uint8_t> EncodeTimer(uint32_t timer) {std::vector<uint8_t> b;Detail::Write(b,timer);return b;}
+inline std::vector<uint8_t> EncodeTimer(uint32_t remaining_ms) {std::vector<uint8_t> b;Detail::Write(b,remaining_ms);return b;}
 inline std::vector<uint8_t> EncodeClear() {return {};}
 
 struct Anchor {

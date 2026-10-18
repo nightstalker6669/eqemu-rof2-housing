@@ -1,0 +1,821 @@
+{
+  "client_build": "May 10, 2013 RoF2",
+  "client_sha256": "2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e",
+  "documented_opcode_numbers": 67,
+  "mapped_opcode_numbers": 54,
+  "layout_counts": {
+    "complete": 47,
+    "partial": 20
+  },
+  "meaning_counts": {
+    "complete": 30,
+    "partial": 34,
+    "unknown": 3
+  },
+  "complete_protocol": false,
+  "classification_note": "Complete applies to documented variants only. Mapped is not equivalent to implemented or native verified. Layout and meaning are classified independently.",
+  "messages": [
+    {
+      "opcode": "0x02bc",
+      "name": "OP_GuildTrophyOptIn",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exact80 in named-member and selfcheckbox variants: current guild/referenceu32@0, enabledu32@4, NULname[64]@8; remaining8bytes opaque/stale. Self variant joins shared7a41 send block with02bc opcode.",
+      "limits": []
+    },
+    {
+      "opcode": "0x039d",
+      "name": "OP_GuildTrophyToggle",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exact12: u32enabled@0; tail8 uninitialized/stale, not identity. Both toggle value and unused tail extent established by sender.",
+      "limits": []
+    },
+    {
+      "opcode": "0x050c",
+      "name": "OP_RealEstateItemQuery",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exact12: estateID,itemID,parameter; actor fallback usesFFFFFFFF, menu action8 forwards server record parameter.",
+      "limits": [
+        "Non-FFFFFFFF menu action8 parameters are forwarded without local interpretation; query option taxonomy unknown."
+      ]
+    },
+    {
+      "opcode": "0x087f",
+      "name": "OP_RealEstateItemDelta",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "u32 estateID,LP32 title,u32 count,then count complete entries;12+titleBytes+sum(entryBytes). EntryBytes=49+ownerNameBytes+ownerHandleBytes+ItemPtrBytes. DefinitionD=785+sum13Zstringchars+4*socketCount. ItemPtrBytes=97+GUIDchars+ornamentChars+25E+D+4*estateIDCount+sum(4+childItemPtrBytes). Complete standalone offline decoder now supplies formerly external D grammar.",
+      "limits": [
+        "Separate owner/creator handle semantics and some nested item-definition product fields remain incompletely interpreted."
+      ]
+    },
+    {
+      "opcode": "0x08bf",
+      "name": "OP_RealEstateTrophyClear",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C no body consumed; clears active trophy enabled state and ten selections. Empty overlay encoding is a consumer-covered implementation choice.",
+      "limits": [
+        "No payload access does not prove original08bf body was empty."
+      ]
+    },
+    {
+      "opcode": "0x0c13",
+      "name": "Owned-item estate membership delta",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "partial",
+      "layout": "estateID:u32@0; addFlag:u8@104",
+      "limits": [
+        "Only estateID@0 and addFlag@104 consumed;100 intermediate bytes and total length unknown",
+        "Ignored intermediate fields have no established semantic names"
+      ]
+    },
+    {
+      "opcode": "0x1045",
+      "name": "OP_RealEstateWorldItem",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "S2C complete serialized ActorRecord only:Z model,u8 NPC flag,f32 NPC height,u32 RecordNum,Z GUID,IDs,scale-first7 floats,3 mode flags,placementType,6 default/scale floats,lightType. Grammar82+modelBytes+GUIDBytes, normally98+modelBytes with16-character GUID. No ItemPtr dependency.",
+      "limits": [
+        "RecordNum and complete nonordinary/NPC model-resource association remain incompletely attributed; RecordNum must not be called itemID."
+      ]
+    },
+    {
+      "opcode": "0x1097",
+      "name": "Update existing housing item",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "u32 outerEstateID,one complete entry;4+entryBytes. EntryBytes=49+ownerNameBytes+ownerHandleBytes+ItemPtrBytes. DefinitionD=785+sum13Zstringchars+4*socketCount. ItemPtrBytes=97+GUIDchars+ornamentChars+25E+D+4*estateIDCount+sum(4+childItemPtrBytes). Complete standalone offline decoder now supplies formerly external D grammar.",
+      "limits": [
+        "Nested item opaque-field roles are not all recovered"
+      ]
+    },
+    {
+      "opcode": "0x1228",
+      "name": "OP_RealEstateOperationResult",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C shared completion consumer reads a signed32-bit result at0;4 bytes consumed/validated encoder size, not an independently proved original exclusive emitted length. Complete retained result branch inventory includes52 direct eqstr branches,-1 special handling,0 cleanup,45 partial-stack success,83 indirect formatting and generic fallback.",
+      "limits": [
+        "Four consumed bytes do not establish original full body size or absence of ignored suffix.",
+        "Operation-specific request/result ordering and authoritative outcome are not established for every sender. Resolving result83 label does not close transaction correlation."
+      ]
+    },
+    {
+      "opcode": "0x1967",
+      "name": "OP_RealEstateOwnerItemPurge",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "S2C estateIDu32 followed by NULownerName; total5+ownerNameBytes; purges all matching owner-name cached entries within estate.",
+      "limits": []
+    },
+    {
+      "opcode": "0x1baf",
+      "name": "Remove housing item",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "estateID:u32@0; itemID:u32@4",
+      "limits": [
+        "Only8 consumed bytes established; exclusive original full packet length not demonstrated"
+      ]
+    },
+    {
+      "opcode": "0x1cef",
+      "name": "OP_RealEstateItemList",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "u32 estateID,u32 count,then count complete entries;8+sum(entryBytes). EntryBytes=49+ownerNameBytes+ownerHandleBytes+ItemPtrBytes. DefinitionD=785+sum13Zstringchars+4*socketCount. ItemPtrBytes=97+GUIDchars+ornamentChars+25E+D+4*estateIDCount+sum(4+childItemPtrBytes). Complete standalone offline decoder now supplies formerly external D grammar.",
+      "limits": [
+        "Separate owner/creator handle semantics and some nested item-definition product fields remain incompletely interpreted."
+      ]
+    },
+    {
+      "opcode": "0x1da9",
+      "name": "OP_RealEstateExit",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exact4 opaque/stale bytes: leaverealestate command overwrites opcode only; body is not an estateID.",
+      "limits": []
+    },
+    {
+      "opcode": "0x2036",
+      "name": "OP_RealEstatePickup",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exact44: GUID18,padding2,source threeu32@20/24/28,estateID@32,itemID@36,quantity@40; ordinary and stack-dialog producers share envelope.",
+      "limits": [
+        "Quantity0 is ordinary native constructor value; exact whole/remainder and partial-fit server behavior is not fully established."
+      ]
+    },
+    {
+      "opcode": "0x218c",
+      "name": "OP_RealEstateGo",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exactly12 bytes:estateID,itemID,zero DWORD. Neighborhood Go uses itemIDFFFFFFFF; placed-house/menu/actor branches use actual itemID. No destination coordinates or zone are serialized.",
+      "limits": []
+    },
+    {
+      "opcode": "0x21ba",
+      "name": "OP_RealEstateHouseSwap",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exact24: FFFFFFFF@0, zero@4, current placed house estateID/itemID@8/12, selected replacement house estateID/itemID@16/20. Last pair reads live ItemWnd+384/+388 at confirmation; callback receiver is ItemWnd+220.",
+      "limits": [
+        "Roles of initial constants FFFFFFFF and zero remain unnamed; both house identity pairs are recovered.",
+        "Replacement source/custody and response ordering unresolved"
+      ]
+    },
+    {
+      "opcode": "0x21ea",
+      "name": "Bind spawn to housing item",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+NUL@4..20;bytes21..23 unobserved on valid profile;estateID:u32@24,itemID:u32@28. Prior18-byte GUID storage wording overstated wire consumption. Malformed unbounded strlen reads are not extra valid fields.",
+      "limits": [
+        "32 accessed bytes established, including unaccessed gap22..23; original full emitted length unknown"
+      ]
+    },
+    {
+      "opcode": "0x21ec",
+      "name": "OP_RealEstateItemMenu",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S placed-actor and housing-list queries, S2C response: shared fixed768-byte Menu768; GUID18/pad2; source12;estate/item@32/36;40x16 records@108;hidebyte748;popup coordinates752/756;opaque760/764. Constructor542a90 plus full40-record parser7375f0 corroborate shared shape.",
+      "limits": [
+        "Server supplied record parameters/action labels include unnamed action19/64a3; custom action9/51e3 parameter taxonomy and opaque header values are not fully interpreted.",
+        "Documented768-byte shared grammar is recovered; original server emission and action eligibility were not captured."
+      ]
+    },
+    {
+      "opcode": "0x2523",
+      "name": "OP_RealEstatePlacementSource",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C minimum40 accessible bytes. Matching-preview helper comparesGUID bytes0..15,does not use16..19,then copies sourceDWORDs20..31 andestateID32/itemID36. SharedGUID18+padding2 identity structure remains a compatible producer profile,not a recovered full S2C length.",
+      "limits": [
+        "Original exclusive body size and unconsumed suffix are unresolved."
+      ]
+    },
+    {
+      "opcode": "0x2691",
+      "name": "OP_RealEstateNeighborhood",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exactly224 bytes, modes0/1/2/4/5, fixed80/64/64-byte query strings and flag/padding suffix. S2C documented type5 subtypes0/1:12 bytes if count0, otherwise16+sum(28+nameBytes); subtype2:13+sum(4+playerNameBytes)+4*guildCount; subtypes4/5:15+titleBytes+sum(20+stringABytes+stringBBytes). Plot types4/8 consume one inspection record:64+fourStringBytes. LP32 strings and every count/conditional branch of these documented variants are framed.",
+      "limits": [
+        "Request flags220/221, ignored response header/context domains, plot-search row labels and some inspection words/strings remain unnamed. Subtype3 is ignored, not a newly recovered data grammar."
+      ]
+    },
+    {
+      "opcode": "0x2698",
+      "name": "OP_RealEstateDefinitions",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "S2C u32 definitionCount + count-driven complete DefinitionRecord grammars + u32 costSchemeCount + nested schemes/components/16-byte cost values. Minimum8 bytes for both zero counts; variable strings/counts are explicitly framed.",
+      "limits": [
+        "Several definition attributes/currency type-subtype domains and their product policies are not completely interpreted; native framing does not recover historical prices or upkeep charging cadence."
+      ]
+    },
+    {
+      "opcode": "0x2a9e",
+      "name": "OP_RealEstateWorldRemove",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C minimum40 accessible bytes. EstateID32/itemID36 retire world actor;conditional preview matcher comparesGUID bytes0..15. Audited consumers do not interpretbody16..31 as a source tuple. Original full extent remains unknown.",
+      "limits": [
+        "Any original unconsumed suffix and exclusive full emitted size remain unknown."
+      ]
+    },
+    {
+      "opcode": "0x2aa6",
+      "name": "OP_RealEstateEscrow",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "Both directions use u32 action,estateID,overloadedID;2 Z strings;u8 flag;opaque u32;valueCount;16-byte values. Complete grammar23+string1Bytes+string2Bytes+16*valueCount. Documented C2S actions0/1/2/3/4/5/6/7 all fit it. New5/6 item-row day/week carry RealEstateUpkeepID at8;3/4 property-level day/week use constructor0. Known response0/1/2 cursor/component cases add no wire fields.",
+      "limits": [
+        "Opaque word/string roles, action5/6 server grouping/response effect, funding and charge rules remain unresolved; ID@8 is action-dependent, not universally componentID."
+      ]
+    },
+    {
+      "opcode": "0x2aa7",
+      "name": "OP_RealEstateOwnedList",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "S2C u32 count plus count estateIDs:4+4*count bytes. Replaces general OwnedRealEstates array, distinct from owned-item/archive replacements.",
+      "limits": []
+    },
+    {
+      "opcode": "0x2b35",
+      "name": "OP_RealEstatePlotSearchOpen",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C consumer reads byte0 only:applies inspection-mode flag to PlotSearch after toggling/showing it. At least1 accessible body byte is proved; original exclusive full body length is not recovered.",
+      "limits": [
+        "One consumed byte is not an original full emitted length."
+      ]
+    },
+    {
+      "opcode": "0x2cf7",
+      "name": "Upsert housing item",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "u32 outerEstateID,one complete entry;4+entryBytes. EntryBytes=49+ownerNameBytes+ownerHandleBytes+ItemPtrBytes. DefinitionD=785+sum13Zstringchars+4*socketCount. ItemPtrBytes=97+GUIDchars+ornamentChars+25E+D+4*estateIDCount+sum(4+childItemPtrBytes). Complete standalone offline decoder now supplies formerly external D grammar.",
+      "limits": [
+        "Nested item opaque-field roles are not all recovered"
+      ]
+    },
+    {
+      "opcode": "0x3146",
+      "name": "OP_RealEstateAccessEdit",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S queued complete snapshot replacement:estateID,7 unconditional groupID/capabilityMask pairs, memberCount, repeated LP32 name + groupID. Complete grammar64+sum(8+nameBytes). No trailing3968 hash-key word, requestID or ACL revision.",
+      "limits": []
+    },
+    {
+      "opcode": "0x3424",
+      "name": "OP_RealEstateItemOperation",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exact48: OperationSource44 plus destination actionu32@44; concrete buttons2closet,3shed,6crate, context-derived supertype values retain same framing.",
+      "limits": [
+        "Zero quantity and context-derived actions0/1/4/5/7/8/9 do not establish complete custody operations or destination policy."
+      ]
+    },
+    {
+      "opcode": "0x3968",
+      "name": "Access response and cache invalidation variant",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "estateID:u32; variable access snapshot; opaque:u32",
+      "limits": [
+        "TrailingDWORD has a conditional hash-erase use; exact identifier/domain unknown",
+        "Unusual null-global/ECX14 branch is static, not proved a valid runtime state"
+      ]
+    },
+    {
+      "opcode": "0x3c8b",
+      "name": "Housing-item text request; exact operation unresolved",
+      "mapped": false,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "unknown",
+      "layout": "Exactly352 bytes: eight u32 header fields {2,0,estateID,itemID,0,0,0,2}; char text[128]@32; zero[128]@160; zero[64]@288",
+      "limits": [
+        "Text request initiating prompt and effect unknown; constructor/header roles only partly assigned",
+        "No response/effect pairing established"
+      ]
+    },
+    {
+      "opcode": "0x3e00",
+      "name": "OP_RealEstateOwnedItemList",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "S2C u32count then countu32estateIDs, exact documented4+4*count; clears/replaces PcClient OwnedItemRealEstates+29bc, not general ownership.",
+      "limits": []
+    },
+    {
+      "opcode": "0x45be",
+      "name": "OP_RealEstatePurchase",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "partial",
+      "meaning_status": "partial",
+      "layout": "C2S exactly188-byte transaction envelope:estateID;sentinels;fixed64/32/64-byte spans;price/upkeep componentIDs at172/176;clientCachedGuildRosterCount DWORD180;flags/padding through187. S2C branch consumes only byte0 (nonzero shows management), with minimum1 accessible byte; native original full response length is unknown.",
+      "limits": [
+        "The documented S2C show-response has one consumed byte, not a proved exclusive emitted length.",
+        "Other transaction opaque spans and flags retain unknown roles; DWORD180 is the client cached guild-roster entry count, not evidence of authoritative guild size or funding policy."
+      ]
+    },
+    {
+      "opcode": "0x485d",
+      "name": "OP_RealEstateAccess",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "S2C replacement snapshot:estateID,7 unconditional groupID/capabilityMask pairs, memberCount, repeated LP32 name + groupID. Complete grammar64+sum(8+nameBytes). No trailing3968 hash-key word, requestID or ACL revision.",
+      "limits": []
+    },
+    {
+      "opcode": "0x49df",
+      "name": "OP_RealEstateRegions",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "S2C u32 count followed by exactly88 bytes per region:ID,16 float transform words,3 float opaque vector words,2 opaque DWORDs. Complete documented bootstrap grammar4+88*count; empty bootstrap4 bytes.",
+      "limits": [
+        "Trailing vector at record68 and words80/84 have no recovered product meanings."
+      ]
+    },
+    {
+      "opcode": "0x4b65",
+      "name": "OP_RealEstateTrophy",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "C2S exact12: slotu32,benefitIDu32,tieri32 resulting absolute selection; removal can useFFFFFFFF/-1. S2C same12 interpreted bytes, but native evidence labels12 minimum accessed, not proven original full extent.",
+      "limits": [
+        "S2C exact total body extent is not established beyond consumed12 bytes; C2S exact12 is established."
+      ]
+    },
+    {
+      "opcode": "0x4f09",
+      "name": "Remove estate using full snapshot",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "Full RealEstate snapshot, same serialization family as 0x63fd",
+      "limits": [
+        "Removal behavior is established, but shared snapshot nonzero currency-key and upkeep-expiry domains retain the same limits as63fd"
+      ]
+    },
+    {
+      "opcode": "0x507f",
+      "name": "OP_RealEstateTransfer",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S0x507f exactly188 bytes:current estateID at0,target PlayerClient.Name copied into fixed64-byte field108;remaining shared-constructor defaults, including unspecified byte187. It is ownership transfer, not the stale507f sale label. Incoming offer5a63 is a separate documented opcode.",
+      "limits": [
+        "Other188-byte transaction fields remain opaque for this producer; recipient name108 must not be assumed to occupy the same role in all transfer-offer fields.",
+        "507f initial request\u2192server offer5a63 temporal correlation and later68ba ordering are not established by the client alone."
+      ]
+    },
+    {
+      "opcode": "0x51a9",
+      "name": "OP_RealEstateTrophyOpen",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "Exactly0 application bytes;2-byte frame contains only opcode",
+      "limits": [
+        "Trophy-window association known; personal/guild domain and exact state requested unresolved",
+        "No catalog/response pairing established; audited same-opcode receive paths default"
+      ]
+    },
+    {
+      "opcode": "0x51ae",
+      "name": "OP_RealEstateTrophyTimer",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C signed millisecond countdown DWORD@0; minimum4 consumed bytes, exact original extent unknown. Active local timer subtracts elapsed milliseconds and clamps to zero; display rounds via (timer+500)/1000 to minutes:seconds.",
+      "limits": [
+        "Only firstDWORD consumed; original full S2C extent not established."
+      ]
+    },
+    {
+      "opcode": "0x51e3",
+      "name": "Custom placed-object interaction request",
+      "mapped": false,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "estateID:u32,itemID:u32,parameter:u32 exactly12 bytes",
+      "limits": [
+        "Server-supplied parameter has no recovered effect taxonomy; distinct from label and submenu keys",
+        "No established acknowledgement/effect pairing"
+      ]
+    },
+    {
+      "opcode": "0x58c7",
+      "name": "OP_RealEstateItemInspect",
+      "mapped": true,
+      "direction": "C2S+S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exactly8 bytes (estateID,itemID);S2C exactly one complete variable recursive ItemPtr with no packet-type/estate/result prefix. EntryBytes=49+ownerNameBytes+ownerHandleBytes+ItemPtrBytes. DefinitionD=785+sum13Zstringchars+4*socketCount. ItemPtrBytes=97+GUIDchars+ornamentChars+25E+D+4*estateIDCount+sum(4+childItemPtrBytes). Complete standalone offline decoder now supplies formerly external D grammar.",
+      "limits": [
+        "Display purpose established; embedded item-field roles are not all recovered"
+      ],
+      "directional_layout": {
+        "C2S": "complete",
+        "S2C": "complete"
+      }
+    },
+    {
+      "opcode": "0x5a63",
+      "name": "OP_RealEstateTransferConsent",
+      "mapped": true,
+      "direction": "S2C+C2S",
+      "layout_status": "partial",
+      "meaning_status": "partial",
+      "layout": "estateID:u32@0; senderText:char[64]@12; acceptance:u8@185; other fields preserved or opaque",
+      "limits": [
+        "C2S is188 bytes; incoming copy accesses187 bytes without proving full S2C emitted extent",
+        "Most transaction fields merely copied; acceptance byte185 depends on local estate cache",
+        "Initial transfer request and subsequent result/ownership sequence not linked to this offer"
+      ],
+      "directional_layout": {
+        "C2S": "complete",
+        "S2C": "partial"
+      }
+    },
+    {
+      "opcode": "0x5b41",
+      "name": "OP_RealEstateLoadLayout",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S u32yard,u32house,u16count; count tagged records: tag0=17bytes(tag+fouru32 sourceEstate,item,quantity,targetEstate); tag1=65bytes for canonicalGUID16+NUL, compact7-byte source,estate/item,sevenf32 HPRScaleXYZ,targetEstate. Total10+17*n0+65*n1.",
+      "limits": [
+        "Tag0 zero-quantity execution and stack split/merge output identity/state ordering remain partly inferred; repeated tag1 source GUID is valid source provenance, not unique placed identity."
+      ]
+    },
+    {
+      "opcode": "0x613d",
+      "name": "OP_RealEstatePack",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exact1: u8 pack flag1=pack,0=unpack; current estate context implicit.",
+      "limits": []
+    },
+    {
+      "opcode": "0x6213",
+      "name": "OP_RealEstatePlacementEnd",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C end-preview consumer reads no body. Zero consumed bytes permits an empty body but does not establish the original emitted frame was empty. Housing preview cleanup interface+0xc resolves to RET4; no C2S cancel counterpart is proved on that path.",
+      "limits": [
+        "Original emitted body length remains unknown despite the zero-byte consumer."
+      ]
+    },
+    {
+      "opcode": "0x626e",
+      "name": "OP_RealEstatePlacementBegin",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exactly60 bytes for cursor/stored/menu Begin profiles:GUID18+padding,source12,estate/item IDs,constant/opaque40,action44,flag48,padding,screen coordinates52/56. S2C is serialized ActorRecord (82+modelBytes+GUIDBytes) plus compressed source7,3 flags,3 DWORDs,count+KEY/RESULT pairs and required final KEY/RESULT pair:ActorRecord+34+8*N. This response is PlacedItem/ActorRecord, NOT full ItemPtr/ItemDefinition D.",
+      "limits": [
+        "Begin action taxonomy beyond observed profiles, meaning of constant/opaque40 and third setupDWORD remain unresolved. Wire-reference flag3 unnamed wording is superseded:it controls screen-ray initialization in retained native input recovery."
+      ]
+    },
+    {
+      "opcode": "0x63fd",
+      "name": "OP_RealEstateSnapshot",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "S2C full EstateSnapshot:54+ownerNameBytes+ownerHandleBytes+dynamicNameBytes+4*childCount+12*escrowCount; LP32 strings, u32 child count/IDs, u8 escrow count and currencyKey/f64 balance pairs, final upkeep/expiry/voting fields. 63fd updates the estate cache without establishing zone-root context.",
+      "limits": [
+        "Nonzero escrow-key currency domains and complete upkeep-expiry encoding/charge interpretation remain unresolved; expiry must not be relabeled an invented paid-until timestamp."
+      ]
+    },
+    {
+      "opcode": "0x64a3",
+      "name": "Unresolved menu action19 request",
+      "mapped": false,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "unknown",
+      "layout": "estateID:u32,itemID:u32,parameter:u32 exactly12 bytes",
+      "limits": [
+        "Action19 exact operation and parameter domain unknown",
+        "No response relationship established"
+      ]
+    },
+    {
+      "opcode": "0x6573",
+      "name": "OP_RealEstateVotingOptOut",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "Exactly8 bytes: estateID:u32@0; votingOptedOut:u8@4; opaque/stale[3]@5",
+      "limits": [
+        "Native local cache/checkbox update does not establish server persistence or acknowledgement"
+      ]
+    },
+    {
+      "opcode": "0x66bf",
+      "name": "OP_RealEstateSaleResult",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "result:u32@0",
+      "limits": [
+        "Only resultDWORD prefix established; full original body size unknown",
+        "No request/result ordering proof"
+      ]
+    },
+    {
+      "opcode": "0x66df",
+      "name": "OP_RealEstateArchivedList",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "S2C u32count then countu32estateIDs, exact documented4+4*count; clears/replaces ArchivedRealEstates+29cc.",
+      "limits": []
+    },
+    {
+      "opcode": "0x68ba",
+      "name": "OP_RealEstateTransferResult",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "result:u32@0",
+      "limits": [
+        "Only resultDWORD prefix established; full original body size unknown",
+        "No transfer request/result ordering or successful state transition established"
+      ]
+    },
+    {
+      "opcode": "0x6917",
+      "name": "OP_RealEstateStoreAll",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exact0 application bytes; stow placed items in implicit current housing context.",
+      "limits": []
+    },
+    {
+      "opcode": "0x6fd0",
+      "name": "OP_RealEstateZoneContext",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "S2C full EstateSnapshot:54+ownerNameBytes+ownerHandleBytes+dynamicNameBytes+4*childCount+12*escrowCount; LP32 strings, u32 child count/IDs, u8 escrow count and currencyKey/f64 balance pairs, final upkeep/expiry/voting fields. 6fd0 additionally establishes zone-root context.",
+      "limits": [
+        "Nonzero escrow-key currency domains and complete upkeep-expiry encoding/charge interpretation remain unresolved; expiry must not be relabeled an invented paid-until timestamp."
+      ]
+    },
+    {
+      "opcode": "0x711a",
+      "name": "OP_RealEstatePlacementCommit",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exactly96 bytes:GUID/source/IDs40-byte prefix,opaque DWORD40,heading/pitch/roll/scale44..56,position Y/X/Z60..68,already scale-adjusted actor-local extents72..80 and center84..92. Stored Commit source-kind000000FF differs from stored BeginFFFFFFFF. Vtable+8 submit\u21925b1f90 and click path are bound; no extra revision/operation ID is serialized.",
+      "limits": [
+        "DWORD40 is emitted as0 but its original protocol meaning remains unassigned."
+      ]
+    },
+    {
+      "opcode": "0x756a",
+      "name": "OP_RealEstateTrophyToggle",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exact4: u32enabled inverse of local personal trophy enabled byte; native sender784cb5.",
+      "limits": []
+    },
+    {
+      "opcode": "0x7697",
+      "name": "OP_RealEstateTrophyList",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "S2C consumed84-byte prefix: u32enabled;10u32 benefitIDs@4;10i32 tiers@44. Two separate arrays, not interleaved pairs.",
+      "limits": [
+        "Original full7697 body length or any suffix beyond byte83 remains explicitly unknown."
+      ]
+    },
+    {
+      "opcode": "0x76c6",
+      "name": "General owned-estate membership delta",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "partial",
+      "layout": "estateID:u32@0; addFlag:u8@104",
+      "limits": [
+        "Only estateID@0 and addFlag@104 consumed;100 intermediate bytes and total length unknown",
+        "Intermediate field roles unresolved"
+      ]
+    },
+    {
+      "opcode": "0x792c",
+      "name": "OP_RealEstateSale",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S0x792c exactly188 bytes. Native Move Out notification100 affirmative mask5:shared constructor defaults, current estateID at0. Constructor leaves byte187 unspecified; all188 bytes are copied. This supersedes the stale wire-reference entry that named507f as Sale.",
+      "limits": [
+        "Fixed-envelope sentinels/opaque spans/flags retain unassigned semantics even though the sale request and default bytes are known."
+      ]
+    },
+    {
+      "opcode": "0x796c",
+      "name": "OP_RealEstateInspect",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "complete",
+      "layout": "C2S exactly4 bytes containing selected estateID; emitted by PlotSearch selected-row path in inspection mode.",
+      "limits": []
+    },
+    {
+      "opcode": "0x7a41",
+      "name": "OP_GuildTrophyModify",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "C2S exact80 in close/notification paths; only booleanbyte0 deliberately initialized,79 remainingbytes opaque/stale. S2C original consumer4860f1 reads byte0 into modifyack globalddf04a; overlay emits1-byte ack.",
+      "limits": [
+        "S2C one consumed booleanbyte does not establish exact original acknowledgment frame length; overlay1-byte encoding is not original emitter evidence."
+      ]
+    },
+    {
+      "opcode": "0x7ad1",
+      "name": "Unresolved item action5 request",
+      "mapped": false,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "unknown",
+      "layout": "estateID:u32,itemID:u32,zero[140] exactly148 bytes",
+      "limits": [
+        "Action5 operation unknown;140 zero bytes have no proven subdivisions",
+        "No receive counterpart or resulting effect established"
+      ]
+    },
+    {
+      "opcode": "0x7bb1",
+      "name": "OP_RealEstateAnchorConfirm",
+      "mapped": true,
+      "direction": "C2S/S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "S2C NULcaster + fiveu32 + LP32 destination text, total25+casterBytes+destinationBytes. C2S acceptance exact84: caster[64] plus same fiveDWORDs. Decline local only in documented callback.",
+      "limits": [
+        "Three offerDWORD meanings remain opaque; only word1 estate lookup and word4 personalFFFFFFFF/guild discriminator are anchored; initialcast/success route unknown."
+      ]
+    },
+    {
+      "opcode": "0x7c1d",
+      "name": "OP_GuildTrophySave",
+      "mapped": true,
+      "direction": "C2S",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "C2S exact68: fourbenefitIDs@20..35, fouri32tiers@36..51; remaining36bytes opaque/stale. Close and notification save variants use same frame.",
+      "limits": [
+        "Fields outside selectedIDs/tiers remain opaque; no semantics assigned to leading20 or trailing16 bytes."
+      ]
+    },
+    {
+      "opcode": "0x7d28",
+      "name": "Invalidate estate item-list cache",
+      "mapped": false,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "complete",
+      "layout": "estateID:u32@0",
+      "limits": [
+        "Only estateID DWORD consumed; full original emitted extent unknown"
+      ]
+    },
+    {
+      "opcode": "0x7db5",
+      "name": "OP_GuildTrophyAvailable",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "complete",
+      "meaning_status": "partial",
+      "layout": "S2C documented count-delimited grammar8+4*count: DWORD0 skipped by original consumer, countDWORD4, benefitIDu32[count]@8. Overlay supplies guildID atDWORD0.",
+      "limits": [
+        "DWORD0 guild/reference role comes from overlay emission; located original consumer skips it rather than interpreting its meaning."
+      ]
+    },
+    {
+      "opcode": "0x7dd2",
+      "name": "OP_GuildTrophyActive",
+      "mapped": true,
+      "direction": "S2C",
+      "layout_status": "partial",
+      "meaning_status": "partial",
+      "layout": "S2C minimum52 bytes: unknown leading DWORD0; shared guild favor pool DWORD@4; millisecond remaining timer DWORD@8; enabled BYTE12; unobserved13..19; four IDs@20 and four tiers@36. Full original extent unknown.",
+      "limits": [
+        "Consumer-covered52 bytes do not establish full original7dd2 envelope/suffix.",
+        "Leading DWORD0 and unobserved bytes13..19 retain unknown domains. Native enabled access is byte12 only. Timer units and local countdown are recovered."
+      ]
+    }
+  ]
+}

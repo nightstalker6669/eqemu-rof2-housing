@@ -60,8 +60,9 @@ public:
  std::optional<ContentBinding::HouseRoute> ReviewPlacementUnderTransaction(Database&,LiveItems::InventorySessionFence& f,const HouseBinding::PlacementFacts& facts)const override{
   const auto* route=content_->Route(facts.source.values.item_id);const auto type=HouseTemplates::Type(facts.source.values.item_id);
   if(!route||!templates_.VerifiedHouse(facts.source)||!Yard(f,facts.lease,facts.reservation)||facts.source.values.character_id!=facts.lease.actor.character_id||facts.catalog_revision!=facts.reservation.catalog_revision||facts.neighborhood_instance!=zone->GetInstanceID()||facts.plot_definition.type!=(type==3?4u:8u)||!facts.plot_definition.max_children||facts.house_definition.id!=route->definition_id||facts.house_definition.type!=type||facts.house_definition.zone_id!=route->zone_id||std::find(facts.plot_definition.children.begin(),facts.plot_definition.children.end(),route->definition_id)==facts.plot_definition.children.end())return {};
+  if(facts.storage_only&&(!RuleB(Housing,EnableNativeHouseSwap)||facts.pose))return {};
   const bool source=facts.stage==HouseBinding::PlacementStage::Preview||facts.stage==HouseBinding::PlacementStage::Store;
-  if(source){if(!facts.access.Allows(AccessPolicy::Capability::AddHouse)||facts.placed_children>=facts.plot_definition.max_children||!f.SourceMatches(facts.source,facts.runtime_serial))return {};auto* item=client_.GetInv().GetItem(int16_t(facts.source.values.slot_id));if(!item||!HousePlacement::Metadata(*item,route->definition_id,type))return {};}
+  if(source){if(!facts.access.Allows(AccessPolicy::Capability::AddHouse)||(!facts.storage_only&&facts.placed_children>=facts.plot_definition.max_children)||!f.SourceMatches(facts.source,facts.runtime_serial))return {};auto* item=client_.GetInv().GetItem(int16_t(facts.source.values.slot_id));if(!item||!HousePlacement::Metadata(*item,route->definition_id,type))return {};}
   else if(!facts.access.Allows(facts.stage==HouseBinding::PlacementStage::Move?AccessPolicy::Capability::MoveItem:AccessPolicy::Capability::Enter))return {};
   return *route;
  }
@@ -92,7 +93,7 @@ private:
   if(r.phase==HouseBinding::AuthorizationPhase::StoreAfterCustodyInsert){
    auto* item=client_.GetInv().GetItem(int16_t(r.source.values.slot_id));if(!item||!f.SourceMatches(r.source,r.runtime_serial)||!HousePlacement::Metadata(*item,route->definition_id,type))return false;
    if(r.before.interior){if(item->GetHousingHouseID()!=r.before.house_id||item->GetHousingEstateID()!=r.before.interior->native_estate_id)return false;}else if(!templates_.PermitInitialBinding(r.lease.actor,r.source))return false;
-   auto count=db.QueryDatabase("SELECT COUNT(*) FROM housing_native_estates WHERE parent_native_id="+std::to_string(context.request.native_plot_id)+" AND active=1",false);if(!count.Success()||count.RowCount()!=1||!count.begin()[0]||!context.plot_definition.max_children||std::stoull(count.begin()[0])>context.plot_definition.max_children)return false;
+   auto count=db.QueryDatabase("SELECT COUNT(*) FROM housing_house_interiors i JOIN housing_house_locations l ON l.house_id=i.house_id AND l.location_kind=2 JOIN housing_live_placed_items p ON p.custody_id=l.custody_id JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id WHERE r.native_estate_id="+std::to_string(context.request.native_plot_id)+" AND r.state=1 AND NOT EXISTS (SELECT 1 FROM housing_live_item_storage st WHERE st.custody_id=p.custody_id AND st.stowed=1) AND NOT EXISTS (SELECT 1 FROM housing_crate_members cm WHERE cm.custody_id=p.custody_id)",false);if(!count.Success()||count.RowCount()!=1||!count.begin()[0]||!context.plot_definition.max_children||std::stoull(count.begin()[0])>context.plot_definition.max_children)return false;
   }
   return true;
  }
