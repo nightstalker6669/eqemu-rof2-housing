@@ -21,13 +21,18 @@
     },
     {
       "path": "README.md",
-      "bytes": 6445,
-      "sha256": "63bca67287faebee763dc158e36b07e99cfc43b367759f80659f95e29f838e51"
+      "bytes": 6884,
+      "sha256": "a05b755a549a58ca8ae73a55a06595e321c86ec61ad284ec5e99a2b280df0c98"
     },
     {
       "path": "docs/ARCHITECTURE.md",
       "bytes": 3121,
       "sha256": "5ab97d8db8f625644b214e03a1943ddb144250ff4b902ac2d1b9036795b289db"
+    },
+    {
+      "path": "docs/BILLING-SUNRISE-2026-10-18.md",
+      "bytes": 4190,
+      "sha256": "ec27fa48af3ccef14d23bda172a597e30956a3b25c7796e3b37981f70c0fd7ae"
     },
     {
       "path": "docs/INSTALL.md",
@@ -41,13 +46,13 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 8708,
-      "sha256": "be3dcb6a5dda3a0a64867e28a4c2600ceecbda39921f2db62ff5baf433ebe300"
+      "bytes": 9142,
+      "sha256": "82cc3bf873817ea06096eab5acbe8bd0339cda07272642e89bb198b806710aef"
     },
     {
       "path": "docs/UPDATES-2026-10-18.md",
-      "bytes": 7824,
-      "sha256": "7d372cc7e3a7b71322200642255873424d3caf64cc120f29bb29ca41c568a9b3"
+      "bytes": 8258,
+      "sha256": "fe1c9a5221b4087f6f374df156656ee08cb7d24ad88cafd4d2c5a78cde8def6b"
     },
     {
       "path": "overlay/common/housing/README.md",
@@ -195,6 +200,11 @@
       "sha256": "daaf744e1c7ae9f5b2e105977277a2e8f8aabf927c8c6cc2c6f2f4574395ae6d"
     },
     {
+      "path": "overlay/common/housing/escrow_bulk_controls.md",
+      "bytes": 4815,
+      "sha256": "68908cfebe27b980b0535541e4649ee82d6d1a7506a8176f3bfe2952b7735619"
+    },
+    {
       "path": "overlay/common/housing/escrow_service.cpp",
       "bytes": 14867,
       "sha256": "f9f035aadac0c332202a3c76fc5f9f3cd2e7b096d8d1fb78a1c4bea7441640bb"
@@ -316,8 +326,8 @@
     },
     {
       "path": "overlay/common/housing/house_interior_allocator.cpp",
-      "bytes": 11655,
-      "sha256": "c722e0886b86e4e6793fd5bf2ade5556b9ebad005008e34f968fae51326e58a0"
+      "bytes": 11721,
+      "sha256": "1c2d8e58799392e5277f2b8a3c3b18799d3a7a5ecc005cd82ddadacd6ad0811f"
     },
     {
       "path": "overlay/common/housing/house_interior_allocator.h",
@@ -456,8 +466,8 @@
     },
     {
       "path": "overlay/common/housing/interior_storage_service.cpp",
-      "bytes": 43584,
-      "sha256": "f74126983f9b5289e8f6cb40df43f1e47e3dcebc2f12019940403ea64c07a59c"
+      "bytes": 43633,
+      "sha256": "a426431d12e082fca2e1c9b962b6c0bb89fa50ae1c40472640cc0c532a7072d0"
     },
     {
       "path": "overlay/common/housing/interior_storage_service.h",
@@ -481,8 +491,8 @@
     },
     {
       "path": "overlay/common/housing/inventory_process_recovery.cpp",
-      "bytes": 23666,
-      "sha256": "da1481576893d176bea228df663792b70d52c247695e4f83f6fd9fcc75ec6647"
+      "bytes": 24383,
+      "sha256": "aa3225ee8533ece502ba75a7b6e187a5ca9277a7e08d71d79cc30fecd3791027"
     },
     {
       "path": "overlay/common/housing/inventory_process_recovery.h",
@@ -661,18 +671,18 @@
     },
     {
       "path": "overlay/common/housing/live_escrow_service.cpp",
-      "bytes": 46807,
-      "sha256": "dfeb907c60961e513c9cb74149261cb50c540bbe7f85cec5eac966644af50e1e"
+      "bytes": 57312,
+      "sha256": "76775635bf72a53b5879834d2549974f2445cd4532fd9ba1234d8f0e158317b0"
     },
     {
       "path": "overlay/common/housing/live_escrow_service.h",
-      "bytes": 4659,
-      "sha256": "578b1fd805351017c96e94c761ac20a3f2ef585228782a1470977db62ad7bc0e"
+      "bytes": 5142,
+      "sha256": "fbfbda536b4d5c517ad96776ddf8117cd49961c116073827303ac15ec2f0f2c8"
     },
     {
       "path": "overlay/common/housing/live_item_service.cpp",
-      "bytes": 223189,
-      "sha256": "6435351122227b437108ffc07699fa9bd45f67918c30afd02c097522172483fe"
+      "bytes": 223389,
+      "sha256": "56d8ac4e83afe6bf8852f93ecf25c25234c6900d90329a80903b53bd9ff72814"
     },
     {
       "path": "overlay/common/housing/live_item_service.h",
@@ -711,8 +721,8 @@
     },
     {
       "path": "overlay/common/housing/native_plot_purchase.cpp",
-      "bytes": 39962,
-      "sha256": "215d43537b2aafe7d134915418a707102733809f300f8a9f062d44d0b7ada69d"
+      "bytes": 41013,
+      "sha256": "d43c1afe26e1baf38783c1a92305dea023555d9221a8760d05cad5029c06bcfc"
     },
     {
       "path": "overlay/common/housing/native_plot_purchase.h",
@@ -845,6 +855,16 @@
       "sha256": "0d694d47ccd53ac8a9994da15d054b8ef2f24431b76207fcfbf4183d5ed2ad7c"
     },
     {
+      "path": "overlay/common/housing/plot_pricing_defaults.h",
+      "bytes": 3643,
+      "sha256": "6ad2f526c87c70ed550571ebacc7115f050207a05cb01362c0d5215dab5416e1"
+    },
+    {
+      "path": "overlay/common/housing/plot_pricing_defaults.md",
+      "bytes": 2740,
+      "sha256": "8aeca95e50c8d9e74e7d1a9d852fff9fd0e5c5a364d4a56595705003bc93bcd1"
+    },
+    {
       "path": "overlay/common/housing/plot_search_dispatch.h",
       "bytes": 799,
       "sha256": "4d10d3ef4b748ea2dc8b1f166e720a772407b46bf04749bbfc761637fb5bb331"
@@ -856,8 +876,8 @@
     },
     {
       "path": "overlay/common/housing/property_lifecycle.md",
-      "bytes": 8858,
-      "sha256": "57b4787e254dbae52fa41cd42cf3cc941e252a5de2252bce9f5c9732044d2e86"
+      "bytes": 11298,
+      "sha256": "c8e964494d0234a911c0cb72d45e728022f64b2e4400617925705ef63989d0ef"
     },
     {
       "path": "overlay/common/housing/region_wire.h",
@@ -925,6 +945,26 @@
       "sha256": "d4aab56fc5c85197278dc9dc7b4254ad5c093830cdc73f41653d79d0d477f6e5"
     },
     {
+      "path": "overlay/common/housing/sunrise_neighborhood_defaults.h",
+      "bytes": 7506,
+      "sha256": "c0f03fee22eb2bbe0730a0272200824f87a84d8f07269a31d5a1f5f192fd2ad5"
+    },
+    {
+      "path": "overlay/common/housing/sunrise_neighborhood_defaults.md",
+      "bytes": 3727,
+      "sha256": "066fdaeaeb83323f0a746d726fed6dfa5903b8e271ddbe5acba2a4aaff69df8e"
+    },
+    {
+      "path": "overlay/common/housing/sunrise_plot_reconstruction.h",
+      "bytes": 13943,
+      "sha256": "e1744338c094712642004e67ea6cc660086cd4a8a3a246409f45909ee751469c"
+    },
+    {
+      "path": "overlay/common/housing/sunrise_plot_reconstruction.md",
+      "bytes": 5414,
+      "sha256": "b85fbc53938959e1a1d5471a7c732686b9217eda99901f52270fecf781e65bb9"
+    },
+    {
       "path": "overlay/common/housing/transfer_consent_wire.h",
       "bytes": 1392,
       "sha256": "aafb35274a34d996d1435d3b5c0a4a0bedcda8eda32a986d7def177b000ff981"
@@ -986,8 +1026,13 @@
     },
     {
       "path": "overlay/common/housing/upkeep_enrollment_db.h",
-      "bytes": 4585,
-      "sha256": "733083d5f4fff01490f0bf3d5d57ce0fd015411dd7d64a54da61c652ae216713"
+      "bytes": 6585,
+      "sha256": "8b28aa667e6689776d02758fcc563f9042d9efa86d8af4966fc8dd05859d6d3e"
+    },
+    {
+      "path": "overlay/common/housing/upkeep_refresh_wire.h",
+      "bytes": 532,
+      "sha256": "ee2ea3c5d39ca064c3f1d8dba03ef3672f3a7cf7758897e1ea49ecbd4d216f20"
     },
     {
       "path": "overlay/common/housing/upkeep_selection_db.h",
@@ -1240,6 +1285,11 @@
       "sha256": "ae6b96b3da000f54aaee3742654cc00c31bd84fc23a64209418b6f22451af43e"
     },
     {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_escrow_bulk_controls.sql",
+      "bytes": 1328,
+      "sha256": "b0cae3c30c93b6a7460021bc6b95ac55df8b590a84e0e028e40f12516e43e235"
+    },
+    {
       "path": "overlay/utils/sql/optional/2026_10_18_housing_offline_crate_creation.sql",
       "bytes": 2887,
       "sha256": "93ed8d5b51a7b2da13cedfe8f44206812a94aff59d9f5b6046caec43b6631f88"
@@ -1253,6 +1303,16 @@
       "path": "overlay/utils/sql/optional/2026_10_18_housing_offline_property_packing.sql",
       "bytes": 1751,
       "sha256": "e49447d77d3c0f86dc337e021e1bddfe765f54a00ba96ebcdb9dd9d5ba148e6e"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_paid_guild_plot_purchase.sql",
+      "bytes": 465,
+      "sha256": "f6f56ad402069289e221158c068ae8d2a49ba8a786caaffa22061a87dc0933a2"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_sunrise_guild_markers.sql",
+      "bytes": 3661,
+      "sha256": "c35b82630f5c6f7ec4a3425cb3e869e12d762ad9a8380e3890d71254f8a12720"
     },
     {
       "path": "overlay/utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql",
@@ -1286,8 +1346,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 207028,
-      "sha256": "f976429316cbdda27a1ba66f4e7613daa5f90c153eba4fdfe237ef8764ff62ad"
+      "bytes": 207813,
+      "sha256": "012b942f02d1176485ac0b8f18091046502082534ec76b49078065acb0ef5842"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",
@@ -1296,8 +1356,8 @@
     },
     {
       "path": "overlay/zone/client_housing_escrow.cpp",
-      "bytes": 10346,
-      "sha256": "367fd273f48a2eab6b3ae3b42db059cde9621db5f025bd03c0a4034dd4ed8a87"
+      "bytes": 11524,
+      "sha256": "d1a387d9437f0ec8c8266985da3598e0e6806448f394d21721138119bc65a797"
     },
     {
       "path": "overlay/zone/client_housing_guild_trophies.cpp",
@@ -1321,8 +1381,8 @@
     },
     {
       "path": "overlay/zone/client_housing_transfer.cpp",
-      "bytes": 6897,
-      "sha256": "5e52c0d0a99ba0445b6cb7a8e50c53c594a0bedb4f241587378cc2a8d389d670"
+      "bytes": 6918,
+      "sha256": "a622d1650dfee0bf02958812e524df8eb85f11dd9908f833146e1f38cbd0852d"
     },
     {
       "path": "overlay/zone/client_housing_trophies.cpp",
@@ -1336,8 +1396,8 @@
     },
     {
       "path": "overlay/zone/housing_coin_profile.h",
-      "bytes": 2579,
-      "sha256": "985e7efca2114e114a2c7bcd5fbb1497fcb325a80031e20a4ee6b4f695b679c2"
+      "bytes": 3563,
+      "sha256": "188275dd861fa3abdfb2dec823adcd957782c222198165d215d01743029503fa"
     },
     {
       "path": "overlay/zone/housing_crate_runtime.cpp",
@@ -1351,8 +1411,8 @@
     },
     {
       "path": "overlay/zone/housing_escrow_response.h",
-      "bytes": 1481,
-      "sha256": "9d3f55dc00471b6b4c57b8c2a0dc8d0d2465832a5c93ba23b5bcddfebf024201"
+      "bytes": 1540,
+      "sha256": "a175e9095133b52800f10faa876651a589be350c94ade0da8b3fa4d4dec56f04"
     },
     {
       "path": "overlay/zone/housing_house_content_loader.h",
@@ -1391,8 +1451,8 @@
     },
     {
       "path": "overlay/zone/housing_house_runtime.cpp",
-      "bytes": 29989,
-      "sha256": "7d303522810ad5133e5979f075684eb73adda081d01cb0945135bff7f40bf627"
+      "bytes": 29956,
+      "sha256": "c621c02459211a851e2c9f0a06c24a682d951efc0fee680d4ee11eef9f38abe8"
     },
     {
       "path": "overlay/zone/housing_house_runtime.h",
@@ -1416,8 +1476,8 @@
     },
     {
       "path": "overlay/zone/housing_inventory_bridge.cpp",
-      "bytes": 124558,
-      "sha256": "22dcfcc5830b8fa380e3ed35c909e659151b76a4ae700ad1857ebde6dd7519bd"
+      "bytes": 124666,
+      "sha256": "d9be01fb60c3336965c0e87ebea5d6807df820642162dd6640ed5ed4373411c5"
     },
     {
       "path": "overlay/zone/housing_inventory_bridge.h",
@@ -1438,6 +1498,11 @@
       "path": "overlay/zone/housing_item_reconstruction.h",
       "bytes": 870,
       "sha256": "5647fe7ab18779bfe47903da642c89c823d5e92ca0aebe6996266d32e9957c16"
+    },
+    {
+      "path": "overlay/zone/housing_plot_marker.h",
+      "bytes": 2864,
+      "sha256": "b688d6969f898d4186de9f260cd334cac9368640d099ca1b218a8483d9c43ef4"
     },
     {
       "path": "overlay/zone/housing_transfer_pending.h",
@@ -1461,8 +1526,13 @@
     },
     {
       "path": "patches/eqemu-housing.patch",
-      "bytes": 128469,
-      "sha256": "797bfda2316f503f1dce30246dd113df13df68fd4dcabf52ae3121e4d504c1ef"
+      "bytes": 129550,
+      "sha256": "ee31e50b75800f640abbb7e75031fdb2e16f566e0fdcb124e4956835307145c2"
+    },
+    {
+      "path": "patches/rof2-housing-finance-width.patch",
+      "bytes": 278,
+      "sha256": "9be843f3dd84236f77bcee13094382c2a2e8e545e1eb975d4bd1e79b27d81f41"
     },
     {
       "path": "protocol/OPCODES.md",

@@ -388,7 +388,7 @@ namespace Housing::LiveItems {
                 const auto child_id=std::stoul(meta.begin()[4]);
                 for(const auto& d:bundle.definitions)if(d.id==child_id)child=&d;
                 if(!child||child->type!=metadata.house_definition_type||!definition->max_children||std::find(definition->children.begin(),definition->children.end(),child_id)==definition->children.end())throw Failure{Error::UnsupportedItem};
-                auto occupied=Q(db,"SELECT r.content_binding_version,l.house_id,h.item_template_id,h.pending_request_key,c.owner_character_id,HEX(c.row_blob),i.native_estate_id,n.parent_native_id,n.active,n.catalog_key,h.created_by_character_id,placed.custody_id FROM housing_live_placed_items placed JOIN housing_live_placement_reservations r ON r.native_item_id=placed.native_item_id LEFT JOIN housing_live_item_custody c ON c.custody_id=placed.custody_id LEFT JOIN housing_house_locations l ON l.location_kind=2 AND l.custody_id=placed.custody_id LEFT JOIN housing_house_instances h ON h.house_id=l.house_id LEFT JOIN housing_house_interiors i ON i.house_id=h.house_id LEFT JOIN housing_native_estates n ON n.native_id=i.native_estate_id WHERE r.native_estate_id="+std::to_string(p.native_estate_id)+" AND r.state=1 FOR UPDATE");
+                auto occupied=Q(db,"SELECT r.content_binding_version,l.house_id,h.item_template_id,h.pending_request_key,c.owner_character_id,HEX(c.row_blob),i.native_estate_id,n.parent_native_id,n.active,n.catalog_key,h.created_by_character_id,placed.custody_id FROM housing_live_placed_items placed JOIN housing_live_placement_reservations r ON r.native_item_id=placed.native_item_id LEFT JOIN housing_live_item_custody c ON c.custody_id=placed.custody_id LEFT JOIN housing_house_locations l ON l.location_kind=2 AND l.custody_id=placed.custody_id LEFT JOIN housing_house_instances h ON h.house_id=l.house_id LEFT JOIN housing_house_interiors i ON i.house_id=h.house_id LEFT JOIN housing_native_estates n ON n.native_id=i.native_estate_id WHERE r.native_estate_id="+std::to_string(p.native_estate_id)+" AND r.state=1"+(operation==PlacementPolicy::Operation::Move?" AND placed.native_item_id<>"+std::to_string(p.native_item_id):std::string{})+" FOR UPDATE");
                 for(auto existing=occupied.begin();existing.operator!=(occupied.end());++existing){
                     if(!existing[4]||!existing[5])throw Failure{Error::DatabaseFailure};
                     const auto stored_row=Decode(Unhex(existing[5]));bool known_house=false;
@@ -399,7 +399,8 @@ namespace Housing::LiveItems {
                     if(ItemStorage::Locked(db,std::stoull(existing[11])).stowed||CrateMemberScope::Locked(db,std::stoull(existing[11])))continue;
                     ++placed_children;
                 }
-                if(capacity&&!house_storage&&placed_children>=definition->max_children)throw Failure{Error::Conflict};
+                // Live permits one placed house/hall; max_children also budgets moving crates.
+                if(capacity&&!house_storage&&placed_children>=1)throw Failure{Error::Conflict};
                 HouseBinding::PlacementFacts facts;facts.lease=*lease;facts.reservation=p;facts.source=row;facts.runtime_serial=runtime_serial;facts.pose=pose;facts.operation=operation;facts.stage=stage;facts.catalog_revision=std::stoull(cat.begin()[0]);facts.placed_children=placed_children;facts.storage_only=house_storage;facts.neighborhood_instance=uint16_t(std::stoul(m[5]));facts.access=access.effective;facts.plot_definition=*definition;facts.house_definition=*child;facts.region=*region;
                 house_route=houses->ReviewPlacementUnderTransaction(db,fence,facts);
                 if(!house_route)throw Failure{Error::Unauthorized};

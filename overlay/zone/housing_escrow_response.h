@@ -17,7 +17,7 @@ inline std::optional<std::vector<uint8_t>> Rejected(
    request.estate_id,denomination,
    CoinWallet::Detail::Counter(cursor,CoinWallet::Denomination(denomination)));
  }
- if(request.action==uint32_t(EscrowWire::Action::Withdraw)&&EscrowWire::IsSupportedCoinRequest(request)){
+ if((request.action==uint32_t(EscrowWire::Action::Withdraw)||request.action==3||request.action==4||request.action==7)&&EscrowWire::IsSupportedCoinRequest(request)){
   EscrowWire::Message response;response.action=request.action;response.estate_id=request.estate_id;
   // Native withdraw1/flag0/count0 performs no cursor assignment.
   return EscrowWire::Encode(response);

@@ -1,0 +1,11 @@
+--- a/uifiles/default/EQUI_RealEstateManageWnd.xml
++++ b/uifiles/default/EQUI_RealEstateManageWnd.xml
+@@ -997,6 +997,6 @@
+ 		<Size>
+-			<CX>600</CX>
++			<CX>700</CX>
+ 			<CY>420</CY>
+ 		</Size>
+-		<MinHSize>600</MinHSize>
++		<MinHSize>700</MinHSize>
+ 		<MinVSize>420</MinVSize>

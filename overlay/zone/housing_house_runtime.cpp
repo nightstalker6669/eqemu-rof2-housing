@@ -62,7 +62,7 @@ public:
   if(!route||!templates_.VerifiedHouse(facts.source)||!Yard(f,facts.lease,facts.reservation)||facts.source.values.character_id!=facts.lease.actor.character_id||facts.catalog_revision!=facts.reservation.catalog_revision||facts.neighborhood_instance!=zone->GetInstanceID()||facts.plot_definition.type!=(type==3?4u:8u)||!facts.plot_definition.max_children||facts.house_definition.id!=route->definition_id||facts.house_definition.type!=type||facts.house_definition.zone_id!=route->zone_id||std::find(facts.plot_definition.children.begin(),facts.plot_definition.children.end(),route->definition_id)==facts.plot_definition.children.end())return {};
   if(facts.storage_only&&(!RuleB(Housing,EnableNativeHouseSwap)||facts.pose))return {};
   const bool source=facts.stage==HouseBinding::PlacementStage::Preview||facts.stage==HouseBinding::PlacementStage::Store;
-  if(source){if(!facts.access.Allows(AccessPolicy::Capability::AddHouse)||(!facts.storage_only&&facts.placed_children>=facts.plot_definition.max_children)||!f.SourceMatches(facts.source,facts.runtime_serial))return {};auto* item=client_.GetInv().GetItem(int16_t(facts.source.values.slot_id));if(!item||!HousePlacement::Metadata(*item,route->definition_id,type))return {};}
+  if(source){if(!facts.access.Allows(AccessPolicy::Capability::AddHouse)||(!facts.storage_only&&facts.placed_children>=1)||!f.SourceMatches(facts.source,facts.runtime_serial))return {};auto* item=client_.GetInv().GetItem(int16_t(facts.source.values.slot_id));if(!item||!HousePlacement::Metadata(*item,route->definition_id,type))return {};}
   else if(!facts.access.Allows(facts.stage==HouseBinding::PlacementStage::Move?AccessPolicy::Capability::MoveItem:AccessPolicy::Capability::Enter))return {};
   return *route;
  }

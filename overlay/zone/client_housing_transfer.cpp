@@ -76,6 +76,6 @@ void Client::Handle_OP_RealEstateTransferConsent(const EQApplicationPacket*app){
   sender->MessageString(Chat::Yellow,736,result.value.source.address.c_str(),GetName());
   MessageString(Chat::Yellow,735,sender->GetName(),result.value.source.address.c_str());
   LogInfo("Native plot transfer accepted actor [{}] recipient [{}] plot [{}]",sender->CharacterID(),CharacterID(),result.value.source.native_plot_id);
-  Client::HousingUpkeepChanged();if(worldserver.Connected()){ServerPacket refresh(ServerOP_HousingUpkeepRefresh,0);worldserver.SendPacket(&refresh);}
+  Client::HousingUpkeepChanged();if(worldserver.Connected()){ServerPacket refresh(ServerOP_HousingUpkeepRefresh,1);refresh.pBuffer[0]=0;worldserver.SendPacket(&refresh);}
  }catch(const std::exception&){LogError("Native ownership transfer {}",committed?"committed; refresh unavailable":"not completed before response");if(!committed)TransferResult(*sender,1);}
 }

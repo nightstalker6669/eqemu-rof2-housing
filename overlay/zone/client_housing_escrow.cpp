@@ -72,11 +72,20 @@ void Client::Handle_OP_RealEstateEscrow(const EQApplicationPacket* app){
    if(!result)Message(Chat::Red,"The upkeep payment option could not be changed.");
    SendHousingZoneCatalog();if(result)EscrowBroadcast();return;
   }
-  if(!RuleB(Housing,EnableNativeEscrowTransfers)||!Housing::EscrowWire::IsSupportedCoinRequest(*request)||(request->action!=0&&request->action!=1)){
+  if(!RuleB(Housing,EnableNativeEscrowTransfers)||!Housing::EscrowWire::IsSupportedCoinRequest(*request)||(request->action!=0&&request->action!=1&&request->action!=3&&request->action!=4&&request->action!=7)){
    EscrowRejected(this,*request);return;
   }
   const auto estate=EscrowEstate(request->estate_id);auto* bridge=estate?GetHousingInventoryBridge():nullptr;
   if(!estate||!bridge){EscrowRejected(this,*request);return;}
+  if(request->action==3||request->action==4||request->action==7){
+   // Recovered empty requests have no cursor assignment or funding selector.
+   // Explicit carried-only policy, amount/rate witness and journal live in the TX.
+   Housing::EscrowWire::Message response;response.action=request->action;response.estate_id=request->estate_id;response.response_flag=1;
+   auto success=EscrowPacket(Housing::EscrowWire::Encode(response));
+   auto result=bridge->TransferCoin(EscrowKey(),*estate,*request,true);
+   if(!result){Message(Chat::Red,"The escrow request could not be completed. Check carried funds and the property's payment policy.");EscrowRejected(this,*request);return;}
+   committed=true;EscrowQueue(this,std::move(success));SendMoneyUpdate();SendHousingZoneCatalog();SendHousingPlacedScene();EscrowBroadcast();return;
+  }
   const auto denomination=Housing::CoinWallet::Denomination(request->values[0].subtype);
   const auto before=Housing::InventoryBridge::CoinProfile::Snapshot(GetPP());
   const auto plan=request->action==0?Housing::CoinWallet::DepositCursor(before.cursor,denomination,request->values[0].amount):Housing::CoinWallet::WithdrawCursor(before.cursor,denomination,request->values[0].amount);
@@ -109,8 +118,9 @@ void Client::Handle_OP_RealEstateSale(const EQApplicationPacket* app){
  try{
   auto request=Housing::SaleWire::Decode(app->pBuffer,app->size);if(!request)return;
   auto* bridge=GetHousingInventoryBridge();const auto estate=bridge?bridge->ConsumeRetirementInspection(request->estate_id):std::nullopt;
-  if(!estate||!bridge){SaleResult(this,1);SendHousingZoneCatalog();return;}
+  if(!estate||!bridge){LogInfo("Housing Move Out requires a fresh inspection: character [{}] native [{}]",CharacterID(),request->estate_id);SaleResult(this,1);SendHousingZoneCatalog();return;}
   const auto key=EscrowKey();auto empty=bridge->RetireEmptyPlot(key,*estate,request->estate_id);completed=bool(empty);
+  if(!completed)LogInfo("Housing empty Move Out declined: character [{}] estate [{}] native [{}] error [{}]",CharacterID(),*estate,request->estate_id,int(empty.error));
   if(!completed&&empty.error==Housing::LiveItems::Error::UnsupportedItem&&RuleB(Housing,EnableNativeFurniturePlacement)){
    auto occupied=bridge->MoveOutOccupied(key,*estate,request->estate_id,true);
    if(occupied){

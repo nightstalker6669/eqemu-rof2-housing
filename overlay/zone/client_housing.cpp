@@ -1,3 +1,4 @@
+#include "housing_plot_marker.h"
 #include "../common/housing/plot_find_wire.h"
 #include "../common/housing/exterior_exit_geometry.h"
 #include "pathfinder_interface.h"
@@ -284,6 +285,15 @@ bool HandleHousingPlotSearch(Client* c,const EQApplicationPacket* app){
  return true;
 }
 
+}
+namespace Housing::PlotMarker {
+bool InRange(Client* client,uint32_t static_id,float maximum){
+ try{
+  if(!client||!client->Connected()||!client->ClientDataLoaded()||!HousingZone(client)||!zone||zone->GetZoneID()!=712||zone->GetInstanceVersion())return false;
+  auto view=LoadHousingView(client);if(!view)return false;
+  return CatalogInRange(view->data.catalog,view->neighborhood,view->root,static_id,{client->GetX(),client->GetY(),client->GetZ()},maximum);
+ }catch(...){return false;}
+}
 }
 void Client::SendHousingZoneCatalog(){ (void)SendHousingZoneCatalogChecked(); }
 bool Client::SendHousingZoneCatalogChecked(){
@@ -748,8 +758,10 @@ void FurnitureBroadcastScenes(bool containers_changed=false) noexcept{
  // Each viewer authenticates its own bridge read and uses its own runtime GUIDs.
  // Publish new/retired container relationships without clearing definitions or
  // changing the occupied estate. Child snapshots precede their parent links.
- try{for(const auto& entry:entity_list.GetClientList())if(entry.second&&NativeFurniture(entry.second)){
+ try{for(const auto& entry:entity_list.GetClientList())if(entry.second&&HousingZone(entry.second)&&entry.second->Connected()&&(containers_changed||NativeFurniture(entry.second))){
   auto* client=entry.second;
+  // Financial snapshots are independent of the native furniture-placement rule.
+  // The original63FD receiver refreshes escrow/upkeep for the current yard.
   if(containers_changed){
    auto view=LoadHousingView(client);
    if(view){
@@ -768,7 +780,7 @@ void FurnitureBroadcastScenes(bool containers_changed=false) noexcept{
     for(const auto& [opcode,bytes]:packets){SendEstatePayload(client,opcode,bytes);if(opcode==OP_RealEstateAccess){const auto id=Housing::NeighborhoodWire::Detail::Read32(bytes.data());client->RememberHousingAclRevision(id,view->acl_revisions.at(id));}}
    }
   }
-  client->SendHousingPlacedScene();
+  if(NativeFurniture(client))client->SendHousingPlacedScene();
  }}catch(const std::exception&){LogError("Native furniture viewer refresh unavailable");}
 }
 void FurniturePreview(Client* c,const FurniturePending& pending,const FurnitureTarget& target,const Housing::PlacementWire::Begin& request){

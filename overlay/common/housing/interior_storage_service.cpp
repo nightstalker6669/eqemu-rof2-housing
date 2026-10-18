@@ -70,7 +70,8 @@ Receipt ChangeChecked(Database& db,const Request& r,LiveItems::InventorySessionF
         std::find(yard_scene->definition.children.begin(),yard_scene->definition.children.end(),h.interior->definition_id)==yard_scene->definition.children.end())throw Failure{Error::Conflict};
      // Count locked persisted siblings, not a possibly shortened projected list.
      auto occupied=q("SELECT l.house_id FROM housing_house_locations l JOIN housing_live_placed_items p ON p.custody_id=l.custody_id JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id AND r.custody_id=p.custody_id AND r.state=1 LEFT JOIN housing_live_item_storage s ON s.custody_id=p.custody_id WHERE l.location_kind=2 AND r.native_estate_id="+std::to_string(native)+" AND l.house_id<>"+std::to_string(h.house_id)+" AND (s.stowed IS NULL OR s.stowed=0) AND NOT EXISTS (SELECT 1 FROM housing_crate_members m WHERE m.custody_id=p.custody_id) ORDER BY l.house_id FOR UPDATE");
-     if(occupied.RowCount()>=yard_scene->definition.max_children)throw Failure{Error::Conflict};
+     // Restoring a stored house must not use the shared house/crate child budget.
+     if(occupied.RowCount()>=1)throw Failure{Error::Conflict};
     }
     if(r.crate_member){const auto& m=*r.crate_member;
      if(!yard_scene->definition.max_items||yard_scene->items.size()>=yard_scene->definition.max_items)throw Failure{Error::Conflict};

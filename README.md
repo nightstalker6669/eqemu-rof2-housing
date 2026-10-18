@@ -72,3 +72,8 @@ This repository contains production housing code and protocol documentation. Tes
 ## License and attribution
 
 EQEmu upstream's GPLv3 license text is retained in [LICENSE](LICENSE). Existing notices are preserved. This repository is an experimental community project, not affiliated with or endorsed by Daybreak Games. EverQuest and related names belong to their respective owners. No game executables, DLLs, EQG archives, maps, textures, database dumps, or packet captures are included. See [NOTICE](NOTICE).
+
+
+## Billing and Sunrise follow-up
+
+The latest production source and optional finance-window patch are included. Representative personal bulk controls, paid guild purchase/enrollment/upkeep, and all 75 Plot Search rows have native acceptance. The guild-frame click and automatic refresh of an already-open finance window also passed. See [billing and Sunrise update](docs/BILLING-SUNRISE-2026-10-18.md) for scope and compatibility limits.

@@ -497,6 +497,7 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
             if(!Open()){Leave();return {{},LiveEscrow::Error::StaleLease};}
             LiveEscrow::Request request;request.request_key=key;request.lease=lease_;
             request.estate_id=estate;request.wire=wire;request.expected=CoinProfile::Snapshot(client_.GetPP());
+            if(wire.action==3||wire.action==4||wire.action==7)request.funding=LiveEscrow::Funding::Carried;
             if(zone&&zone->GetZoneID()!=712){
                 // Capture only from the actual occupied simulation, never the
                 // native body. The coin TX revalidates this exact placed host.

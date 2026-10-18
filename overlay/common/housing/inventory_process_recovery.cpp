@@ -200,7 +200,7 @@ Result<Reconciliation> Service::Reconcile(const InventorySessions::Lease& lease)
   }
   if(coin==CoinPending::State::Unavailable)throw Failure{Error::DatabaseFailure};
   if((coin==CoinPending::State::Pending||purchase==CoinPending::State::Pending)&&house_move)throw Failure{Error::InvalidOutcome};
-  std::optional<LiveEscrow::Receipt> occupied_refund;
+  std::optional<LiveEscrow::Receipt> occupied_refund,bulk_escrow;
   auto custody = Query(db,"SELECT account_id,epoch,session_key,HEX(token),active,pending_key FROM housing_live_item_leases WHERE character_id=" + std::to_string(lease.actor.character_id) + " FOR UPDATE");
   std::string custody_epoch="NULL", custody_session="NULL", pending="NULL", outcome="NULL";
   if (custody.RowCount()) {
@@ -221,8 +221,14 @@ Result<Reconciliation> Service::Reconcile(const InventorySessions::Lease& lease)
 
     if(coin==CoinPending::State::Pending){
      auto validated=LiveEscrow::Service::ValidateOccupiedRefundRestartUnderTransaction(db,lease,old);
-     if(!validated)throw Failure{Error::InvalidOutcome};occupied_refund=std::move(validated.value);
-     if(old.pending_key.empty()){
+     if(!validated){
+      auto bulk=LiveEscrow::Service::ValidateBulkRestartUnderTransaction(db,lease,old);
+      if(!bulk)throw Failure{Error::InvalidOutcome};bulk_escrow=std::move(bulk.value);
+      out.pending_key=bulk_escrow->request_key;pending=Quote(db,out.pending_key);
+      auto receipt=Query(db,"SELECT HEX(outcome_blob) FROM housing_live_escrow_receipts WHERE request_key="+pending+" AND applied=0 FOR UPDATE");
+      if(receipt.RowCount()!=1||!receipt.begin()[0])throw Failure{Error::InvalidOutcome};outcome="x'"+std::string(receipt.begin()[0])+"'";
+     }else occupied_refund=std::move(validated.value);
+     if(occupied_refund&&old.pending_key.empty()){
       out.pending_key=occupied_refund->request_key;pending=Quote(db,out.pending_key);
       auto receipt=Query(db,"SELECT HEX(after_blob) FROM housing_live_item_receipts WHERE request_key="+pending+" AND completed=1 AND applied=1 FOR UPDATE");
       if(receipt.RowCount()!=1||!receipt.begin()[0])throw Failure{Error::InvalidOutcome};outcome="x'"+std::string(receipt.begin()[0])+"'";
@@ -275,9 +281,11 @@ Result<Reconciliation> Service::Reconcile(const InventorySessions::Lease& lease)
    if(Query(db,"UPDATE housing_house_inventory_receipts SET applied=1 WHERE request_key="+key+" AND applied=0").RowsAffected()!=1)throw Failure{Error::InvalidOutcome};
   }
   if(coin==CoinPending::State::Pending){
-   if(!occupied_refund)throw Failure{Error::InvalidOutcome};
-   auto saved=Query(db,"INSERT INTO housing_occupied_refund_death_reconciliations(request_key,character_id,inventory_epoch,inventory_token,process_key,outcome_blob) SELECT request_key,character_id,inventory_epoch,inventory_token,process_key,outcome_blob FROM housing_live_escrow_receipts WHERE request_key="+Quote(db,occupied_refund->request_key)+" AND applied=0");
-   auto cleared=Query(db,"DELETE FROM housing_live_escrow_pending WHERE request_key="+Quote(db,occupied_refund->request_key)+" AND character_id="+std::to_string(lease.actor.character_id)+" AND inventory_epoch="+std::to_string(lease.epoch)+" AND inventory_token=x'"+Hex(lease.token)+"'");
+   if(!occupied_refund&&!bulk_escrow)throw Failure{Error::InvalidOutcome};
+   const auto& recovered=bulk_escrow?*bulk_escrow:*occupied_refund;
+   const auto table=bulk_escrow?"housing_escrow_bulk_death_reconciliations":"housing_occupied_refund_death_reconciliations";
+   auto saved=Query(db,"INSERT INTO "+std::string(table)+"(request_key,character_id,inventory_epoch,inventory_token,process_key,outcome_blob) SELECT request_key,character_id,inventory_epoch,inventory_token,process_key,outcome_blob FROM housing_live_escrow_receipts WHERE request_key="+Quote(db,recovered.request_key)+" AND applied=0");
+   auto cleared=Query(db,"DELETE FROM housing_live_escrow_pending WHERE request_key="+Quote(db,recovered.request_key)+" AND character_id="+std::to_string(lease.actor.character_id)+" AND inventory_epoch="+std::to_string(lease.epoch)+" AND inventory_token=x'"+Hex(lease.token)+"'");
    if(saved.RowsAffected()!=1||cleared.RowsAffected()!=1)throw Failure{Error::InvalidOutcome};
    // Currency and inventory were committed already. Certified death permits a
    // fresh DB load; it never asserts that dead-process memory was applied.

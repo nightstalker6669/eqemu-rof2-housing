@@ -4,6 +4,8 @@
 #include "scene_service.h"
 #include "house_binding_service.h"
 #include "coin_pending_guard.h"
+#include "upkeep_cycle_db.h"
+#include <openssl/sha.h>
 #include "../emu_constants.h"
 #include "../repositories/character_currency_repository.h"
 #include <algorithm>
@@ -346,7 +348,7 @@ namespace Housing::LiveEscrow {
                 return;
             }
             if(owner==request.lease.actor.character_id)return;
-            if(request.wire.action==uint32_t(EscrowWire::Action::Deposit))throw Failure{
+            if(request.wire.action==uint32_t(EscrowWire::Action::Deposit)||request.wire.action==3||request.wire.action==4)throw Failure{
                 Error::Unauthorized
             };
             auto state=Query(db,"SELECT revision FROM housing_acl_state WHERE estate_id="+std::to_string(request.estate_id)+" FOR UPDATE");
@@ -379,7 +381,7 @@ namespace Housing::LiveEscrow {
         }
         Bytes Binding(const Request& request){
             Bytes out;
-            Word(out,request.occupied_refund?3:(request.interior_source?2:1),4);
+            Word(out,request.funding==Funding::Carried?4:(request.occupied_refund?3:(request.interior_source?2:1)),4);
             Word(out,request.lease.actor.character_id,4);
             Word(out,request.lease.actor.account_id,4);
             Word(out,request.lease.epoch,8);
@@ -389,11 +391,12 @@ namespace Housing::LiveEscrow {
             CurrencyBytes(out,request.expected);
             Blob(out,EscrowWire::Encode(request.wire));
             if(request.interior_source){const auto& source=*request.interior_source;Word(out,source.house_id,8);Word(out,source.house_revision,8);Word(out,source.native_house_id,4);Word(out,source.physical.zone_id,4);Word(out,source.physical.zone_version,1);Word(out,source.physical.instance_id,2);}
+            if(request.funding==Funding::Carried){Word(out,uint8_t(request.funding),1);Word(out,request.interior_source.has_value(),1);}
             return out;
         }
         Bytes Outcome(const Receipt& value){
             Bytes out;
-            Word(out,value.occupied_refund?2:1,4);
+            Word(out,value.funding==Funding::Carried?3:(value.occupied_refund?2:1),4);
             Word(out,value.native_plot_id,4);
             Word(out,uint32_t(value.action),4);
             Word(out,uint8_t(value.denomination),1);
@@ -409,6 +412,7 @@ namespace Housing::LiveEscrow {
             Text(out,value.reservation.owner.client_key);
             Word(out,value.reservation.owner.zone_id,4);
             Word(out,value.reservation.owner.instance_id,2);
+            if(value.funding==Funding::Carried){Word(out,uint8_t(value.funding),1);Word(out,value.catalog_revision,8);Word(out,value.daily_copper,8);out.insert(out.end(),value.funding_witness.begin(),value.funding_witness.end());}
             return out;
         }
         void RefundTables(Database& db){
@@ -421,16 +425,63 @@ namespace Housing::LiveEscrow {
             auto after=before;after.copper+=int32_t(quantity);
             return {{before,after,quantity},CoinWallet::Error::None};
         }
+        bool Bulk(uint32_t action){return action==3||action==4||action==7;}
+        CoinWallet::Result<CoinWallet::Plan> CreditCarried(const CoinWallet::Snapshot& before,int64_t amount){
+            const auto total=CoinWallet::TotalCopper(before);
+            if(!total)return CoinWallet::Fail<CoinWallet::Plan>(total.error);
+            if(amount<=0)return CoinWallet::Fail<CoinWallet::Plan>(CoinWallet::Error::InvalidAmount);
+            if(amount>INT64_MAX-total.value||(total.value+amount)/1000>INT32_MAX)return CoinWallet::Fail<CoinWallet::Plan>(CoinWallet::Error::Overflow);
+            const auto result=total.value+amount;
+            return {{before,{int32_t(result%10),int32_t(result/10%10),int32_t(result/100%10),int32_t(result/1000)},amount},CoinWallet::Error::None};
+        }
+        CoinWallet::Result<CoinWallet::Plan> BulkPlan(const Currency& before,uint32_t action,int64_t amount){
+            if(!CoinWallet::Empty(before.cursor))return CoinWallet::Fail<CoinWallet::Plan>(CoinWallet::Error::CursorNotEmpty);
+            return action==7?CreditCarried(before.carried,amount):CoinWallet::DebitCarried(before.carried,amount);
+        }
+        void BulkTables(Database& db){
+            auto r=Query(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_name IN ('housing_escrow_bulk_policy','housing_escrow_bulk_death_reconciliations')");
+            if(r.RowCount()!=1||Number(r.begin()[0])!=2)throw Failure{Error::Disabled};
+        }
+        // This is an explicit emulator compatibility policy, not recovered Live funding.
+        // Zero-valued native duration requests never supply an amount or a bank selector.
+        void BulkWitness(Database& db,const Request& request,Receipt& receipt){
+            BulkTables(db);
+            auto r=Query(db,"SELECT p.catalog_revision,p.mode,p.review_reference,n.catalog_key,c.revision FROM housing_escrow_bulk_policy p JOIN housing_native_estates n ON n.native_id=p.native_plot_id AND n.ownership_estate_id=p.estate_id AND n.active=1 JOIN housing_catalogs c ON c.catalog_key=n.catalog_key WHERE p.estate_id="+std::to_string(request.estate_id)+" AND p.native_plot_id="+std::to_string(request.wire.estate_id)+" AND p.enabled=1 FOR UPDATE");
+            if(r.RowCount()!=1||!r.begin()[2]||!r.begin()[2][0]||Number(r.begin()[1])!=1||std::stoull(r.begin()[0])!=std::stoull(r.begin()[4]))throw Failure{Error::Unauthorized};
+            receipt.catalog_revision=std::stoull(r.begin()[0]);Bytes proof;Word(proof,receipt.catalog_revision,8);Text(proof,r.begin()[2]);Text(proof,r.begin()[3]);Word(proof,request.wire.action,4);
+            if(request.wire.action!=7){
+                try{
+                    if(!UpkeepCycle::Detail::Installed(db))throw Failure{Error::Disabled};
+                    auto contract=Query(db,"SELECT k.native_plot_id,k.catalog_revision,k.next_due_epoch FROM housing_upkeep_contracts k JOIN housing_current_estates owner ON owner.id=k.estate_id AND owner.owner_kind=k.owner_kind AND owner.owner_id=k.owner_id WHERE k.estate_id="+std::to_string(request.estate_id)+" FOR UPDATE");
+                    if(contract.RowCount()!=1||Number(contract.begin()[0])!=request.wire.estate_id||std::stoull(contract.begin()[1])!=receipt.catalog_revision)throw Failure{Error::Conflict};
+                    auto graph=UpkeepCycle::Detail::Current(db,request.estate_id,request.wire.estate_id,receipt.catalog_revision,Number(contract.begin()[2]));
+                    auto items=UpkeepCycle::Detail::Obligations(db,request.estate_id,graph);
+                    auto daily=[&](uint32_t id){
+                        if(!id)return uint64_t(0);const EstateWire::CostComponent* component=nullptr;
+                        for(const auto& scheme:graph.bundle.costs)for(const auto& c:scheme.components)if(c.id==id){if(component)throw Failure{Error::Conflict};component=&c;}
+                        if(!component)throw Failure{Error::Conflict};uint64_t amount=0;
+                        for(const auto& v:component->values){if(v.type_id!=0||v.subtype_id!=0||v.amount<0||uint64_t(v.amount)>uint64_t(INT64_MAX)-amount)throw Failure{Error::InvalidArgument};amount+=uint64_t(v.amount);}
+                        return amount;
+                    };
+                    receipt.daily_copper=daily(graph.plot_component);Word(proof,graph.plot_component,4);Word(proof,receipt.daily_copper,8);
+                    for(const auto& item:items){const auto amount=daily(item.component);if(amount>uint64_t(INT64_MAX)-receipt.daily_copper)throw Failure{Error::Overflow};receipt.daily_copper+=amount;Word(proof,item.custody,8);Word(proof,item.storage,8);Word(proof,item.component,4);Word(proof,amount,8);Blob(proof,item.raw);Blob(proof,item.scope.proof);}
+                    if(!receipt.daily_copper||receipt.daily_copper>uint64_t(INT64_MAX)/(request.wire.action==4?7:1))throw Failure{Error::InvalidArgument};
+                }catch(const UpkeepCycle::Detail::Stop&){throw Failure{Error::Conflict};}
+            }
+            SHA256(proof.data(),proof.size(),receipt.funding_witness.data());
+        }
         Receipt DecodeOutcome(const Request& request,const Bytes& bytes){
             Reader reader{
                 bytes
             };
             const auto version=reader.Word(4);
-            if(version!=1&&version!=2)throw Failure{
+            if(version!=1&&version!=2&&version!=3)throw Failure{
                 Error::DatabaseFailure
             };
             Receipt out;
             out.occupied_refund=version==2;
+            out.funding=version==3?Funding::Carried:Funding::Cursor;
+            if(out.funding!=request.funding)throw Failure{Error::Conflict};
             if(out.occupied_refund!=request.occupied_refund)throw Failure{Error::Conflict};
             out.request_key=request.request_key;
             out.lease=request.lease;
@@ -452,19 +503,21 @@ namespace Housing::LiveEscrow {
             out.reservation.owner.zone_id=uint32_t(reader.Word(4));
             out.reservation.owner.instance_id=uint16_t(reader.Word(2));
             out.reservation.active=true;
-            if(reader.at!=bytes.size()||out.native_plot_id!=request.wire.estate_id||out.action!=EscrowWire::Action(request.wire.action)||out.denomination!=CoinWallet::Denomination(request.wire.values[0].subtype)||out.quantity!=request.wire.values[0].amount||!(out.before==request.expected)||out.escrow_before<0||out.escrow_after<0)throw Failure{
+            if(version==3){if(reader.Word(1)!=1)throw Failure{Error::DatabaseFailure};out.catalog_revision=reader.Word(8);out.daily_copper=reader.Word(8);for(auto& b:out.funding_witness)b=uint8_t(reader.Word(1));}
+            if(reader.at!=bytes.size()||out.native_plot_id!=request.wire.estate_id||out.action!=EscrowWire::Action(request.wire.action)||(out.funding==Funding::Cursor&&(out.denomination!=CoinWallet::Denomination(request.wire.values[0].subtype)||out.quantity!=request.wire.values[0].amount))||!(out.before==request.expected)||out.escrow_before<0||out.escrow_after<0)throw Failure{
                 Error::DatabaseFailure
             };
-            const auto plan=out.action==EscrowWire::Action::Deposit?CoinWallet::DepositCursor(out.before.cursor,out.denomination,out.quantity):(out.occupied_refund?ReviewRefund(out.before.carried,out.quantity):CoinWallet::WithdrawCursor(out.before.cursor,out.denomination,out.quantity));
+            if(out.funding==Funding::Carried&&(!Bulk(request.wire.action)||!out.catalog_revision||out.quantity!=out.copper_transferred||out.denomination!=CoinWallet::Denomination::Copper||(request.wire.action==7?(out.daily_copper!=0||out.escrow_after!=0):(out.daily_copper==0||out.daily_copper>uint64_t(INT64_MAX)/(request.wire.action==4?7:1)||out.daily_copper*(request.wire.action==4?7:1)!=uint64_t(out.copper_transferred)))))throw Failure{Error::DatabaseFailure};
+            const auto plan=out.funding==Funding::Carried?BulkPlan(out.before,request.wire.action,out.quantity):(out.action==EscrowWire::Action::Deposit?CoinWallet::DepositCursor(out.before.cursor,out.denomination,out.quantity):(out.occupied_refund?ReviewRefund(out.before.carried,out.quantity):CoinWallet::WithdrawCursor(out.before.cursor,out.denomination,out.quantity)));
             if(!plan||plan.value.copper_amount!=out.copper_transferred)throw Failure{
                 Error::DatabaseFailure
             };
             auto expected_after=out.before;
-            if(out.occupied_refund)expected_after.carried=plan.value.after;else expected_after.cursor=plan.value.after;
+            if(out.occupied_refund||out.funding==Funding::Carried)expected_after.carried=plan.value.after;else expected_after.cursor=plan.value.after;
             if(!(expected_after==out.after))throw Failure{
                 Error::DatabaseFailure
             };
-            if(out.action==EscrowWire::Action::Deposit){
+            if(out.action==EscrowWire::Action::Deposit||out.action==EscrowWire::Action::AddDay||out.action==EscrowWire::Action::AddWeek){
                 if(out.escrow_before>INT64_MAX-out.copper_transferred||out.escrow_before+out.copper_transferred!=out.escrow_after)throw Failure{
                     Error::DatabaseFailure
                 };
@@ -513,16 +566,17 @@ namespace Housing::LiveEscrow {
             return out;
         }
         bool Shape(const Request& request){
+            if(request.funding==Funding::Carried){if(request.occupied_refund||!Bulk(request.wire.action)||!CoinWallet::Empty(request.expected.cursor))return false;}else if(Bulk(request.wire.action)||request.funding!=Funding::Cursor)return false;
             if(request.occupied_refund&&(request.interior_source||request.wire.action!=1||request.wire.values.size()!=1||request.wire.values[0].subtype!=0))return false;
             if(request.interior_source){const auto& source=*request.interior_source;if(!source.house_id||!source.house_revision||!source.native_house_id||source.native_house_id==UINT32_MAX||!source.physical.zone_id||source.physical.zone_id==712||!source.physical.instance_id||source.physical.instance_id>32000)return false;}
-            return Key(request.request_key)&&request.estate_id&&request.estate_id!=UINT32_MAX&&AccessPolicy::PositiveIdentity(request.lease.actor.character_id)&&AccessPolicy::PositiveIdentity(request.lease.actor.account_id)&&request.lease.epoch&&Key(request.lease.session_key)&&Valid(request.expected)&&EscrowWire::IsSupportedCoinRequest(request.wire)&&(request.wire.action==uint32_t(EscrowWire::Action::Deposit)||request.wire.action==uint32_t(EscrowWire::Action::Withdraw));
+            return Key(request.request_key)&&request.estate_id&&request.estate_id!=UINT32_MAX&&AccessPolicy::PositiveIdentity(request.lease.actor.character_id)&&AccessPolicy::PositiveIdentity(request.lease.actor.account_id)&&request.lease.epoch&&Key(request.lease.session_key)&&Valid(request.expected)&&EscrowWire::IsSupportedCoinRequest(request.wire)&&(request.wire.action==uint32_t(EscrowWire::Action::Deposit)||request.wire.action==uint32_t(EscrowWire::Action::Withdraw)||Bulk(request.wire.action));
         }
-        void CursorUpdate(Database& db,uint32_t character,const Currency& before,const Currency& after,bool occupied_refund=false){
+        void CursorUpdate(Database& db,uint32_t character,const Currency& before,const Currency& after,bool occupied_refund=false,bool bulk=false){
             auto columns=CharacterCurrencyRepository::Columns();
             auto values=Fields(before);
             std::string where="id="+std::to_string(character);
             for(size_t i=0;i<values.size();++i)where+=" AND `"+columns[i+1]+"`="+std::to_string(values[i]);
-            auto update=occupied_refund?Query(db,"UPDATE character_currency SET copper="+std::to_string(after.carried.copper)+" WHERE "+where):Query(db,"UPDATE character_currency SET platinum_cursor="+std::to_string(after.cursor.platinum)+",gold_cursor="+std::to_string(after.cursor.gold)+",silver_cursor="+std::to_string(after.cursor.silver)+",copper_cursor="+std::to_string(after.cursor.copper)+" WHERE "+where);
+            auto update=bulk?Query(db,"UPDATE character_currency SET platinum="+std::to_string(after.carried.platinum)+",gold="+std::to_string(after.carried.gold)+",silver="+std::to_string(after.carried.silver)+",copper="+std::to_string(after.carried.copper)+" WHERE "+where):occupied_refund?Query(db,"UPDATE character_currency SET copper="+std::to_string(after.carried.copper)+" WHERE "+where):Query(db,"UPDATE character_currency SET platinum_cursor="+std::to_string(after.cursor.platinum)+",gold_cursor="+std::to_string(after.cursor.gold)+",silver_cursor="+std::to_string(after.cursor.silver)+",copper_cursor="+std::to_string(after.cursor.copper)+" WHERE "+where);
             if(update.RowsAffected()!=1)throw Failure{
                 Error::SnapshotMismatch
             };
@@ -552,25 +606,27 @@ namespace Housing::LiveEscrow {
                 Error::UnheldFence
             };EmptyCursor(db,request.lease.actor.character_id);Estate(db,request,fence,houses);const auto before=LockedCurrency(db,request.lease.actor.character_id);if(!(before==request.expected))throw Failure{
                 Error::SnapshotMismatch
-            };const auto denomination=CoinWallet::Denomination(request.wire.values[0].subtype);const auto quantity=request.wire.values[0].amount;const auto plan=request.wire.action==uint32_t(EscrowWire::Action::Deposit)?CoinWallet::DepositCursor(before.cursor,denomination,quantity):(request.occupied_refund?ReviewRefund(before.carried,quantity):CoinWallet::WithdrawCursor(before.cursor,denomination,quantity));if(!plan)throw Failure{
-                plan.error==CoinWallet::Error::Overflow?Error::Overflow:plan.error==CoinWallet::Error::InsufficientFunds?Error::InsufficientFunds:Error::InvalidArgument
-            };Query(db,"INSERT IGNORE INTO housing_escrow_balances(estate_id,copper) VALUES ("+std::to_string(request.estate_id)+",0)");auto balances=Query(db,"SELECT copper FROM housing_escrow_balances WHERE estate_id="+std::to_string(request.estate_id)+" FOR UPDATE");if(balances.RowCount()!=1||!balances.begin()[0])throw Failure{
-                Error::DatabaseFailure
-            };const auto balance=std::stoll(balances.begin()[0]);if(balance<0)throw Failure{
-                Error::DatabaseFailure
-            };if(request.occupied_refund&&balance!=plan.value.copper_amount)throw Failure{Error::Conflict};int64_t after_balance;if(request.wire.action==uint32_t(EscrowWire::Action::Deposit)){
-                if(balance>INT64_MAX-plan.value.copper_amount)throw Failure{
-                    Error::Overflow
-                };after_balance=balance+plan.value.copper_amount;
-            }
-            else{
-                if(balance<plan.value.copper_amount)throw Failure{
-                    Error::InsufficientFunds
-                };after_balance=balance-plan.value.copper_amount;
-            }
-            Receipt out;out.occupied_refund=request.occupied_refund;out.request_key=request.request_key;out.lease=request.lease;out.reservation=reservation;out.estate_id=request.estate_id;out.native_plot_id=request.wire.estate_id;out.action=EscrowWire::Action(request.wire.action);out.denomination=denomination;out.quantity=quantity;out.copper_transferred=plan.value.copper_amount;out.escrow_before=balance;out.escrow_after=after_balance;out.before=before;out.after=before;if(request.occupied_refund)out.after.carried=plan.value.after;else out.after.cursor=plan.value.after;CursorUpdate(db,request.lease.actor.character_id,before,out.after,request.occupied_refund);auto updated=Query(db,"UPDATE housing_escrow_balances SET copper="+std::to_string(after_balance)+" WHERE estate_id="+std::to_string(request.estate_id)+" AND copper="+std::to_string(balance));if(updated.RowsAffected()!=1)throw Failure{
-                Error::Conflict
-            };Journal(db,request,out);return out;
+            };
+            const bool bulk=request.funding==Funding::Carried;
+            Query(db,"INSERT IGNORE INTO housing_escrow_balances(estate_id,copper) VALUES ("+std::to_string(request.estate_id)+",0)");
+            auto balances=Query(db,"SELECT copper FROM housing_escrow_balances WHERE estate_id="+std::to_string(request.estate_id)+" FOR UPDATE");
+            if(balances.RowCount()!=1||!balances.begin()[0])throw Failure{Error::DatabaseFailure};
+            const auto balance=std::stoll(balances.begin()[0]);if(balance<0)throw Failure{Error::DatabaseFailure};
+            Receipt out;out.funding=request.funding;
+            if(bulk)BulkWitness(db,request,out);
+            const auto denomination=bulk?CoinWallet::Denomination::Copper:CoinWallet::Denomination(request.wire.values[0].subtype);
+            const auto quantity=bulk?(request.wire.action==7?balance:int64_t(out.daily_copper*(request.wire.action==4?7:1))):request.wire.values[0].amount;
+            const auto plan=bulk?BulkPlan(before,request.wire.action,quantity):(request.wire.action==0?CoinWallet::DepositCursor(before.cursor,denomination,quantity):(request.occupied_refund?ReviewRefund(before.carried,quantity):CoinWallet::WithdrawCursor(before.cursor,denomination,quantity)));
+            if(!plan)throw Failure{plan.error==CoinWallet::Error::Overflow?Error::Overflow:plan.error==CoinWallet::Error::InsufficientFunds?Error::InsufficientFunds:Error::InvalidArgument};
+            if(request.occupied_refund&&balance!=plan.value.copper_amount)throw Failure{Error::Conflict};
+            int64_t after_balance=0;
+            if(request.wire.action==0||request.wire.action==3||request.wire.action==4){if(balance>INT64_MAX-plan.value.copper_amount)throw Failure{Error::Overflow};after_balance=balance+plan.value.copper_amount;}
+            else{if(balance<plan.value.copper_amount)throw Failure{Error::InsufficientFunds};after_balance=balance-plan.value.copper_amount;}
+            out.occupied_refund=request.occupied_refund;out.request_key=request.request_key;out.lease=request.lease;out.reservation=reservation;out.estate_id=request.estate_id;out.native_plot_id=request.wire.estate_id;out.action=EscrowWire::Action(request.wire.action);out.denomination=denomination;out.quantity=quantity;out.copper_transferred=plan.value.copper_amount;out.escrow_before=balance;out.escrow_after=after_balance;out.before=before;out.after=before;
+            if(request.occupied_refund||bulk)out.after.carried=plan.value.after;else out.after.cursor=plan.value.after;
+            CursorUpdate(db,request.lease.actor.character_id,before,out.after,request.occupied_refund,bulk);
+            auto updated=Query(db,"UPDATE housing_escrow_balances SET copper="+std::to_string(after_balance)+" WHERE estate_id="+std::to_string(request.estate_id)+" AND copper="+std::to_string(balance));if(updated.RowsAffected()!=1)throw Failure{Error::Conflict};
+            Journal(db,request,out);return out;
         }
     }
     Service::Service(std::unique_ptr<Database> db,bool enabled,const Scene::HouseScenePolicy* houses):database_(std::move(db)),enabled_(enabled),houses_(houses){
@@ -626,6 +682,27 @@ namespace Housing::LiveEscrow {
             if(!actual||actual.value.action!=LiveItems::Action::Return||!actual.value.crate_allocation||actual.value.stored.estate_id!=request.estate_id)return {{},Error::Conflict};
             if(item.pending_key.empty()&&actual.value.requires_application)return {{},Error::Conflict};
             return {*prior,Error::None};
+        }catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
+    }
+    Result<Receipt> Service::ValidateBulkRestartUnderTransaction(Database& db,const InventorySessions::Lease& owner,const LiveItems::Lease& item){
+        try{
+            BulkTables(db);auto tx=Query(db,"SELECT @@in_transaction");if(tx.RowCount()!=1||Number(tx.begin()[0])!=1)return {{},Error::InvalidArgument};
+            if(!item.pending_key.empty())return {{},Error::Conflict};
+            auto proof=Query(db,"SELECT process_key FROM housing_inventory_processes WHERE process_key="+Quote(db,owner.owner.process_key)+" AND reaped=1 AND child_pid>0 AND exit_code IS NOT NULL AND reaped_at IS NOT NULL FOR UPDATE");if(proof.RowCount()!=1)return {{},Error::Unauthorized};
+            auto rows=Query(db,"SELECT r.request_key,r.estate_id,r.native_plot_id,HEX(r.binding_blob) FROM housing_live_escrow_pending p JOIN housing_live_escrow_receipts r ON r.request_key=p.request_key WHERE p.character_id="+std::to_string(item.actor.character_id)+" AND r.applied=0 FOR UPDATE");if(rows.RowCount()!=1)return {{},Error::Conflict};
+            auto row=rows.begin();Request r;r.request_key=row[0];r.lease=item;r.estate_id=Number(row[1]);
+            const auto bytes=Unhex(row[3]);Reader reader{bytes};
+            if(reader.Word(4)!=4||reader.Word(4)!=item.actor.character_id||reader.Word(4)!=item.actor.account_id||reader.Word(8)!=item.epoch||reader.Text()!=item.session_key)return {{},Error::Conflict};
+            for(const auto byte:item.token)if(reader.Word(1)!=byte)return {{},Error::Conflict};
+            if(reader.Word(4)!=r.estate_id)return {{},Error::Conflict};r.expected=ReadCurrency(reader);
+            const auto size=reader.Word(4);if(size>bytes.size()-reader.at)return {{},Error::Conflict};auto wire=EscrowWire::Decode(bytes.data()+reader.at,size);if(!wire)return {{},Error::Conflict};r.wire=*wire;reader.at+=size;
+            if(bytes.size()<reader.at+2||bytes.back()>1)return {{},Error::Conflict};
+            if(bytes.back()){InteriorSource source;source.house_id=reader.Word(8);source.house_revision=reader.Word(8);source.native_house_id=reader.Word(4);source.physical.zone_id=reader.Word(4);source.physical.zone_version=reader.Word(1);source.physical.instance_id=reader.Word(2);r.interior_source=source;}
+            if(reader.Word(1)!=1||reader.Word(1)!=r.interior_source.has_value()||reader.at!=bytes.size())return {{},Error::Conflict};
+            r.funding=Funding::Carried;if(!Shape(r)||r.wire.estate_id!=Number(row[2]))return {{},Error::Conflict};
+            const auto reservation=Session(db,item,false);if(!Same(reservation,owner))return {{},Error::StaleLease};
+            auto prior=Lookup(db,r,reservation);if(!prior||!prior->requires_application||prior->funding!=Funding::Carried||!(LockedCurrency(db,item.actor.character_id)==prior->after))return {{},Error::Conflict};
+            EmptyCursor(db,item.actor.character_id);return {*prior,Error::None};
         }catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
     }
     Result<Receipt> Service::Resolve(const Request& request,CoinSessionFence& fence){
