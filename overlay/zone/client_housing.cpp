@@ -1078,10 +1078,11 @@ void Client::Handle_OP_RealEstatePlacementCommit(const EQApplicationPacket* app)
     }else{auto moved=bridge->MovePlaced(update);if(!moved){FurnitureResult(this,1);return;}}
     durable_success=true;move.completed=true;
    }else durable_success=true;
+   const bool refresh_estate=move.before.stowed&&bool(move.house);
    // Journal outcomes are immutable history; only current durable rows render.
    auto scene=FurnitureCurrentScene(this,session,*bridge,*target);
-   if(!scene){FurnitureResult(this,0);Message(Chat::Red,"The move completed; its current scene is unavailable.");FurnitureBroadcastScenes();return;}
-   FurnitureSendScene(this,session,*scene,scene->entries.count(reserved.native_item_id)?std::optional<uint32_t>(reserved.native_item_id):std::nullopt,true);FurnitureBroadcastScenes();return;
+   if(!scene){FurnitureResult(this,0);Message(Chat::Red,"The move completed; its current scene is unavailable.");FurnitureBroadcastScenes(refresh_estate);return;}
+   FurnitureSendScene(this,session,*scene,scene->entries.count(reserved.native_item_id)?std::optional<uint32_t>(reserved.native_item_id):std::nullopt,true);FurnitureBroadcastScenes(refresh_estate);return;
   }
   if(!request||!m_housing_placement_session||!m_housing_placement_session->pending){FurnitureResult(this,1);return;}
   auto& session=*m_housing_placement_session;auto& pending=*session.pending;
@@ -1158,7 +1159,10 @@ void Client::SendHousingPlacedScene(){
     if(node!=view->data.catalog.nodes.end()){
      FurnitureTarget target{*node,parent.value.definition,parent.value.region,view->root,view->data.catalog.key,parent.value.current_catalog_revision};
      auto yard=FurnitureReadScene(this,session,*bridge,target,&parent.value,false);
-     if(yard){FurnitureSendScene(this,session,*yard);retained.push_back(yard->estate);}
+     if(yard){
+      FurnitureSendScene(this,session,*yard);retained.push_back(yard->estate);
+      for(const auto& item:parent.value.items)if(item.crate){auto contents=FurnitureReadCrateScene(this,session,parent.value,item);if(contents){FurnitureSendScene(this,session,*contents);retained.push_back(contents->estate);}}
+     }
     }
    }
    else{
@@ -1411,7 +1415,7 @@ void Client::Handle_OP_RealEstatePack(const EQApplicationPacket* app){
   }
   auto result=bridge->PackCrate(*session.crate_batch);
   if(!result){if(result.error!=Housing::LiveItems::Error::CommitUncertain)session.crate_batch.reset();FurnitureResult(this,result.error==Housing::LiveItems::Error::NotFound?11:1);return;}
-  session.crate_batch.reset();durable_success=true;FurnitureResult(this,0);FurnitureBroadcastScenes();
+  session.crate_batch.reset();durable_success=true;FurnitureResult(this,0);FurnitureBroadcastScenes(true);
  }catch(...){FurnitureResult(this,durable_success?0:1);}
 }
 
@@ -1669,7 +1673,7 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
    }
    auto result=bridge->TransferCrate(prior->second.request);
    if(!result){LogInfo("Native crate member transfer rejected actor [{}] action [{}] code [{}]",CharacterID(),action,int(result.error));FurnitureResult(this,1);return;}
-   durable_success=true;prior->second.completed=true;FurnitureResult(this,0);FurnitureBroadcastScenes();return;
+   durable_success=true;prior->second.completed=true;FurnitureResult(this,0);FurnitureBroadcastScenes(true);return;
   }
   if(view&&!view->interior){
    const Housing::Scene::InteriorSnapshot* selected=nullptr;bool ambiguous=false;

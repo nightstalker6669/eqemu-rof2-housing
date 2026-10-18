@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6170,
-      "sha256": "9001669a86079b45435f2304d807a66cfa411b41f9687bfcf8e9549980a8a141"
+      "bytes": 6223,
+      "sha256": "29d1f7838c11bd6e9ab9d18ecd0e02846cf034e53ea579790eaba86c08d08ade"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -36,18 +36,18 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 4233,
-      "sha256": "7c5549a88084f52f06b923993b15aec8b1bdab53a534f9b3e670b029d34f4c07"
+      "bytes": 4821,
+      "sha256": "f726b0ef1f331933e714c512a031752c09ad5dbfd0e31793af0a87ee95bfcd0c"
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 5582,
-      "sha256": "2cdc291aec32ebf374abe4eea05dc24140d345c77ff7cd64895f23b3415cc5da"
+      "bytes": 5754,
+      "sha256": "250f484858be907a47ad998375beb8dcd1cdfb99ca56690ceceb3c6962cf8ccf"
     },
     {
       "path": "docs/UPDATES-2026-10-18.md",
-      "bytes": 3191,
-      "sha256": "12f9d1bb5878c56e3984985a16d6847f667d85f49d5d9ad85b8a3e58f58f5861"
+      "bytes": 5012,
+      "sha256": "ba4ee1245d2655878ffbc6dd5895136f68eeb1a758037e3fab273f6e6f2cb095"
     },
     {
       "path": "overlay/common/housing/README.md",
@@ -111,8 +111,8 @@
     },
     {
       "path": "overlay/common/housing/crate_binding.h",
-      "bytes": 6295,
-      "sha256": "f89db75729f531ad5ecc671d3ef5d65b6ec071cec0058a927cb00b69a3530532"
+      "bytes": 6656,
+      "sha256": "b393306e7aebd5eba568910c9a7c9b211ed11334184c5bf8ae8476c1e0b68d8e"
     },
     {
       "path": "overlay/common/housing/crate_content_loader.h",
@@ -446,8 +446,8 @@
     },
     {
       "path": "overlay/common/housing/interior_storage_service.cpp",
-      "bytes": 41808,
-      "sha256": "e57a030bc8db25329bb5855036305ee30589d32ebc2966a4bf383b9f2342242d"
+      "bytes": 43584,
+      "sha256": "f74126983f9b5289e8f6cb40df43f1e47e3dcebc2f12019940403ea64c07a59c"
     },
     {
       "path": "overlay/common/housing/interior_storage_service.h",
@@ -851,8 +851,8 @@
     },
     {
       "path": "overlay/common/housing/reviewed_crate_runtime.h",
-      "bytes": 1775,
-      "sha256": "6b4f6eac47c3b4d7033bbf46ffcdf3c433d0cc1ce80b95d8a8b0822a08006aa8"
+      "bytes": 3530,
+      "sha256": "f35b0e948b2f5e3ca80cfe90e299b1288c4a64c778dc98cf499c03cd300b4735"
     },
     {
       "path": "overlay/common/housing/reviewed_room_runtime.h",
@@ -871,8 +871,8 @@
     },
     {
       "path": "overlay/common/housing/scene_service.cpp",
-      "bytes": 98280,
-      "sha256": "a86b05ea7873272d31cdc0a8e3af3a2ffa8a74992e7293d2d77048381780814c"
+      "bytes": 98357,
+      "sha256": "443e4f97d12f38006215d7334c07eb09cc06c12f59f86636919c8f9290768982"
     },
     {
       "path": "overlay/common/housing/scene_service.h",
@@ -1226,8 +1226,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 206685,
-      "sha256": "5b8bd88adbd6314a1ef81cce956c7590cb5d8fca5e249804da4851a761c66ac2"
+      "bytes": 207028,
+      "sha256": "f976429316cbdda27a1ba66f4e7613daa5f90c153eba4fdfe237ef8764ff62ad"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",
@@ -1281,8 +1281,8 @@
     },
     {
       "path": "overlay/zone/housing_crate_runtime.cpp",
-      "bytes": 11576,
-      "sha256": "75567152c530af59d7ebbe1bca9b71b805f3922563928a6d7c9d6eda1e9ae4b4"
+      "bytes": 12169,
+      "sha256": "f86e4fdff0e132ea7caaf01d54c53e021ab7c69e229ffdb8f76758f4e7d25f8e"
     },
     {
       "path": "overlay/zone/housing_crate_runtime.h",

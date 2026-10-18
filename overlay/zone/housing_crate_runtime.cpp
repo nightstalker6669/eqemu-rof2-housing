@@ -44,6 +44,10 @@ public:
  bool ReviewInteriorSceneUnderTransaction(Database& db,LiveItems::InventorySessionFence& f,const LiveItems::Lease& l,const Scene::InteriorSnapshot& scene,const LiveItems::Stored& stored,const CrateBinding::Allocation& a)const override{
   return Held(l,f)&&scene.room_profile&&HouseRuntime::ReviewedRoomForCurrentClient(scene,*scene.room_profile,scene.profile_revision)&&scene.access.effective.Allows(AccessPolicy::Capability::Enter)&&stored.placement&&stored.row.values.item_id==62586&&stored.row.values.character_id==a.created_by_character_id&&a.created_by_character_id&&a.binding.parent_native_estate_id==scene.room_profile->native_estate_id&&a.content_manifest_sha256==content_->digest&&Metadata(db,*content_);
  }
+ std::optional<ContentBinding::CrateProfile> ReviewParentSceneUnderTransaction(Database& db,LiveItems::InventorySessionFence& f,const CrateBinding::ContentFacts& facts,const Scene::InteriorSnapshot& room)const override{
+  if(!Held(facts.lease,f)||!ReviewedCrateRuntime::ParentReadFacts(facts,room,{client_.CharacterID(),client_.AccountID()},{zone->GetZoneID(),uint8_t(zone->GetInstanceVersion()),uint16_t(zone->GetInstanceID())})||!Metadata(db,*content_))return {};
+  return ContentBinding::CrateProfile{174,Hex(std::vector<uint8_t>(content_->digest.begin(),content_->digest.end())),true};
+ }
  std::optional<ContentBinding::CrateProfile> ReviewContentUnderTransaction(Database& db,LiveItems::InventorySessionFence& f,const CrateBinding::ContentFacts& facts)const override{
   if(!Held(facts.lease,f)||!ReviewedCrateRuntime::ExteriorFacts(facts,{client_.CharacterID(),client_.AccountID()},{zone->GetZoneID(),uint8_t(zone->GetInstanceVersion()),uint16_t(zone->GetInstanceID())})||!f.PlacementContextMatches(facts.reservation.estate_id,facts.reservation.native_estate_id,facts.neighborhood_instance)||!Metadata(db,*content_))return {};
   if((facts.stage==CrateBinding::Stage::Preview||facts.stage==CrateBinding::Stage::Store)&&!SourceItem(facts.source,facts.runtime_serial,f))return {};

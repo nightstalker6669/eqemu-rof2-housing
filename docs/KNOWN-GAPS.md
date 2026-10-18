@@ -19,7 +19,11 @@ Internal ServerOP_Housing messages are emulator coordination, not recovered Live
 
 ## Interior versus parent-yard presentation
 
-A valid house interior no longer loses its room list when the optional yard read refuses. Yard/crate enumeration from inside still needs a separately authenticated parent-scene policy. The separate exterior House N/A observation immediately after unpack has not been established as repaired. The completed closet chair cycle does not claim otherwise.
+Indoor parent-yard and populated moving-crate lists now use a separately authenticated read-only parent policy. Successful crate operations refresh estate ancestry, fixing immediate house recognition after unpack. A representative original-client personal-house session verified both. Guild/visitor variations still require distinct acceptance.
+
+## Relocation acceptance
+
+A representative personal loaded-crate/furnished-house round trip across plots, neighborhoods and catalogs completed through the original client. House and crate identities, closet contents and permanent interior were retained; the user placed the house at the destination. The stored-house restore rejection was fixed with retained binding, permission and child-capacity checks. Direct house-inventory relocation, interior-loaded and guild/delegated variants remain separately unverified. This does not close the same-plot/rebought ownership-generation issue above.
 
 ## Placement fidelity
 

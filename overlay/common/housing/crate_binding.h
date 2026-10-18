@@ -64,6 +64,10 @@ public:
   const LiveItems::Request&,const InteriorContent::PlacementReview&,const Allocation*)const{return false;}
  virtual bool ReviewInteriorSceneUnderTransaction(Database&,LiveItems::InventorySessionFence&,
   const LiveItems::Lease&,const Scene::InteriorSnapshot&,const LiveItems::Stored&,const Allocation&)const{return false;}
+ // Read-only parent yard of an independently authenticated occupied house.
+ // Default deny; never substitutes a neighborhood placement fence for mutations.
+ virtual std::optional<ContentBinding::CrateProfile> ReviewParentSceneUnderTransaction(
+  Database&,LiveItems::InventorySessionFence&,const ContentFacts&,const Scene::InteriorSnapshot&)const{return {};}
  virtual std::optional<ContentBinding::CrateProfile> ReviewContentUnderTransaction(
   Database&,LiveItems::InventorySessionFence&,const ContentFacts&)const=0;
  virtual bool ReviewPickupUnderTransaction(Database&,LiveItems::InventorySessionFence&,

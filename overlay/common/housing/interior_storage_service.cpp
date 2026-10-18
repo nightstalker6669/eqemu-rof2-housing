@@ -57,7 +57,21 @@ Receipt ChangeChecked(Database& db,const Request& r,LiveItems::InventorySessionF
    if(yard_scene){
     const auto& members=r.crate_member?yard_scene->crate_contents:yard_scene->items;
     auto item=std::find_if(members.begin(),members.end(),[&](const auto& i){return i.stored.custody_id==r.custody_id;});
-    if(item==members.end()||(item->house&&!r.crate_member)||item->crate||!item->metadata||!item->geometry)throw Failure{Error::UnsupportedItem};
+    if(item==members.end()||(item->house&&!r.crate_member&&!r.placement)||item->crate||!item->metadata||!item->geometry)throw Failure{Error::UnsupportedItem};
+    if(item->house&&r.placement){
+     // Scene authentication proves the retained house/route under this lease.
+     // A stored house restores that identity; it does not allocate another room.
+     const auto& h=*item->house;const auto& s=item->stored;
+     if(!house||!s.placement||!h.interior||!h.house_id||!h.revision||!h.pending_key.empty()||
+        h.location.kind!=HouseBinding::Location::Kind::Custody||h.location.custody_id!=s.custody_id||
+        h.item_template_id!=s.row.values.item_id||s.row.values.character_id!=r.lease.actor.character_id||
+        s.estate_id!=yard_scene->estate_id||h.interior->catalog_key!=s.placement->reservation.catalog_key||
+        h.interior->catalog_revision!=yard_scene->current_catalog_revision||!yard_scene->definition.max_children||
+        std::find(yard_scene->definition.children.begin(),yard_scene->definition.children.end(),h.interior->definition_id)==yard_scene->definition.children.end())throw Failure{Error::Conflict};
+     // Count locked persisted siblings, not a possibly shortened projected list.
+     auto occupied=q("SELECT l.house_id FROM housing_house_locations l JOIN housing_live_placed_items p ON p.custody_id=l.custody_id JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id AND r.custody_id=p.custody_id AND r.state=1 LEFT JOIN housing_live_item_storage s ON s.custody_id=p.custody_id WHERE l.location_kind=2 AND r.native_estate_id="+std::to_string(native)+" AND l.house_id<>"+std::to_string(h.house_id)+" AND (s.stowed IS NULL OR s.stowed=0) AND NOT EXISTS (SELECT 1 FROM housing_crate_members m WHERE m.custody_id=p.custody_id) ORDER BY l.house_id FOR UPDATE");
+     if(occupied.RowCount()>=yard_scene->definition.max_children)throw Failure{Error::Conflict};
+    }
     if(r.crate_member){const auto& m=*r.crate_member;
      if(!yard_scene->definition.max_items||yard_scene->items.size()>=yard_scene->definition.max_items)throw Failure{Error::Conflict};
      if(!crates||!r.placement||m.native_plot_id!=native||m.catalog_revision!=yard_scene->current_catalog_revision||m.source.zone_id!=yard_scene->route.zone_id||m.source.zone_version!=yard_scene->route.zone_version||m.source.instance_id!=yard_scene->route.instance_id||item->contained_in_crate!=m.crate_id||!access.Allows(AccessPolicy::Capability::AddItem)||!access.Allows(AccessPolicy::Capability::RemoveItem))throw Failure{Error::Unauthorized};

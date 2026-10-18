@@ -439,7 +439,7 @@ Snapshot LockedExterior(Database& db,const LiveItems::Lease& l,EstateId estate,L
   const auto& child=Definition(bundle,allocation.value.binding.definition_id);
   if(child.type!=7||std::find(definition.children.begin(),definition.children.end(),child.id)==definition.children.end())throw Failure{Error::UnsupportedItem};
   CrateBinding::ContentFacts facts;facts.lease=l;facts.reservation=placed.reservation;facts.source=s.row;facts.pose=placed.transform;facts.stage=CrateBinding::Stage::Read;facts.catalog_revision=catalog_revision;facts.neighborhood_instance=out.route.instance_id;facts.access={OwnerKind(owner_kind),owner,plot,out.acl_revision,out.access};facts.plot=definition;facts.crate=child;facts.region=*region;
-  crate_profile=crates->ReviewContentUnderTransaction(db,fence,facts);
+  crate_profile=occupied?crates->ReviewParentSceneUnderTransaction(db,fence,facts,*occupied):crates->ReviewContentUnderTransaction(db,fence,facts);
   if(!crate_profile||crate_profile->definition_id!=child.id||!crate_profile->reviewed_server_content||crates->ManifestDigest()!=allocation.value.content_manifest_sha256||Unhex(crate_profile->content_manifest_sha256.c_str())!=Bytes(allocation.value.content_manifest_sha256.begin(),allocation.value.content_manifest_sha256.end()))throw Failure{Error::Unauthorized};
   item.crate=std::make_shared<CrateBinding::Allocation>(std::move(allocation.value));
  }

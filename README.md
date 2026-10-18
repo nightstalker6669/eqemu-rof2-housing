@@ -60,7 +60,7 @@ Read [INSTALL.md](docs/INSTALL.md) before building or applying schemas. This sna
 
 ## What is not finished
 
-Remaining work includes fresh personal-catalog crate support, packing nonplaceable vault belongings during move-out, same-plot/rebought-generation furnished-house relocation, parent-yard/crate display from inside a house, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, original paid economics/lifecycle behavior, authentic trophy catalogue values, and further original-client acceptance. Furnished same-plot house swaps and reviewed furnished plot transfers now have representative native acceptance; those do not close the separate relocation/lifecycle gaps.
+Remaining work includes fresh personal-catalog crate support, packing nonplaceable vault belongings during move-out, same-plot/rebought-generation furnished-house relocation, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, original paid economics/lifecycle behavior, authentic trophy catalogue values, and further original-client acceptance. Furnished same-plot house swaps, reviewed furnished plot transfers, indoor yard/crate listing and a personal loaded-crate/furnished-house relocation round trip now have representative native acceptance; those do not close the remaining lifecycle and guild/delegated gaps.
 
 The local test purchase policy used one copper and no upkeep. **Those are explicitly experimental settings, not recovered Live prices or rules.** No personal database, local credentials, or unfinished draft patches are published here.
 
