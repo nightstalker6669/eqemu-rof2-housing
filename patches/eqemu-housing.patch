@@ -1340,20 +1340,21 @@ index b158ad2..76b5534 100644
  	//Client* GetClient(uint32 char_id);
  
 diff --git a/world/main.cpp b/world/main.cpp
-index c938612..70b2e81 100644
+index c938612..1642150 100644
 --- a/world/main.cpp
 +++ b/world/main.cpp
-@@ -47,6 +47,9 @@
+@@ -47,6 +47,10 @@
  #include "worlddb.h"
  #include "wguild_mgr.h"
  #include "../common/evolving_items.h"
 +#include "../common/housing/persistence_service.h"
 +#include "../common/housing/upkeep_cycle_db.h"
++#include "../common/housing/offline_property_delivery_db.h"
 +#include <ctime>
  
  #ifdef _WINDOWS
  #include <process.h>
-@@ -158,7 +161,35 @@ int main(int argc, char **argv)
+@@ -158,7 +162,37 @@ int main(int argc, char **argv)
  		return 1;
  	}
  
@@ -1384,12 +1385,14 @@ index c938612..70b2e81 100644
 +	}
 +
  	// timers
++	Housing::UpkeepClock::Cursor housing_upkeep_cursor;
++    uint32_t housing_inactivity_cursor=0;
 +	Timer housing_upkeep_timer(60000);
 +	housing_upkeep_timer.Start(60000);
  	Timer PurgeInstanceTimer(450000);
  	PurgeInstanceTimer.Start(450000);
  	Timer EQTimeTimer(600000);
-@@ -371,6 +402,16 @@ int main(int argc, char **argv)
+@@ -371,6 +405,22 @@ int main(int argc, char **argv)
  
  	auto loop_fn = [&](EQ::Timer* t) {
  		Timer::SetCurrentTime();
@@ -1397,7 +1400,13 @@ index c938612..70b2e81 100644
 +            try{
 +                auto current=std::time(nullptr);
 +                if(current>0&&uint64_t(current)<=UINT32_MAX){
-+                    auto batch=Housing::UpkeepCycle::ProcessDue(*housing_upkeep_database,uint32_t(current));
++                    auto batch=Housing::UpkeepCycle::ProcessDue(*housing_upkeep_database,uint32_t(current),housing_upkeep_cursor);
++                    try{
++                        auto inactivity=Housing::InactivityRetirement::ProcessDue(*housing_upkeep_database,uint32_t(current),housing_inactivity_cursor,&Housing::OfflinePropertyDelivery::Retire);
++                        batch.refresh=batch.refresh||inactivity.refresh;
++                        if(inactivity.retired)LogInfo("Housing inactivity retired [{}] reviewed empty personal properties",inactivity.retired);
++                        if(inactivity.deferred)LogInfo("Housing inactivity deferred [{}] properties requiring return, refund or pending resolution",inactivity.deferred);
++                    }catch(...){LogError("Housing inactivity assessment failed; upkeep refresh retained");}
 +                    if(batch.refresh){ServerPacket refresh(ServerOP_HousingUpkeepRefresh,0);ZSList::Instance()->SendPacket(&refresh);}
 +                    if(batch.unsupported)LogInfo("Housing upkeep deferred [{}] unsupported or pending contracts",batch.unsupported);
 +                }

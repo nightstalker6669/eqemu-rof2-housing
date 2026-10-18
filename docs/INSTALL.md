@@ -56,3 +56,18 @@ Review and apply only the schemas for the feature you are provisioning, after th
 - utils/sql/optional/2026_10_17_housing_house_swaps.sql: durable house-swap operation state.
 
 Housing:EnableNativeHouseSwap defaults false. Native swap admission requires supported reviewed templates, same plot/creator, current house and item capabilities, valid occupancy/custody/rent checks and no placed moving crate in the old interior. The integration does not provision historical catalogue content or enable every experimental rule automatically.
+
+
+## Optional lifecycle extensions and creation provenance
+
+After the existing upkeep-cycle/full-property dependencies, review these migrations in order:
+
+1. `utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql`
+2. `utils/sql/optional/2026_10_18_housing_offline_property_delivery.sql`
+3. `utils/sql/optional/2026_10_18_housing_offline_property_packing.sql`
+4. `utils/sql/optional/2026_10_18_housing_offline_crate_creation.sql`
+5. `utils/sql/optional/2026_10_18_housing_crate_creation_origins.sql`
+
+Apply the final provenance migration before enabling offline crate creation. It replaces the direct live-receipt foreign key with typed creation origins and backfills existing crates from genuine receipts. Review legacy crate integrity before migrating. Rebuild world and zone together for origin-aware readers/writers. These migrations do not activate automatic retirement globally; exact per-estate reviews and supported custody/content are required.
+
+See [property lifecycle details](../overlay/common/housing/property_lifecycle.md) for currency, ownership, capacity, session and pending-operation restrictions. The optional `common/housing/trophy_supported_catalogue.sql` is a separately reviewed compatibility profile, not a prerequisite or authentic complete item seed; its referenced stat items and identifiers must exist and be independently checked. Evolving trophy placement remains unsupported.

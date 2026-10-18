@@ -10,7 +10,7 @@ struct GuildOwner {uint32_t guild_id=0,leader_character_id=0;uint8_t permission_
 struct Price {uint32_t component=0;int64_t copper=0;};
 // Authenticated inspection result. No field in this structure is decoded as
 // authority from45be. Full catalog hashes fence every displayed component.
-struct Offer {uint32_t native_plot_id=0,plot_id=0,neighborhood_id=0,definition_id=0;uint64_t catalog_revision=0,policy_revision=0;std::string catalog_key,definitions_sha256,regions_sha256;Route source;uint32_t max_owned_plots=0;bool carried_copper=false;std::vector<Price> prices;std::vector<uint32_t> zero_upkeep_components;std::optional<GuildOwner> guild;};
+struct Offer {uint32_t native_plot_id=0,plot_id=0,neighborhood_id=0,definition_id=0;uint64_t catalog_revision=0,policy_revision=0;std::string catalog_key,definitions_sha256,regions_sha256;Route source;uint32_t max_owned_plots=0;bool carried_copper=false;std::vector<Price> prices;/* Historical field name retained for receipt compatibility: reviewed paid upkeep IDs may also be admitted. */std::vector<uint32_t> zero_upkeep_components;std::optional<GuildOwner> guild;};
 struct Request {std::string request_key;LiveItems::Lease lease;Offer offer;std::array<uint8_t,EstateWire::PurchaseSize> wire{};LiveEscrow::Currency expected;};
 struct Receipt {Request request;InventorySessions::Lease reservation;EstateId estate_id=0;int64_t charged_copper=0;LiveEscrow::Currency after;bool requires_application=true,replayed=false;};
 enum class Error {None,Disabled,InvalidArgument,UnheldFence,Unauthorized,NotFound,StaleLease,PendingApplication,SnapshotMismatch,Conflict,InsufficientFunds,Overflow,DatabaseFailure,CommitUncertain,UnsupportedFunding,Unavailable,TooManyPlots};

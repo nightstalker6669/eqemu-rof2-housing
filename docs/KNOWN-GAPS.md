@@ -41,3 +41,8 @@ The Standard guild hall uses the accepted basic guild-hall interior geometry but
 ## Completion standard
 
 Completion requires end-to-end original-client acceptance for personal and guild plots/houses, item placement/pickup and movement/storage, permissions, layouts, crates, persistence/recovery, routes and lifecycle—not merely mapped opcode numbers or successful compilation.
+
+
+## Updated lifecycle boundary
+
+Single-small-crate personal-yard automatic generation, offline return, refund and native unpack/retrieval are now implemented and representatively accepted. This does not close multi-container overflow, guild/foreign-owner/vault returns, complete retirement of arbitrary furnishings, missing historical billing policy, alternate currencies or partial affordability. Final tradeskill trophies remain rejected as evolving items; reconstructed catalogue rows do not remedy that custody limitation.

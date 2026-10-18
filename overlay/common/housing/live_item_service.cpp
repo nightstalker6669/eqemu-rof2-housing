@@ -748,15 +748,7 @@ namespace Housing::LiveItems {
             };
             return r;
         }
-        std::string Values(const InventoryRow& r,uint32_t slot){
-            const auto& v=r.values;
-            std::string s=std::to_string(v.character_id)+","+std::to_string(slot)+","+((r.null_fields&NullItemId)?"NULL":std::to_string(v.item_id))+","+((r.null_fields&NullCharges)?"NULL":std::to_string(v.charges));
-            for(auto n:{
-                v.color,v.augment_one,v.augment_two,v.augment_three,v.augment_four,v.augment_five,v.augment_six
-            })s+=","+std::to_string(n);
-            s+=","+std::to_string(v.instnodrop)+","+((r.null_fields&NullCustomData)?"NULL":"x'"+Hex(Bytes(v.custom_data.begin(),v.custom_data.end()))+"'")+","+std::to_string(v.ornament_icon)+","+std::to_string(v.ornament_idfile)+","+std::to_string(v.ornament_hero_model)+","+((r.null_fields&NullGuid)?"NULL":std::to_string(v.guid));
-            return s;
-        }
+        std::string Values(const InventoryRow& r,uint32_t slot){return InventoryRowDB::Values(r,slot);}
         template<class T,class F>Result<T> Run(Database& db,F fn){
             try{
                 Tx t(db);
@@ -1329,6 +1321,15 @@ namespace Housing::LiveItems {
             auto current=CrateBinding::ReadCarriedUnderTransaction(db,expected);if(!current)throw Failure{current.error};if(current.value.content_manifest_sha256!=crates_->ManifestDigest())throw Failure{Error::Unauthorized};
             return std::shared_ptr<const CrateBinding::Allocation>(std::make_shared<CrateBinding::Allocation>(std::move(current.value)));
         });
+    }
+    Result<Stored> Service::InspectCustodyUnderTransaction(Database& db,uint64_t id){
+        try{
+            auto tx=Q(db,"SELECT @@in_transaction");if(!id||tx.RowCount()!=1||std::string(tx.begin()[0])!="1")return {{},Error::InvalidArgument};
+            auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(id)+" FOR UPDATE");if(rows.RowCount()!=1)return {{},Error::NotFound};
+            auto item=StoredRow(rows.begin(),id);PlacementTables(db);item.placement=CurrentPose(db,id);
+            auto state=ItemStorage::Locked(db,id);item.stowed=state.stowed;item.storage_revision=state.revision;
+            return {std::move(item),Error::None};
+        }catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
     }
     Result<Stored> Service::ReadStored(const Lease& input,uint64_t id,InventorySessionFence& fence){
         std::lock_guard<std::mutex> guard(mutex_);

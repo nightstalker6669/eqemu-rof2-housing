@@ -8,6 +8,7 @@
 #include "item_storage_db.h"
 #include "crate_member_scope_db.h"
 #include <limits>
+#include "upkeep_clock.h"
 namespace Housing::UpkeepCycle {
 enum class Status { Disabled, NotDue, Applied, Replayed, Unsupported, Pending, Conflict, DatabaseFailure, CommitUncertain };
 struct Outcome {Status status=Status::Disabled;uint64_t charged=0;uint32_t stowed=0;};
@@ -22,26 +23,32 @@ inline bool Installed(Database& db){
  auto full=Q(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_name IN ('housing_upkeep_property_state','housing_upkeep_property_cycles','housing_upkeep_cycle_scopes','housing_upkeep_reactivation_policy')");if(full.RowCount()!=1||N(full.begin()[0])!=4)throw Stop{Status::DatabaseFailure};return true;
 }
 inline std::string Hex(const std::vector<uint8_t>& b){const char* h="0123456789ABCDEF";std::string s;for(auto c:b){s+=h[c>>4];s+=h[c&15];}return s;}
-inline uint64_t Hourly(const EstateWire::CostComponent& component){
- uint64_t daily=0;for(const auto& v:component.values){if(v.type_id!=0||v.amount<0||uint64_t(v.amount)>uint64_t(INT64_MAX)-daily)throw Stop{Status::Unsupported};daily+=uint64_t(v.amount);}
- if(daily%24)throw Stop{Status::Unsupported};return daily/24;
+inline uint64_t Hourly(const EstateWire::CostComponent& component,uint32_t due=0,bool rounding_reviewed=false){
+ uint64_t daily=0;for(const auto& v:component.values){if(v.type_id!=0||v.subtype_id!=0||v.amount<0||uint64_t(v.amount)>uint64_t(INT64_MAX)-daily)throw Stop{Status::Unsupported};daily+=uint64_t(v.amount);}
+ auto rate=UpkeepClock::Hourly(daily,due,rounding_reviewed);if(!rate)throw Stop{Status::Unsupported};return *rate;
 }
-inline uint64_t ItemRate(const Catalog::Bundle& bundle,uint32_t id){
+inline uint64_t ItemRate(const Catalog::Bundle& bundle,uint32_t id,uint32_t due=0,bool rounding_reviewed=false){
  if(!id)return 0;const EstateWire::CostComponent* found=nullptr;
  for(const auto& s:bundle.costs)for(const auto& c:s.components)if(c.id==id){if(found)throw Stop{Status::Unsupported};found=&c;}
- if(!found)throw Stop{Status::Unsupported};return Hourly(*found);
+ if(!found)throw Stop{Status::Unsupported};return Hourly(*found,due,rounding_reviewed);
 }
-struct Graph {uint64_t revision=0,plot_rate=0;uint32_t native=0,plot_component=0;Catalog::Bundle bundle;Route route;};
-inline Graph Current(Database& db,uint32_t estate,uint32_t native,uint64_t expected_revision){
+inline bool RoundingReviewed(Database& db,uint32_t estate,uint32_t native,uint64_t revision){
+ auto table=Q(db,"SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_upkeep_rounding_policy'");
+ if(!table.RowCount())return false;if(table.RowCount()!=1||!table.begin()[0]||std::string(table.begin()[0])!="InnoDB")throw Stop{Status::DatabaseFailure};
+ auto rows=Q(db,"SELECT native_plot_id,catalog_revision,mode,review_reference FROM housing_upkeep_rounding_policy WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");
+ if(!rows.RowCount())return false;if(rows.RowCount()!=1||N(rows.begin()[0])!=native||N(rows.begin()[1])!=revision||N(rows.begin()[2])!=1||!rows.begin()[3]||!rows.begin()[3][0])throw Stop{Status::Conflict};return true;
+}
+struct Graph {uint64_t revision=0,plot_rate=0;uint32_t native=0,plot_component=0,billing_epoch=0;bool rounding_reviewed=false;Catalog::Bundle bundle;Route route;};
+inline Graph Current(Database& db,uint32_t estate,uint32_t native,uint64_t expected_revision,uint32_t billing_epoch=0){
  auto r=Q(db,"SELECT n.definition_id,n.catalog_key,c.revision,HEX(c.definitions_blob),HEX(c.regions_blob),e.owner_kind,e.owner_id,h.zone_id,h.zone_version,h.instance_id FROM housing_current_estates e JOIN housing_native_estates n ON n.ownership_estate_id=e.id AND n.plot_id=e.plot_id AND n.active=1 JOIN housing_catalogs c ON c.catalog_key=n.catalog_key JOIN housing_neighborhoods h ON h.id=n.neighborhood_id JOIN instance_list route ON route.id=h.instance_id AND route.zone=h.zone_id AND route.version=h.zone_version AND route.never_expires=1 WHERE h.instance_id>0 AND h.instance_id<=32000 AND c.client_build=20130510 AND c.origin IN(1,2) AND e.id="+std::to_string(estate)+" AND n.native_id="+std::to_string(native)+" FOR UPDATE");
- if(r.RowCount()!=1)throw Stop{Status::Conflict};auto p=r.begin();Graph g;g.native=native;g.revision=N(p[2]);if(g.revision!=expected_revision)throw Stop{Status::Conflict};
+ if(r.RowCount()!=1)throw Stop{Status::Conflict};auto p=r.begin();Graph g;g.native=native;g.revision=N(p[2]);if(g.revision!=expected_revision)throw Stop{Status::Conflict};g.billing_epoch=billing_epoch;g.rounding_reviewed=RoundingReviewed(db,estate,native,g.revision);
  g.bundle=Catalog::DecodePayloads(Unhex(p[3]),Unhex(p[4]));g.bundle.key=p[1];g.route={uint32_t(N(p[7])),uint8_t(N(p[8])),uint16_t(N(p[9]))};
  auto definition=std::find_if(g.bundle.definitions.begin(),g.bundle.definitions.end(),[&](const auto& d){return d.id==N(p[0]);});if(definition==g.bundle.definitions.end()||!((N(p[5])==1&&definition->type==4)||(N(p[5])==3&&definition->type==8)))throw Stop{Status::Conflict};
  if(definition->upkeep_scheme){
   auto selected=UpkeepSelection::PublishedComponent(db,estate,native,uint32_t(N(p[5])),uint32_t(N(p[6])),*definition,g.bundle.costs);
   const EstateWire::CostScheme* scheme=nullptr;for(const auto& candidate:g.bundle.costs)if(candidate.id==definition->upkeep_scheme)scheme=&candidate;if(!scheme)throw Stop{Status::Unsupported};
-  if(selected){auto component=std::find_if(scheme->components.begin(),scheme->components.end(),[&](const auto& c){return c.id==selected;});if(component==scheme->components.end())throw Stop{Status::Conflict};g.plot_component=selected;g.plot_rate=Hourly(*component);}
-  else for(const auto& component:scheme->components)if(Hourly(component))throw Stop{Status::Unsupported};
+  if(selected){auto component=std::find_if(scheme->components.begin(),scheme->components.end(),[&](const auto& c){return c.id==selected;});if(component==scheme->components.end())throw Stop{Status::Conflict};g.plot_component=selected;g.plot_rate=Hourly(*component,g.billing_epoch,g.rounding_reviewed);}
+  else for(const auto& component:scheme->components)if(Hourly(component,g.billing_epoch,g.rounding_reviewed))throw Stop{Status::Unsupported};
  }
 
  return g;
@@ -85,7 +92,7 @@ inline std::vector<Item> Obligations(Database& db,uint32_t estate,const Graph& g
  for(auto p=rows.begin();p!=rows.end();++p){auto custody=N(p[0]);auto storage=ItemStorage::Locked(db,custody);
   if(storage.stowed&&(!restoring||*restoring!=custody))continue;if(CrateMemberScope::Locked(db,custody,true))continue;
   auto raw=Unhex(p[2]);auto row=CustodyCodec::Decode(raw);if(row.values.character_id!=N(p[1])||N(p[4])!=N(p[1])||raw!=Unhex(p[7]))throw Stop{Status::Conflict};
-  auto metadata=Q(db,"SELECT UNK230,idfile FROM items WHERE id="+std::to_string(row.values.item_id)+" FOR UPDATE");if(metadata.RowCount()!=1||!metadata.begin()[1])throw Stop{Status::Unsupported};auto component=N(metadata.begin()[0]);if(component>UINT32_MAX)throw Stop{Status::Unsupported};auto rate=ItemRate(g.bundle,uint32_t(component));if(!rate)continue;
+  auto metadata=Q(db,"SELECT UNK230,idfile FROM items WHERE id="+std::to_string(row.values.item_id)+" FOR UPDATE");if(metadata.RowCount()!=1||!metadata.begin()[1])throw Stop{Status::Unsupported};auto component=N(metadata.begin()[0]);if(component>UINT32_MAX)throw Stop{Status::Unsupported};auto rate=ItemRate(g.bundle,uint32_t(component),g.billing_epoch,g.rounding_reviewed);if(!rate)continue;
   auto room=HouseItemScope::Locked(db,custody);Scope scope;scope.native=uint32_t(N(p[5]));
   if(room){if(!StaticFurniture::Lookup(row.values.item_id,metadata.begin()[1])||p[8]||p[9])throw Stop{Status::Unsupported};scope=RoomWitness(db,estate,g,room->house_id,uint32_t(N(p[3])),scope.native);}
   else if(HouseGeometry::Lookup(row.values.item_id,metadata.begin()[1])){
@@ -109,7 +116,7 @@ inline uint32_t Expired(Database& db,uint64_t custody,uint32_t native_item){usin
 // an invented partial-funding priority. Missing/delinquent contract fails closed.
 inline bool RestoreAllowedUnderTransaction(Database& db,uint32_t estate,uint64_t custody){
  using namespace Detail;if(!Installed(db))return true;estate=RentState::BillingEstate(db,custody,estate);if(!RentState::PlotActive(db,estate))return false;auto mark=Q(db,"SELECT expired_since FROM housing_upkeep_item_state WHERE custody_id="+std::to_string(custody)+" FOR UPDATE");if(!mark.RowCount()||!N(mark.begin()[0]))return true;
- try{auto c=Q(db,"SELECT native_plot_id,catalog_revision,next_due_epoch FROM housing_upkeep_contracts WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(c.RowCount()!=1)return false;auto now=Q(db,"SELECT UNIX_TIMESTAMP()");if(N(c.begin()[2])<=N(now.begin()[0]))return false;auto g=Current(db,estate,N(c.begin()[0]),N(c.begin()[1]));auto items=Obligations(db,estate,g,custody);if(std::none_of(items.begin(),items.end(),[&](const auto& i){return i.custody==custody;}))return false;auto balance=Q(db,"SELECT copper FROM housing_escrow_balances WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");auto total=Total(items);if(g.plot_rate>uint64_t(INT64_MAX)-total||balance.RowCount()!=1||N(balance.begin()[0])<total+g.plot_rate)return false;Q(db,"UPDATE housing_upkeep_item_state SET expired_since=0 WHERE custody_id="+std::to_string(custody));return true;}catch(const Stop&){return false;}
+ try{auto c=Q(db,"SELECT native_plot_id,catalog_revision,next_due_epoch FROM housing_upkeep_contracts WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(c.RowCount()!=1)return false;auto now=Q(db,"SELECT UNIX_TIMESTAMP()");if(N(c.begin()[2])<=N(now.begin()[0]))return false;auto g=Current(db,estate,N(c.begin()[0]),N(c.begin()[1]),uint32_t(N(c.begin()[2])));auto items=Obligations(db,estate,g,custody);if(std::none_of(items.begin(),items.end(),[&](const auto& i){return i.custody==custody;}))return false;auto balance=Q(db,"SELECT copper FROM housing_escrow_balances WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");auto total=Total(items);if(g.plot_rate>uint64_t(INT64_MAX)-total||balance.RowCount()!=1||N(balance.begin()[0])<total+g.plot_rate)return false;Q(db,"UPDATE housing_upkeep_item_state SET expired_since=0 WHERE custody_id="+std::to_string(custody));return true;}catch(const Stop&){return false;}
 }
 // One complete SQL transaction per due cycle. Rows and source provenance are
 // preserved; no player inventory/currency write, delete, refund or wallet choice.
@@ -122,7 +129,7 @@ inline Outcome Tick(Database& db,uint32_t estate,uint32_t due,uint32_t now){
   auto c=Q(db,"SELECT native_plot_id,owner_kind,owner_id,catalog_revision,next_due_epoch,revision FROM housing_upkeep_contracts WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(c.RowCount()!=1)throw Stop{Status::Conflict};auto p=c.begin();if(N(p[4])!=due)throw Stop{Status::Conflict};if(now<due)throw Stop{Status::NotDue};if(!due||due>UINT32_MAX-3600||uint64_t(now)>=uint64_t(due)+3600)throw Stop{Status::Unsupported};
   auto owner=Q(db,"SELECT owner_kind,owner_id FROM housing_current_estates WHERE id="+std::to_string(estate)+" FOR UPDATE");if(owner.RowCount()!=1||N(owner.begin()[0])!=N(p[1])||N(owner.begin()[1])!=N(p[2]))throw Stop{Status::Conflict};
   PendingEstate(db,estate,uint32_t(N(p[1])),uint32_t(N(p[2])));
-  auto g=Current(db,estate,N(p[0]),N(p[3]));auto items=Obligations(db,estate,g);auto total=Total(items);if(g.plot_rate>uint64_t(INT64_MAX)-total)throw Stop{Status::Unsupported};total+=g.plot_rate;auto plot_expired=PlotExpired(db,estate,g.native);
+  auto g=Current(db,estate,N(p[0]),N(p[3]),due);auto items=Obligations(db,estate,g);auto total=Total(items);if(g.plot_rate>uint64_t(INT64_MAX)-total)throw Stop{Status::Unsupported};total+=g.plot_rate;auto plot_expired=PlotExpired(db,estate,g.native);
   Q(db,"INSERT IGNORE INTO housing_escrow_balances(estate_id,copper) VALUES("+std::to_string(estate)+",0)");auto b=Q(db,"SELECT copper FROM housing_escrow_balances WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(b.RowCount()!=1)throw Stop{Status::DatabaseFailure};const auto before=N(b.begin()[0]);bool pay=before>=total;
   // Below the cheapest positive obligation none can be paid, regardless of
   // ordering. All other partially affordable cohorts remain unsupported.
@@ -145,11 +152,14 @@ inline Outcome Tick(Database& db,uint32_t estate,uint32_t due,uint32_t now){
  }catch(const Stop& s){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {committing?Status::CommitUncertain:s.status};}catch(...){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {committing?Status::CommitUncertain:Status::DatabaseFailure};}
 }
 struct Batch {uint32_t applied=0,stowed=0,unsupported=0;bool refresh=false;};
-inline Batch ProcessDue(Database& db,uint32_t now){
+// Fair bounded keyset scan. One unsupported old contract must not starve later
+// properties; more than 100 due contracts must not disable the entire scheduler.
+// Cursor only controls dispatch order, never entitlement or financial replay.
+inline Batch ProcessDue(Database& db,uint32_t now,UpkeepClock::Cursor& cursor){
  using namespace Detail;Batch out;if(!Installed(db))return out;
- auto due=Q(db,"SELECT c.estate_id,c.next_due_epoch FROM housing_upkeep_contracts c JOIN housing_current_estates e ON e.id=c.estate_id WHERE c.next_due_epoch<="+std::to_string(now)+" ORDER BY c.next_due_epoch,c.estate_id LIMIT 101");
- if(due.RowCount()>100){out.unsupported=101;return out;}
- for(auto p=due.begin();p!=due.end();++p){auto r=Tick(db,N(p[0]),N(p[1]),now);if(r.status==Status::Applied){++out.applied;out.stowed+=r.stowed;out.refresh=true;}else if(r.status!=Status::NotDue&&r.status!=Status::Replayed){++out.unsupported;if(r.status==Status::CommitUncertain)out.refresh=true;}}return out;
+ auto read=[&](){return Q(db,"SELECT c.estate_id,c.next_due_epoch FROM housing_upkeep_contracts c JOIN housing_current_estates e ON e.id=c.estate_id WHERE c.next_due_epoch<="+std::to_string(now)+" AND (c.next_due_epoch>"+std::to_string(cursor.due)+" OR (c.next_due_epoch="+std::to_string(cursor.due)+" AND c.estate_id>"+std::to_string(cursor.estate)+")) ORDER BY c.next_due_epoch,c.estate_id LIMIT 100");};
+ auto due=read();if(!due.RowCount()&&(cursor.due||cursor.estate)){cursor={};due=read();}
+ for(auto p=due.begin();p!=due.end();++p){const auto estate=N(p[0]),epoch=N(p[1]);if(!estate||estate>UINT32_MAX||!epoch||epoch>UINT32_MAX)throw Stop{Status::DatabaseFailure};cursor={uint32_t(epoch),uint32_t(estate)};auto r=Tick(db,uint32_t(estate),uint32_t(epoch),now);if(r.status==Status::Applied){++out.applied;out.stowed+=r.stowed;out.refresh=true;}else if(r.status!=Status::NotDue&&r.status!=Status::Replayed){++out.unsupported;if(r.status==Status::CommitUncertain)out.refresh=true;}}return out;
 }
 }
 #endif

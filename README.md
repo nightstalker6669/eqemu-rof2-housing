@@ -16,6 +16,7 @@ The original client has completed the following representative workflows against
 - Store part of an item stack in a yard vault or house closet and retrieve part again without losing or duplicating the stack.
 - Display My Plots and My Items and invoke a local Find path.
 - Retire an empty owned plot through the native Move Out UI.
+- Receive an automatically generated moving crate after opt-in personal-property inactivity retirement, place it on another ownership generation, unpack it and retrieve its returned furniture.
 - Swap a reviewed furnished personal house through the native Swap Houses menu and confirmation; retain the old house token/interior and move contents into replacement storage.
 - Transfer a reviewed furnished personal plot with recipient consent, preserving content and creator identities; refuse acceptance after contents change.
 - Pack a furnished house into a moving crate, transfer its plot, then unpack and enter its retained interior as the recipient.
@@ -60,7 +61,7 @@ Read [INSTALL.md](docs/INSTALL.md) before building or applying schemas. This sna
 
 ## What is not finished
 
-Remaining work includes fresh personal-catalog crate support, packing nonplaceable vault belongings during move-out, same-plot/rebought-generation furnished-house relocation, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, original paid economics/lifecycle behavior, authentic trophy catalogue values, and further original-client acceptance. Furnished same-plot house swaps, reviewed furnished plot transfers, indoor yard/crate listing and a personal loaded-crate/furnished-house relocation round trip now have representative native acceptance; those do not close the remaining lifecycle and guild/delegated gaps.
+Remaining work includes fresh personal-catalog crate support, packing nonplaceable vault belongings during move-out, same-plot/rebought-generation furnished-house relocation, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, multi-container/guild/foreign/vault returns and original paid economics, authentic trophy catalogue values, and further original-client acceptance. Furnished same-plot house swaps, reviewed furnished plot transfers, indoor yard/crate listing and a personal loaded-crate/furnished-house relocation round trip now have representative native acceptance; those do not close the remaining lifecycle and guild/delegated gaps.
 
 The local test purchase policy used one copper and no upkeep. **Those are explicitly experimental settings, not recovered Live prices or rules.** No personal database, local credentials, or unfinished draft patches are published here.
 

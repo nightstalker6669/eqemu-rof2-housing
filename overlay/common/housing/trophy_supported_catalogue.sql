@@ -1,0 +1,46 @@
+-- Experimental supported trophy profile. NOT an authenticated May2013 catalogue.
+-- Unknown cost rows are excluded. Tradeskill level1 is explicit emulator policy.
+-- Apply to a reviewed server only; refuses existing keys rather than replacing data.
+START TRANSACTION;
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (313,1,'Denmother''s Rolling Pin','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (313,1,0,57724);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (313,95014,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (320,1,'Brewmaster''s Mug','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (320,1,0,57731);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (320,95021,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (327,1,'Fletcher''s Arrow','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (327,1,0,57738);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (327,95028,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (334,1,'Intricate Jewelers Glass','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (334,1,0,57745);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (334,95035,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (341,1,'Peerless Pestle','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (341,1,0,57752);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (341,95042,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (348,1,'Clay Flinger''s Loop','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (348,1,0,57759);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (348,95049,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (355,1,'Blacksmith''s Adamantine Hammer','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (355,1,0,57766);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (355,95056,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (362,1,'Ethereal Quill','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (362,1,0,57773);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (362,95063,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (369,1,'Mystical Bolt','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (369,1,0,57780);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (369,95070,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (376,1,'Hovering Contraption','documented effect/zero-cost; reconstructed benefit binding; explicit level1 server policy',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (376,1,0,57787);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (376,95077,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; explicit level1 policy');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (216,1,'Trophy of the Giant','documented later cost/level/effect; reconstructed stat association',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (216,95,75,68736);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (216,68730,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; not authenticated2013');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (213,1,'Trophy of the Landing','documented later cost/level/effect; reconstructed stat association',0);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (213,95,250,68733);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (213,68727,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; not authenticated2013');
+INSERT INTO tributes(id,`unknown`,name,descr,isguild) VALUES (111,1,'Trophy of Hardened Steel','documented later cost/level/effect; reconstructed stat association',1);
+INSERT INTO tribute_levels(tribute_id,level,cost,item_id) VALUES (111,90,225,66571);
+INSERT INTO housing_trophy_benefit_sources(benefit_id,placed_item_id,source_sha256,source_description) VALUES (111,66750,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Compatibility20261018: published effects/costs, reconstructed bindings; not authenticated2013');
+INSERT INTO housing_trophy_billing_policy(scope,period_ms,policy,source_sha256,source_description) VALUES ('personal',600000,1,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Reviewed ten-minute cycle; existing emulator paid-time policy');
+INSERT INTO housing_guild_trophy_billing_policy(singleton,period_ms,policy,source_sha256,source_description) VALUES (1,600000,1,'f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1','Reviewed ten-minute cycle; existing emulator paid-time policy');
+COMMIT;
