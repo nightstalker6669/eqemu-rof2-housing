@@ -87,3 +87,7 @@ Interior Access edits now target the current parent plot under a separate verifi
 ## Direct furnished-building Shed storage
 
 Unoccupied creator-owned reviewed houses/halls can now move directly to Shed while retaining their permanent room and complete furnishing graph. Native inside refusal, exterior Shed, immediate storage listing and one-building Load Yard restoration passed on a furnished Standard Guild Hall. Exact persisted house/room/item/pose conservation passed. The client closed before a fresh re-entry observation; it is not newly claimed. Occupancy and pending-work safeguards passed private transaction checks. No opcode, struct or migration was added. See [implementation and acceptance limits](DIRECT-HOUSE-SHED-2026-10-19.md).
+
+## Same-plot ownership-generation recovery
+
+The furnished-crate relocation writer/reader and migration034 now distinguish a new ownership estate from an unchanged physical plot. World/zone build and eight private production replay/SQL constraint checks passed; matching binaries and migration are deployed. Native move-out/rebuy/recovery acceptance is pending local sign-in. See [implementation and limits](SAME-PLOT-RECOVERY-2026-10-19.md).

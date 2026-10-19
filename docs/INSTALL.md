@@ -24,7 +24,7 @@ Rebuild world, zone and shared_memory together. The full integration changes sha
 
 The export contains schema files, not a personal database dump. Review and apply them to a backed-up disposable database before any deployment:
 
-- `utils/sql/housing/001...033`: numbered core migrations; read file prerequisites in order.
+- `utils/sql/housing/001...034`: numbered core migrations; read file prerequisites in order.
 - Housing-named files under `utils/sql/optional/` and `utils/sql/git/optional/` add later features/columns.
 - `common/housing/trophy_benefits.sql`, `trophy_billing.sql`, `guild_trophies.sql` add trophy state/billing/member support.
 
@@ -76,3 +76,7 @@ See [property lifecycle details](../overlay/common/housing/property_lifecycle.md
 ## Guild Hall visitor quest override
 
 The source overlay installer does not copy quest files. If your `guildhall/player.lua` has the legacy unconditional unguilded-player boot, review and merge the separate [production quest override](../quest-overlay/guildhall/player.lua) into your active quest directory. Preserve unrelated local customizations and back up the current script. The override waits for the server-verified occupied-housing bootstrap; it retains the basic Guild Hall guild requirement. Deploy the matching C++ source and reload/restart quests together. See [interior Access editing](INTERIOR-ACCESS-2026-10-19.md).
+
+## Same-plot ownership recovery
+
+After026, apply the one-time034 relocation-ledger ALTER while housing writers are stopped, then deploy the matching world and zone builds. It retains legacy cross-plot history and adds explicit ownership-generation evidence for same-parent recovery. See [deployment and acceptance scope](SAME-PLOT-RECOVERY-2026-10-19.md).

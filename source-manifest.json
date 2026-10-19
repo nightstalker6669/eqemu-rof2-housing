@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9258,
-      "sha256": "d95652ef11fa4e3f8b28d261913a87d51670cd8ec138a39ad5851c163dfe4b00"
+      "bytes": 9383,
+      "sha256": "f5da107a6b1e951a81a77394269aa0b3649cb2b1050c0e8c7e165a3649aad799"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -56,8 +56,8 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 6898,
-      "sha256": "623654d144cc31f117c092239e95bc8782f722b82cb4caf48f5d2b90ac184b9a"
+      "bytes": 7255,
+      "sha256": "2bd8402e6e34b049e1e262dda86d2a02df627a730ab20c47ddaa577d4f2bc9d8"
     },
     {
       "path": "docs/INTERIOR-ACCESS-2026-10-19.md",
@@ -66,8 +66,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 6318,
-      "sha256": "dd087cc4feae898ea357a12218fe601fb3f6db0c876ef5533c26e3fbcf047b58"
+      "bytes": 6413,
+      "sha256": "771d1641d6db0747bf126711cd2106127b4cb712ed63835a2fbaa941de595874"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -80,9 +80,14 @@
       "sha256": "cff62fd8914dfdf6d6eb13cee325a0b848ef89ded681e6b482c9bf85f30f61d1"
     },
     {
+      "path": "docs/SAME-PLOT-RECOVERY-2026-10-19.md",
+      "bytes": 2899,
+      "sha256": "c998d03c84063c8578a8a9cef7e02a9437908a256b3601d1d930f934a0f11ab9"
+    },
+    {
       "path": "docs/STATUS.md",
-      "bytes": 13250,
-      "sha256": "0968e03b3f63583214d9c06befc5db443a76a0cee796c762d18013802a2c81d0"
+      "bytes": 13693,
+      "sha256": "0ef8f8a3c967a30bcbb8c046ece230622c5f2556c9f6a9ffb47120a29ef4d30e"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
@@ -151,8 +156,8 @@
     },
     {
       "path": "overlay/common/housing/crate_binding.cpp",
-      "bytes": 68584,
-      "sha256": "d85fdcc9e85a606b48ffe2d7fb31ae61b4b93543616149e65a6745d0732f2523"
+      "bytes": 69962,
+      "sha256": "723e46bd511faed2b0317d83f05d3653f2efab88ebf2e86afc3249e8e12c3da6"
     },
     {
       "path": "overlay/common/housing/crate_binding.h",
@@ -1323,6 +1328,11 @@
       "path": "overlay/utils/sql/housing/033_estate_retirement.sql",
       "bytes": 2033,
       "sha256": "eddafbf4aeb3dd1f4776309ceaf1f3066ee434f01e74e8938585d706f67248dc"
+    },
+    {
+      "path": "overlay/utils/sql/housing/034_crate_house_ownership_recovery.sql",
+      "bytes": 1187,
+      "sha256": "89f5577f802527b15c2809e45c5585d675675d8274de68d0dfbc2a65728e6579"
     },
     {
       "path": "overlay/utils/sql/optional/2026_10_16_housing_native_guild_plot_purchase.sql",

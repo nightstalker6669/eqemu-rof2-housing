@@ -14,7 +14,7 @@ Internal ServerOP_Housing messages are emulator coordination, not recovered Live
 
 - The newest experimental personal catalog lacks crate definition 174 and its allowed-child entry. Its capacity policy also conflates a house with total estate children. Merely increasing that limit could allow multiple houses and is not an acceptable fix.
 - The existing occupied-property path rejects nonplaceable vault payloads rather than fully packing them. The draft successor is not in this export.
-- Replacing a loaded furnished crate after retiring and rebuying the same plot hits an existing house-relocation constraint when the parent native ID is unchanged across ownership generations.
+- The same-plot ownership-generation relocation restriction now has an implemented fix with exact ownership evidence and private replay/constraint checks; the native move-out/rebuy/furnished recovery round trip remains pending. See [same-plot recovery](SAME-PLOT-RECOVERY-2026-10-19.md).
 - Complete original inactive-owner eviction, guild dissolution, refunds and overflow delivery rules remain unfinished.
 
 ## Interior versus parent-yard presentation
