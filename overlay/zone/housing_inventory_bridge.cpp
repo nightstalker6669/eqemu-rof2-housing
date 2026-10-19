@@ -122,6 +122,17 @@ namespace Housing::InventoryBridge {
             && client_.Connected() && zone && zone->GetZoneID()==712
             && zone->GetInstanceID()==instance;
     }
+    bool Bridge::ParentMatchesUnderTransaction(Database& db,const LiveItems::Lease& lease,LiveItems::InventorySessionFence& fence,EstateId estate,uint32_t native,uint16_t instance)const noexcept{
+        try{
+            if(&fence!=static_cast<const LiveItems::InventorySessionFence*>(this)||
+                !HeldFor(lease.actor,lease.epoch,lease.session_key)||!client_.Connected()||
+                !zone||zone->GetZoneID()==712||!zone->GetInstanceID()||!house_policies_.scene)return false;
+            const Route source{zone->GetZoneID(),uint8_t(zone->GetInstanceVersion()),uint16_t(zone->GetInstanceID())};
+            auto room=Scene::Service::ReadInteriorManagementUnderTransaction(db,lease,source,fence,*house_policies_.scene);
+            return room&&room.value.house&&room.value.context.estate_id==estate&&
+                room.value.context.native_plot_id==native&&room.value.context.neighborhood.instance_id==instance;
+        }catch(...){return false;}
+    }
     bool Bridge::InteriorCoinSourceMatches(const LiveEscrow::InteriorSource& source)const noexcept{
         return HeldFor(actor_,lease_.epoch,session_key_)&&client_.Connected()&&zone&&zone->GetZoneID()==source.physical.zone_id&&zone->GetInstanceVersion()==source.physical.zone_version&&zone->GetInstanceID()==source.physical.instance_id;
     }
@@ -1177,18 +1188,18 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
         }catch(...){Leave();return {{},LiveItems::Error::DatabaseFailure};}
     }
     namespace {
-        std::unique_ptr<NativeAccess::Service> FreshAccess(){
+        std::unique_ptr<NativeAccess::Service> FreshAccess(const NativeAccess::InteriorSourcePolicy* interior=nullptr){
             const auto* config=EQEmuConfig::get();if(!config)return {};
             auto db=std::make_unique<Database>();
             if(!db->Connect(config->DatabaseHost,config->DatabaseUsername,config->DatabasePassword,config->DatabaseDB,config->DatabasePort,"housing-native-access"))return {};
-            return std::make_unique<NativeAccess::Service>(std::move(db),true);
+            return std::make_unique<NativeAccess::Service>(std::move(db),true,interior);
         }
     }
     NativeAccess::Result<NativeAccess::Snapshot> Bridge::ReadAccess(EstateId estate,uint32_t native){
         if(!Enter())return {{},NativeAccess::Error::UnheldFence};
         try{
             if(!Open()){Leave();return {{},NativeAccess::Error::StaleLease};}
-            auto service=FreshAccess();if(!service){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
+            auto service=FreshAccess(this);if(!service){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
             auto result=service->Read(lease_,estate,native,*this);Leave();return result;
         }catch(...){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
     }
@@ -1208,7 +1219,7 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
         catch(...){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
         bool uncertain=false;
         try{
-            auto service=FreshAccess();if(!service){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
+            auto service=FreshAccess(this);if(!service){Leave();return {{},NativeAccess::Error::DatabaseFailure};}
             auto result=service->Replace(request,*this);
             uncertain=result.error==NativeAccess::Error::CommitUncertain||result.error==NativeAccess::Error::DatabaseFailure;
             if(!uncertain){Leave();return result;}
@@ -1216,7 +1227,7 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
         // No cache, packets, lifecycle transitions or callbacks while held.
         // Resolve this immutable request before admitting more simulation work.
         for(;;){
-            try{auto service=FreshAccess();if(service){auto result=service->Resolve(request,*this);
+            try{auto service=FreshAccess(this);if(service){auto result=service->Resolve(request,*this);
                 if(result.error!=NativeAccess::Error::DatabaseFailure&&result.error!=NativeAccess::Error::CommitUncertain){Leave();return result;}
             }}catch(...){}
             Wait();

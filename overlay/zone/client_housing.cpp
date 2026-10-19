@@ -297,8 +297,13 @@ bool InRange(Client* client,uint32_t static_id,float maximum){
 }
 void Client::SendHousingZoneCatalog(){ (void)SendHousingZoneCatalogChecked(); }
 bool Client::SendHousingZoneCatalogChecked(){
+ // Trusted quest handshake only; never admission or furnishing authority.
+ // Clear it on every refresh before proving the currently occupied interior.
+ DeleteEntityVariable("housing_verified_interior");
  try {
   auto view=LoadHousingView(this);if(!view)return false;
+  if(view->interior&&view->interior->house&&view->interior->house->interior)
+   SetEntityVariable("housing_verified_interior",std::to_string(zone->GetInstanceID()));
   LogInfo("Native housing catalog queued actor [{}] current estate [{}] zone [{}] instance [{}]",CharacterID(),view->root,zone->GetZoneID(),zone->GetInstanceID());
   // Encode everything before sending any cache-clearing catalog packet.
   std::vector<std::pair<EmuOpcode,std::vector<uint8_t>>> packets;

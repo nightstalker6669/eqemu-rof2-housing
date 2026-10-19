@@ -71,3 +71,8 @@ After the existing upkeep-cycle/full-property dependencies, review these migrati
 Apply the final provenance migration before enabling offline crate creation. It replaces the direct live-receipt foreign key with typed creation origins and backfills existing crates from genuine receipts. Review legacy crate integrity before migrating. Rebuild world and zone together for origin-aware readers/writers. These migrations do not activate automatic retirement globally; exact per-estate reviews and supported custody/content are required.
 
 See [property lifecycle details](../overlay/common/housing/property_lifecycle.md) for currency, ownership, capacity, session and pending-operation restrictions. The optional `common/housing/trophy_supported_catalogue.sql` is a separately reviewed compatibility profile, not a prerequisite or authentic complete item seed; its referenced stat items and identifiers must exist and be independently checked. Evolving trophy placement remains unsupported.
+
+
+## Guild Hall visitor quest override
+
+The source overlay installer does not copy quest files. If your `guildhall/player.lua` has the legacy unconditional unguilded-player boot, review and merge the separate [production quest override](../quest-overlay/guildhall/player.lua) into your active quest directory. Preserve unrelated local customizations and back up the current script. The override waits for the server-verified occupied-housing bootstrap; it retains the basic Guild Hall guild requirement. Deploy the matching C++ source and reload/restart quests together. See [interior Access editing](INTERIOR-ACCESS-2026-10-19.md).

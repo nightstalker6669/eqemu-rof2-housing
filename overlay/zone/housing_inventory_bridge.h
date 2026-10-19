@@ -31,7 +31,7 @@ bool IsRegisteredZoneThread() noexcept;
 // Synchronous bridge. No event-loop pumping, script calls, sends, retry callbacks
 // or Client lifecycle transitions while its barrier is held. A DB outage after
 // uncertain COMMIT intentionally blocks the simulation until durable resolution.
-class Bridge final : private NativePlotPurchase::Fence, private OwnershipTransfer::Authority, public HouseBinding::HouseApplicationProof, private TrophyBenefits::FavorAuthority {
+class Bridge final : private NativeAccess::InteriorSourcePolicy, private NativePlotPurchase::Fence, private OwnershipTransfer::Authority, public HouseBinding::HouseApplicationProof, private TrophyBenefits::FavorAuthority {
 public:
  OwnershipTransfer::Result<OwnershipTransfer::Receipt> InspectPersonalPlotTransfer(const std::string&,const std::array<uint8_t,EstateWire::PurchaseSize>&);
  OwnershipTransfer::Result<OwnershipTransfer::Receipt> TransferPersonalPlot(const std::string&,const std::array<uint8_t,EstateWire::PurchaseSize>&,const OwnershipTransfer::Source&);
@@ -127,6 +127,7 @@ private:
  bool MountSurfaceSelectedUnderTransaction(Database&,const LiveItems::Lease&,const LiveItems::InventoryRow&,const PlacementPolicy::Transform&,uint32_t,const LiveItems::InteriorMountContext*)const noexcept;
  bool ReturnAllowed(const LiveItems::InventoryRow&)const noexcept override;
  bool PlacementContextMatches(EstateId,uint32_t,uint16_t)const noexcept override;
+ bool ParentMatchesUnderTransaction(Database&,const LiveItems::Lease&,LiveItems::InventorySessionFence&,EstateId,uint32_t,uint16_t)const noexcept override;
  bool InteriorCoinSourceMatches(const LiveEscrow::InteriorSource&)const noexcept override;
  bool Applied(const LiveItems::Receipt&)const noexcept override;
  bool CurrencyMatches(const LiveEscrow::Currency&)const noexcept override;

@@ -10,7 +10,7 @@ Snapshot: October 18, 2026. This is an experimental source publication. Housing 
 | Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Full crate quantity acceptance still open |
 | Crates / houses | Stable identities and recovery; native furnished house-in-crate plot transfer, recipient unpack and retained interior entry | Fresh catalog crate definition/capacity gap; vault packing; same-plot/new-generation relocation |
 | Layouts | Native decoder and transactional mixed-source application/recovery | Complete original-client load-layout acceptance |
-| Guild housing | Guild ownership/ACL/current-membership checks, permanent interiors, source-bound routes and Guild Lobby left-door contract | Additional hall profiles/capacities, interior ACL editing and native delegated-character action matrix |
+| Guild housing | Guild ownership/ACL/current-membership checks, permanent interiors, source-bound routes and Guild Lobby left-door contract | Additional hall profiles/capacities and remaining native permission-operation matrix |
 | Trophies / anchors | Native messages, placement/source validation, benefits/billing/activation and transport machinery | Authentic benefit/cost/item classifications and full native gameplay acceptance |
 | Economy / lifecycle | Purchase, escrow/upkeep selection, retirement, durable receipts and recovery | Original paid wallet ordering/cadence/refunds/eviction/inactivity/guild dissolution |
 | Inventory safety | Session/writer fencing, raw-row preservation, atomic transactions, durable operation receipts, recovery/reconciliation | This is experimental software; fixture coverage is not a guarantee for arbitrary databases |
@@ -78,3 +78,8 @@ Bulk Unpack follow-up: the [storage handoff](BULK-UNPACK-2026-10-19.md) now unpa
 ## Guild access and Lobby routing follow-up
 
 The original left-door click entered the guild-owned permanent furnished hall; with that hall packed, it entered the separate basic fallback. Native `/leaverealestate` returned to the current parent plot. Current-authority role/grant/revocation checks passed and the original management window saved a Trustee grant that survived camp/login. See [guild access and routing](GUILD-ACCESS-ROUTING-2026-10-19.md) for capability masks, scope and remaining direct-Shed/interior-door/delegated-session limits. No new opcode, struct, schema or production code change was required.
+
+
+## Interior Access and unguilded visitors
+
+Interior Access edits now target the current parent plot under a separate verified interior source policy. A production guildhall quest override admits authenticated neighborhood visitors while retaining the basic hall guild gate. Representative native second-character Trustee placement/movement/pickup and same-session Add denial after administrative revocation passed. No new opcode, wire struct or migration was required. See [implementation, quest deployment and acceptance scope](INTERIOR-ACCESS-2026-10-19.md).

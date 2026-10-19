@@ -214,7 +214,7 @@ namespace Housing::NativeAccess {
             };
             return *found;
         }
-        Context Plot(Database& db,const LiveItems::Lease& lease,EstateId estate,uint32_t native,LiveItems::InventorySessionFence& fence)
+        Context Plot(Database& db,const LiveItems::Lease& lease,EstateId estate,uint32_t native,LiveItems::InventorySessionFence& fence,const InteriorSourcePolicy* interior=nullptr)
         {
             auto domain=Query(db,"SELECT owner_kind,owner_id,plot_id FROM housing_current_estates WHERE id="+std::to_string(estate)+" FOR UPDATE");
             if(domain.RowCount()!=1)throw Failure{
@@ -266,7 +266,7 @@ namespace Housing::NativeAccess {
             };
             auto rr=route.begin();
             const auto instance=Number(rr[2]);
-            if(!instance||instance>32000||Number(rr[0])!=Number(rr[3])||Number(rr[1])!=Number(rr[4])||Number(rr[5])!=1||Number(rr[6])!=neighborhood||root_definition.zone_id!=Number(rr[0])||!fence.PlacementContextMatches(estate,native,uint16_t(instance)))throw Failure{
+            if(!instance||instance>32000||Number(rr[0])!=Number(rr[3])||Number(rr[1])!=Number(rr[4])||Number(rr[5])!=1||Number(rr[6])!=neighborhood||root_definition.zone_id!=Number(rr[0])||(!fence.PlacementContextMatches(estate,native,uint16_t(instance))&&(!interior||!interior->ParentMatchesUnderTransaction(db,lease,fence,estate,native,uint16_t(instance)))))throw Failure{
                 Error::UnheldFence
             };
             Context out;
@@ -604,7 +604,7 @@ namespace Housing::NativeAccess {
             };
         }
     }
-    Service::Service(std::unique_ptr<Database> db,bool enabled):database_(std::move(db)),enabled_(enabled){}
+    Service::Service(std::unique_ptr<Database> db,bool enabled,const InteriorSourcePolicy* interior):database_(std::move(db)),enabled_(enabled),interior_(interior){}
     Result<Snapshot> Service::Read(const LiveItems::Lease& lease,EstateId estate,uint32_t native,LiveItems::InventorySessionFence& fence)
     {
         std::lock_guard<std::mutex> guard(mutex_);
@@ -628,7 +628,7 @@ namespace Housing::NativeAccess {
                 Error::NotFound
             };
             Authenticate(db,lease,true);
-            auto context=Plot(db,lease,estate,native,fence);
+            auto context=Plot(db,lease,estate,native,fence,interior_);
             const auto loaded=Load(db,context);
             Populate(context,loaded);
             if(!context.snapshot.actor_access.Allows(AccessPolicy::Capability::Manage))throw Failure{
@@ -686,7 +686,7 @@ namespace Housing::NativeAccess {
                 Error::NotFound
             };
             Authenticate(db,request.lease,true);
-            auto context=Plot(db,request.lease,request.estate_id,request.proposal.estate_id,fence);
+            auto context=Plot(db,request.lease,request.estate_id,request.proposal.estate_id,fence,interior_);
             const auto current=Load(db,context);
             Populate(context,current);
             if(context.snapshot.revision!=request.expected_revision)throw Failure{

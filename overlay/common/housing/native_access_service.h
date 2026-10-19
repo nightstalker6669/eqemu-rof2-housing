@@ -35,12 +35,21 @@ namespace Housing::NativeAccess {
         Snapshot committed;
         bool replayed = false;
     };
-    // Personal/guild exterior plots only. Dedicated exclusive connection, default
-    // disabled; no native packet bindings. Fellowship grants are typed/persisted but
+    // Personal/guild parent-plot ACLs, including a separately verified occupied
+    // interior source. Dedicated exclusive connection, default disabled.
+    // Fellowship grants are typed/persisted but
     // cannot elevate access without an authoritative membership adapter.
+    // Optional server-only occupied-interior proof. It grants only access to the
+    // current parent ACL, never a physical yard placement context.
+    class InteriorSourcePolicy {
+    public:
+        virtual ~InteriorSourcePolicy()=default;
+        virtual bool ParentMatchesUnderTransaction(Database&,const LiveItems::Lease&,
+            LiveItems::InventorySessionFence&,EstateId,uint32_t,uint16_t)const noexcept=0;
+    };
     class Service {
         public:
-        explicit Service(std::unique_ptr<Database>, bool enabled = false);
+        explicit Service(std::unique_ptr<Database>, bool enabled = false, const InteriorSourcePolicy* interior = nullptr);
         Result<Snapshot> Read(const LiveItems::Lease&, EstateId, uint32_t native_plot_id,
         LiveItems::InventorySessionFence&);
         Result<Receipt> Replace(const Request&, LiveItems::InventorySessionFence&);
@@ -53,6 +62,7 @@ namespace Housing::NativeAccess {
         private:
         std::unique_ptr<Database> database_;
         bool enabled_ = false;
+        const InteriorSourcePolicy* interior_ = nullptr;
         std::mutex mutex_;
     };
 }

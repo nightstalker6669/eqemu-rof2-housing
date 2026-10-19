@@ -5,6 +5,7 @@
 #include "../common/eqemu_config.h"
 #include "../common/rulesys.h"
 #include "../common/housing/permission_wire.h"
+#include "../common/housing/known_original_interior_zones.h"
 #include <openssl/rand.h>
 #include <cstring>
 
@@ -12,10 +13,20 @@ extern Zone* zone;
 bool SendHousingVotingPreferenceSnapshot(Client*,uint32_t);
 namespace {
 bool NativeMetadata(Client* client){
- return RuleB(Housing,EnablePlayerHousing)&&client->ClientVersion()==EQ::versions::ClientVersion::RoF2&&client->Connected()&&client->ClientDataLoaded()&&client->HasInventorySessionReservation()&&zone&&zone->GetZoneID()==712&&zone->GetInstanceID()!=0;
+ return RuleB(Housing,EnablePlayerHousing)&&client->ClientVersion()==EQ::versions::ClientVersion::RoF2&&client->Connected()&&client->ClientDataLoaded()&&client->HasInventorySessionReservation()&&zone&&zone->GetInstanceID()!=0&&(zone->GetZoneID()==712||Housing::OriginalInteriors::Matches(zone->GetZoneID(),zone->GetShortName()));
 }
-std::optional<Housing::EstateId> MetadataEstate(uint32_t native){
+std::optional<Housing::EstateId> MetadataEstate(Client* client,uint32_t& native,bool allow_interior=false){
  if(!native||native==UINT32_MAX)return {};
+ if(zone->GetZoneID()!=712){
+  if(!allow_interior)return {};
+  auto* bridge=client->GetHousingInventoryBridge();if(!bridge)return {};
+  auto room=bridge->ReadInteriorForManagement();
+  if(!room||!room.value.house||!room.value.house->interior||
+     (native!=room.value.context.native_plot_id&&native!=room.value.house->interior->native_estate_id))return {};
+  // Candidate identity only. The access service rechecks this exact occupied
+  // parent inside its own transaction under the held live Client fence.
+  native=room.value.context.native_plot_id;return room.value.context.estate_id;
+ }
  const auto* config=EQEmuConfig::get();if(!config)return {};
  Database db;if(!db.Connect(config->DatabaseHost,config->DatabaseUsername,config->DatabasePassword,config->DatabaseDB,config->DatabasePort,"housing-access-route"))return {};
  // This lookup supplies identity only. The service independently locks and
@@ -35,7 +46,7 @@ void MetadataSnapshot(Client* client,const Housing::NativeAccess::Snapshot& curr
  client->RememberHousingAclRevision(current.native_plot_id,current.revision);
 }
 void MetadataRestore(Client* client,Housing::InventoryBridge::Bridge* bridge,Housing::EstateId estate,uint32_t native){
- if(bridge&&estate){auto current=bridge->ReadAccess(estate,native);if(current){MetadataSnapshot(client,current.value);client->SendHousingPlacedScene();return;}}
+ if(bridge&&estate){auto current=bridge->ReadAccess(estate,native);if(current){MetadataSnapshot(client,current.value);if(zone&&zone->GetZoneID()!=712)client->SendHousingZoneCatalog();client->SendHousingPlacedScene();return;}}
  // The catalog display snapshot is read afresh, including revoked Manage. Never
  // echo a rejected proposal or the historical committed receipt as current ACL.
  client->SendHousingZoneCatalog();client->SendHousingPlacedScene();
@@ -47,10 +58,10 @@ void MetadataBroadcast() noexcept {
 }
 }
 void Client::Handle_OP_RealEstateVotingOptOut(const EQApplicationPacket* app){
- if(!NativeMetadata(this)||!app)return;
+ if(!NativeMetadata(this)||!app||zone->GetZoneID()!=712)return;
  try{
   const auto request=Housing::EstateWire::DecodeVotingOptOut(app->pBuffer,app->size);if(!request)return;
-  const auto estate=MetadataEstate(request->estate_id);auto* bridge=GetHousingInventoryBridge();
+  auto native=request->estate_id;const auto estate=MetadataEstate(this,native);auto* bridge=GetHousingInventoryBridge();
   if(!estate||!bridge){SendHousingVotingPreferenceSnapshot(this,request->estate_id);return;}
   const auto result=bridge->SetVotingOptOut(*estate,request->estate_id,request->opted_out);
   // Native6573 has no recovered acknowledgement. Publish the fresh63fd state;
@@ -72,8 +83,9 @@ void Client::Handle_OP_RealEstateMetadata(const EQApplicationPacket* app){
  try{
   if(!app||app->size<4){SendHousingZoneCatalog();return;}
   native=Housing::NeighborhoodWire::Detail::Read32(app->pBuffer);
-  auto resolved=MetadataEstate(native);if(!resolved){SendHousingZoneCatalog();SendHousingPlacedScene();return;}estate=*resolved;
+  auto resolved=MetadataEstate(this,native,true);if(!resolved){SendHousingZoneCatalog();SendHousingPlacedScene();return;}estate=*resolved;
   bridge=GetHousingInventoryBridge();auto proposal=Housing::PermissionWire::DecodeEdit(app->pBuffer,app->size);auto revision=HousingAclRevision(native);
+  if(proposal)proposal->estate_id=native;
   if(!bridge||!proposal||!revision){MetadataRestore(this,bridge,estate,native);return;}
   Housing::NativeAccess::Request request;request.request_key=MetadataKey();request.estate_id=estate;request.expected_revision=*revision;request.proposal=std::move(*proposal);
   auto outcome=bridge->ReplaceAccess(std::move(request));
