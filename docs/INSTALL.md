@@ -80,3 +80,7 @@ The source overlay installer does not copy quest files. If your `guildhall/playe
 ## Same-plot ownership recovery
 
 After026, apply the one-time034 relocation-ledger ALTER while housing writers are stopped, then deploy the matching world and zone builds. It retains legacy cross-plot history and adds explicit ownership-generation evidence for same-parent recovery. See [deployment and acceptance scope](SAME-PLOT-RECOVERY-2026-10-19.md).
+
+### Optional existing personal-catalog crate transition
+
+Schema035 creates an empty maintenance journal and does not activate content. The one-shot `CatalogCrateUpgrade` API requires a reviewed exact previous catalog/native graph, original content witnesses and stopped writers; it coherently advances current item/interior/purchase-policy bindings. Do not bypass the normal `Catalog::Import` managed-interior refusal or directly edit a bootstrap under existing houses. See [transition instructions and limits](CRATE-CATALOG-CAPACITY-2026-10-19.md).

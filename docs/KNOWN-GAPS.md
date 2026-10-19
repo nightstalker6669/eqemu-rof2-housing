@@ -12,7 +12,7 @@ Internal ServerOP_Housing messages are emulator coordination, not recovered Live
 
 ## Crates and lifecycle
 
-- The newest experimental personal catalog lacks crate definition 174 and its allowed-child entry. Its capacity policy also conflates a house with total estate children. Merely increasing that limit could allow multiple houses and is not an acceptable fix.
+- The older experimental personal catalog now includes reviewed crate174 through an explicit managed-content transition. Stored houses no longer consume the crate allocator's placed-child count; independent house/crate limits remain enforced. See [catalog repair and capacity scope](CRATE-CATALOG-CAPACITY-2026-10-19.md).
 - The existing occupied-property path rejects nonplaceable vault payloads rather than fully packing them. The draft successor is not in this export.
 - The same-plot ownership-generation relocation fix now has native Move Out, returned-crate placement, Unpack, house restoration and original-room entry evidence. Ownership re-acquisition was administrative; native repurchase/debit/economics remain unverified. See [same-plot recovery](SAME-PLOT-RECOVERY-2026-10-19.md).
 - Complete original inactive-owner eviction, guild dissolution, refunds and overflow delivery rules remain unfinished.

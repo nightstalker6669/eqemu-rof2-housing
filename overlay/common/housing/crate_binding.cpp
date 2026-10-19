@@ -273,7 +273,10 @@ static LiveItems::Result<Binding> BindPlacedUnderTransaction(Database& db,const 
    if(!out.crate_id||out.revision!=1||out.custody_id!=custody_id||out.item_template_id!=r.expected.values.item_id||out.parent_native_estate_id!=reserved.native_estate_id||out.estate_id!=r.estate_id||out.definition_id!=definition||out.catalog_key!=reserved.catalog_key||out.catalog_revision!=revision||N(e[3])!=r.lease.actor.character_id||N(e[4])||N(e[6])!=2||Unhex(e[5])!=std::vector<uint8_t>(digest.begin(),digest.end())||!e[14]||std::string(e[14])!="crate:"+std::to_string(out.crate_id)||N(e[15])!=1)Bad(Error::Conflict);
    return {out,Error::None};
   }
-  auto children=Q(db,"SELECT COUNT(*) FROM housing_native_estates WHERE parent_native_id="+std::to_string(reserved.native_estate_id)+" AND active=1 FOR UPDATE");if(children.RowCount()!=1||N(children.begin()[0])>=plot->max_children)Bad(Error::Conflict);
+  // Permanent rooms survive house storage and are not placed plot children.
+  // Keep unknown/orphan nodes in the count; exclude only an exact managed
+  // house whose location/storage proves it is currently off the yard.
+  auto children=Q(db,"SELECT COUNT(*) FROM housing_native_estates n WHERE n.parent_native_id="+std::to_string(reserved.native_estate_id)+" AND n.active=1 AND NOT EXISTS (SELECT 1 FROM housing_house_interiors i JOIN housing_house_locations l ON l.house_id=i.house_id LEFT JOIN housing_live_item_storage s ON s.custody_id=l.custody_id WHERE i.native_estate_id=n.native_id AND (l.location_kind=1 OR (l.location_kind=2 AND (s.stowed=1 OR EXISTS (SELECT 1 FROM housing_crate_members m WHERE m.custody_id=l.custody_id))))) FOR UPDATE");if(children.RowCount()!=1||N(children.begin()[0])>=plot->max_children)Bad(Error::Conflict);
   if(!CratePropertyLimit::AvailableUnderTransaction(db,r.estate_id,carried?carried->binding.crate_id:0))Bad(Error::Conflict);
   if(!m[5])Bad(Error::DatabaseFailure);const auto per_estate=std::stoll(m[5]);if(per_estate>0){auto count=Q(db,"SELECT COUNT(*) FROM housing_crate_estates e JOIN housing_crate_locations l ON l.crate_id=e.crate_id WHERE e.parent_native_estate_id="+std::to_string(reserved.native_estate_id)+" AND l.location_kind=2 FOR UPDATE");if(count.RowCount()!=1||N(count.begin()[0])>=uint64_t(per_estate))Bad(Error::Conflict);}
   if(carried){
