@@ -3,6 +3,7 @@
 #include "offline_property_delivery_db.h"
 #include "offline_direct_return_db.h"
 #include "return_settlement_db.h"
+#include "crate_vault_members_db.h"
 #include <map>
 namespace Housing::OfflineReturnBatch {
 using Status=InactivityRetirement::Status;
@@ -94,7 +95,12 @@ inline Status RetireBatch(Database& db,uint32_t estate,uint32_t now,bool guild){
   // Validate old exterior containers before changing any membership, then
   // redistribute each original member to its own creator's return bin.
   std::map<uint64_t,bool> original_stowed;
-  for(const auto& s:captured.sources)if(s.crate_id){auto inspected=LiveItems::Service::InspectCustodyUnderTransaction(db,s.custody_id);Require(bool(inspected),Status::Deferred);auto box=CrateBinding::ReadPlacedUnderTransaction(db,inspected.value);Require(box&&box.value.binding.parent_native_estate_id==a.native&&box.value.binding.estate_id==estate&&box.value.created_by_character_id==s.owner_character_id,Status::Deferred);auto valid=CrateBinding::ValidateMembersUnderTransaction(db,box.value);Require(bool(valid),Status::Deferred);auto members=Q(db,"SELECT custody_id,origin_house_id,origin_stowed FROM housing_crate_members WHERE crate_id="+Id(s.crate_id)+" ORDER BY custody_id FOR UPDATE");for(auto m=members.begin();m!=members.end();++m){Require(!m[1],Status::Deferred);original_stowed[N(m[0])]=N(m[2])!=0;}Q(db,"DELETE FROM housing_crate_members WHERE crate_id="+Id(s.crate_id));if(valid.value)One(db,"UPDATE housing_crate_instances SET revision=revision+1 WHERE crate_id="+Id(s.crate_id)+" AND revision="+Id(box.value.binding.revision));}
+  for(const auto& s:captured.sources)if(s.crate_id){auto inspected=LiveItems::Service::InspectCustodyUnderTransaction(db,s.custody_id);Require(bool(inspected),Status::Deferred);auto box=CrateBinding::ReadPlacedUnderTransaction(db,inspected.value);Require(box&&box.value.binding.parent_native_estate_id==a.native&&box.value.binding.estate_id==estate&&box.value.created_by_character_id==s.owner_character_id,Status::Deferred);auto valid=CrateBinding::ValidateMembersUnderTransaction(db,box.value);Require(bool(valid),Status::Deferred);auto vaults=CrateVault::Read(db,box.value);
+   // Validate every typed member before detaching either kind. Direct returns
+   // may consume a vault source only after its containing crate is accounted for.
+   for(const auto& v:vaults){auto source=std::find_if(captured.sources.begin(),captured.sources.end(),[&](const auto& x){return x.custody_id==v.stored.custody_id;});Require(source!=captured.sources.end()&&source->owner_character_id==s.owner_character_id&&source->row_blob==CustodyCodec::Encode(v.stored.row),Status::Deferred);}
+   if(!vaults.empty()){auto detached=Q(db,"DELETE FROM housing_crate_vault_members WHERE crate_id="+Id(s.crate_id));Require(detached.RowsAffected()==vaults.size(),Status::Conflict);}
+   auto members=Q(db,"SELECT custody_id,origin_house_id,origin_stowed FROM housing_crate_members WHERE crate_id="+Id(s.crate_id)+" ORDER BY custody_id FOR UPDATE");for(auto m=members.begin();m!=members.end();++m){Require(!m[1],Status::Deferred);original_stowed[N(m[0])]=N(m[2])!=0;}Q(db,"DELETE FROM housing_crate_members WHERE crate_id="+Id(s.crate_id));if(valid.value)One(db,"UPDATE housing_crate_instances SET revision=revision+1 WHERE crate_id="+Id(s.crate_id)+" AND revision="+Id(box.value.binding.revision));}
   std::vector<ReturnSettlement::Disposition> dispositions;std::vector<Unit> units;
   for(const auto& s:captured.sources){
    auto row=CustodyCodec::Decode(s.row_blob);Require(CustodyCodec::Valid(row)&&row.values.character_id==s.owner_character_id);

@@ -15,7 +15,7 @@ Internal ServerOP_Housing messages are emulator coordination, not recovered Live
 - The older experimental personal catalog now includes reviewed crate174 through an explicit managed-content transition. Stored houses no longer consume the crate allocator's placed-child count; independent house/crate limits remain enforced. See [catalog repair and capacity scope](CRATE-CATALOG-CAPACITY-2026-10-19.md).
 - Vault-aware mixed packing and occupied personal Move Out are now included with migration036. Native Move Out, loaded-crate placement, bulk Unpack and ordinary vault retrieval passed for a representative stack. Individual Inventory/Crate/Shed controls and partial quantities are now implemented and representatively client-accepted for an owned placed personal-yard crate; carried-crate editing and the delegated/guild/interior matrix remain unaccepted. See [individual vault controls](INDIVIDUAL-VAULT-CRATE-2026-10-19.md). Automatic generated-crate vault returns and the guild/foreign-owner matrix remain separately unaccepted. See [vault scope](VAULT-MOVE-OUT-2026-10-19.md).
 - The same-plot ownership-generation relocation fix now has native Move Out, returned-crate placement, Unpack, house restoration and original-room entry evidence. Ownership re-acquisition was administrative; native repurchase/debit/economics remain unverified. See [same-plot recovery](SAME-PLOT-RECOVERY-2026-10-19.md).
-- Complete original inactive-owner eviction, guild dissolution, refunds and overflow delivery rules remain unfinished.
+- Supported personal/guild mixed-owner offline retirement, exact copper refunds and guarded dissolution are implemented. Existing exterior crates containing typed nonplaceables now participate in the atomic return path; see [retirement and returns](RETIREMENT-RETURNS.md). Complete historical rules, unsupported custody and parcel overflow remain unfinished.
 
 ## Interior versus parent-yard presentation
 
@@ -34,7 +34,7 @@ A representative personal loaded-crate/furnished-house round trip across plots, 
 
 ## Content and economics
 
-Original numeric data is not inferred from modern Live or illustrative help examples. Remaining unknowns include per-template vault/NPC capacities, some guild-hall capacities, original tariffs/upkeep/currency ordering and trophy benefits/costs. The candidate ledger contains42 source candidates and90 tiers, with35 specific later cost observations (34 undisputed) and55 unpriced tiers. None is an authenticated May2013 catalogue record. See [candidate data](../protocol/trophy-catalogue-candidates.json); it is not deployable original content. Some published manifests/policies deliberately disable unknown categories; those technical limits must not be advertised as historical rules.
+Every personal and guild plot now has a positive approximate purchase and daily upkeep tariff, including an explicit custom-address fallback. Those usable emulator defaults are distinct from authenticated original numeric data. Remaining unknowns include per-template vault/NPC capacities, some guild-hall capacities, original tariffs/upkeep/currency ordering and trophy benefits/costs. The candidate ledger contains42 source candidates and90 tiers, with35 specific later cost observations (34 undisputed) and55 unpriced tiers. None is an authenticated May2013 catalogue record. See [candidate data](../protocol/trophy-catalogue-candidates.json); it is not deployable original content. Some published manifests/policies deliberately disable unknown categories; those technical limits must not be advertised as historical rules.
 
 The Standard guild hall uses the accepted basic guild-hall interior geometry but a separate persistent housing instance. This does not imply the ordinary Guild Lobby fallback hall supports neighborhood furnishing.
 
@@ -45,7 +45,7 @@ Completion requires end-to-end original-client acceptance for personal and guild
 
 ## Updated lifecycle boundary
 
-Single-small-crate personal-yard automatic generation, offline return, refund and native unpack/retrieval are now implemented and representatively accepted. This does not close multi-container overflow, guild/foreign-owner/vault returns, complete retirement of arbitrary furnishings, missing historical billing policy, alternate currencies or partial affordability. Final tradeskill trophies remain rejected as evolving items; reconstructed catalogue rows do not remedy that custody limitation.
+Single-small-crate personal-yard automatic generation, offline return, refund and native unpack/retrieval have representative acceptance. Mixed-owner multi-bin returns and direct vault delivery have the separately documented service/native evidence in [mixed returns](MIXED-RETURNS-2026-10-18.md). The typed existing-crate follow-up has isolated service evidence. Parcel overflow, complete retirement of arbitrary furnishings, missing historical billing policy, alternate currencies and partial affordability remain open. Final tradeskill trophies remain rejected as evolving items; reconstructed catalogue rows do not remedy that custody limitation.
 
 
 ## Guild routing and access follow-up

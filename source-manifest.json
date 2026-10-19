@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 10172,
-      "sha256": "c705777a08d5be2eb3d6068b47bec5cac5029134f786323ed25b0848ce86240b"
+      "bytes": 10349,
+      "sha256": "c6bdbb7a7843ac9778e8073c9c3bd5fc31273529a0248b2b0f602f835ed3ffbc"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -76,8 +76,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 7084,
-      "sha256": "ac2af65ba472bf1687bfadbec67dc675696ff1634e03430bda45f90dc7dfe69e"
+      "bytes": 7622,
+      "sha256": "30c2a5f843325033ea8a2b2b2d4324275920e05ff06952c4d4fdd03c209dbff7"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -88,6 +88,11 @@
       "path": "docs/OVERDUE-INACTIVITY-2026-10-18.md",
       "bytes": 5238,
       "sha256": "cff62fd8914dfdf6d6eb13cee325a0b848ef89ded681e6b482c9bf85f30f61d1"
+    },
+    {
+      "path": "docs/RETIREMENT-RETURNS.md",
+      "bytes": 2732,
+      "sha256": "2f851b8ca33ba2487bbda672284b178fba7c97d7f6399ee06e654da1b1fa75c6"
     },
     {
       "path": "docs/SAME-PLOT-RECOVERY-2026-10-19.md",
@@ -901,8 +906,8 @@
     },
     {
       "path": "overlay/common/housing/offline_direct_return_db.h",
-      "bytes": 23053,
-      "sha256": "44a1d32d67e9333b4d0f8553f55adbf1e910b8255911b71f3abbac0dfb34db30"
+      "bytes": 23307,
+      "sha256": "a0e912c13fc9d73940381bfe77f25d261b4897d24aa66a85e75acaa88a200a0d"
     },
     {
       "path": "overlay/common/housing/offline_property_delivery_db.h",
@@ -911,13 +916,13 @@
     },
     {
       "path": "overlay/common/housing/offline_return_batch_db.h",
-      "bytes": 23290,
-      "sha256": "ad5d147a8d45e1bd416fc55a8091de5568744e85f2808751fe0c6f5b9ca5575b"
+      "bytes": 24046,
+      "sha256": "80519cca45382991c245874df09b87dd7bdf051f755e6857a513620eb5f3d327"
     },
     {
       "path": "overlay/common/housing/offline_return_batches.md",
-      "bytes": 4706,
-      "sha256": "149b249515131267e2b4684b854e0e66de46e9222bf1709352b7210d2b613236"
+      "bytes": 6127,
+      "sha256": "17bf25c5cce20bb9ce1c67e55373004f5047c15549589e21f078ba4f139408c1"
     },
     {
       "path": "overlay/common/housing/ownership_transfer_service.cpp",
@@ -1006,8 +1011,8 @@
     },
     {
       "path": "overlay/common/housing/return_settlement_db.h",
-      "bytes": 34620,
-      "sha256": "b0e8a273094fcf694c1de3fd7ee99166848dd986302442dcd8d69ee52e85325a"
+      "bytes": 35145,
+      "sha256": "495494d84d1f8f0cfe22ab71e57dbc36ffda2b75e492d65c22c480a64670fa08"
     },
     {
       "path": "overlay/common/housing/reviewed_crate_runtime.h",

@@ -15,3 +15,27 @@ An immutable conservation seal is written last in the same transaction, after al
 Guild dissolution now accepts such settled historical cargo only when the full seal, recipient provenance, current safe custody/container path or genuine completed whole-item Return journal validates. It does not freeze later inventory slots, guild leadership or lawful whole-item movement. Corrupt/partial proofs, extra unaccounted source custody and unresolved applications still block disbanding. Unsupported later partial-stack lineage, certified-death Return reconciliation and destroyed typed containers remain conservative refusal cases. Older occupied returns without a complete source seal are not retroactively certified.
 
 No client opcode or packet layout changes are required. The combined private actual-SQL case used a genuine Standard Guild Hall with its permanent room, two contributors, a foreign-origin room object, a17-count vault stack, yard furniture and a capacity-one review forcing three generated crates. It exercised full-inventory refusal, a second-recipient receipt fault, a final conservation-seal fault, normal GUID assignment/typed crate reload, exact refund, and actual guarded guild deletion. These are SQL/reload checks, not a new native multi-recipient client-playthrough claim. Test fixtures and logs are not publication content.
+
+## Existing crates containing nonplaceable items
+
+Retirement now traverses typed nonplaceable membership as well as physical
+crate membership when capturing the complete property. A supported exterior
+crate is validated against both member classes before any membership is
+removed. Every packed vault source must occur in the captured source graph
+with its unchanged row and original owner. Detachment, rightful direct item
+return, empty original crate return, generated furniture bins, escrow refund,
+ownership release and settlement remain one transaction.
+
+The original crate keeps its identity and creator. Nonplaceable items return
+their full quantities and canonical metadata to their original owners; they
+are not converted to placed furniture or copied into the guild leader's
+inventory. Direct return primitives refuse a source that is still a typed
+crate member, so callers cannot leave dangling membership by deleting custody.
+The existing optional migration036 supplies the membership table; its absence
+preserves older physical-only deployments. A malformed/nontransactional table
+refuses the operation.
+
+`ReturnSettlement::VerifyUnderTransaction` can verify a sealed personal or
+guild return against an explicit owner kind and ID. The existing guild-only
+entry point remains restricted to guild ownership for dissolution. This does
+not generate missing historical proofs or grant new retirement authority.
