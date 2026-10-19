@@ -77,9 +77,13 @@ Bulk Unpack follow-up: the [storage handoff](BULK-UNPACK-2026-10-19.md) now unpa
 
 ## Guild access and Lobby routing follow-up
 
-The original left-door click entered the guild-owned permanent furnished hall; with that hall packed, it entered the separate basic fallback. Native `/leaverealestate` returned to the current parent plot. Current-authority role/grant/revocation checks passed and the original management window saved a Trustee grant that survived camp/login. See [guild access and routing](GUILD-ACCESS-ROUTING-2026-10-19.md) for capability masks, scope and remaining direct-Shed/interior-door/delegated-session limits. No new opcode, struct, schema or production code change was required.
+The original left-door click entered the guild-owned permanent furnished hall; with that hall packed, it entered the separate basic fallback. Native `/leaverealestate` returned to the current parent plot. Current-authority role/grant/revocation checks passed and the original management window saved a Trustee grant that survived camp/login. See [guild access and routing](GUILD-ACCESS-ROUTING-2026-10-19.md) for capability masks, scope and the historical direct-Shed/interior-door/delegated-session limits; the direct-Shed profile is extended below. No new opcode, struct, schema or production code change was required.
 
 
 ## Interior Access and unguilded visitors
 
 Interior Access edits now target the current parent plot under a separate verified interior source policy. A production guildhall quest override admits authenticated neighborhood visitors while retaining the basic hall guild gate. Representative native second-character Trustee placement/movement/pickup and same-session Add denial after administrative revocation passed. No new opcode, wire struct or migration was required. See [implementation, quest deployment and acceptance scope](INTERIOR-ACCESS-2026-10-19.md).
+
+## Direct furnished-building Shed storage
+
+Unoccupied creator-owned reviewed houses/halls can now move directly to Shed while retaining their permanent room and complete furnishing graph. Native inside refusal, exterior Shed, immediate storage listing and one-building Load Yard restoration passed on a furnished Standard Guild Hall. Exact persisted house/room/item/pose conservation passed. The client closed before a fresh re-entry observation; it is not newly claimed. Occupancy and pending-work safeguards passed private transaction checks. No opcode, struct or migration was added. See [implementation and acceptance limits](DIRECT-HOUSE-SHED-2026-10-19.md).

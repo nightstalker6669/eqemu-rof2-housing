@@ -1749,14 +1749,18 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
    }else{auto target=FurniturePlot(this,*view,*shown->second,source.estate_id);if(!target){FurnitureResult(this,23);return;}read=bridge->ReadScene(target->node.ownership_estate_id);}
    if(!read||read.value.native_plot_id!=source.estate_id){FurnitureResult(this,23);return;}
    auto item=std::find_if(read.value.items.begin(),read.value.items.end(),[&](const auto& i){return i.stored.placement&&i.stored.placement->reservation.native_item_id==source.item_id;});
-   if(item==read.value.items.end()||item->house||!Housing::InventoryBridge::MatchesProjection(item->stored.row,*shown->second)){FurnitureResult(this,9);return;}
+   if(item==read.value.items.end()||!Housing::InventoryBridge::MatchesProjection(item->stored.row,*shown->second)){FurnitureResult(this,9);return;}
    auto prior=session.storage_requests.find(incoming);
    if(prior!=session.storage_requests.end()&&(!prior->second.exterior||prior->second.exterior->catalog_revision!=read.value.current_catalog_revision||prior->second.expected_pose_revision!=item->stored.placement->pose_revision||(!item->stored.stowed&&prior->second.expected_storage_revision!=item->stored.storage_revision))){session.storage_requests.erase(prior);prior=session.storage_requests.end();}
-   if(item->stored.stowed&&prior==session.storage_requests.end()){FurnitureResult(this,0);FurnitureBroadcastScenes();return;}
+   if(item->stored.stowed&&prior==session.storage_requests.end()){FurnitureResult(this,0);FurnitureBroadcastScenes(bool(item->house));return;}
    if(prior==session.storage_requests.end()){
     Housing::InteriorStorage::Request request;request.request_key=FurnitureKey("shed:");request.parent_yard=parent;request.exterior=Housing::InteriorStorage::ExteriorContext{read.value.estate_id,read.value.native_plot_id,read.value.current_catalog_revision,read.value.route};request.custody_id=item->stored.custody_id;request.native_item_id=source.item_id;request.expected_pose_revision=item->stored.placement->pose_revision;request.expected_storage_revision=item->stored.storage_revision;prior=session.storage_requests.emplace(std::move(incoming),std::move(request)).first;
    }
-   auto result=bridge->ChangeStorage(prior->second);if(!result){FurnitureResult(this,1);return;}FurnitureResult(this,0);FurnitureBroadcastScenes();return;
+   auto result=bridge->ChangeStorage(prior->second);if(!result){FurnitureResult(this,1);return;}
+   // Native Escape cancels locally; a successful Shed transition supersedes
+   // any retained preview for this exact item. Failed writes retain retries.
+   if(session.move&&session.move->before.custody_id==item->stored.custody_id)session.move.reset();
+   FurnitureResult(this,0);FurnitureBroadcastScenes(bool(item->house));return;
   }
   auto fresh=yard_room?bridge->ReadAttachedInterior(yard_room->context.estate_id,yard_room->house->house_id):bridge->ReadInterior();if(!fresh||!fresh.value.house||!fresh.value.house->interior||fresh.value.house->interior->native_estate_id!=source.estate_id){FurnitureResult(this,23);return;}
   auto item=std::find_if(fresh.value.contents.begin(),fresh.value.contents.end(),[&](const auto& i){return i.stored.placement&&i.stored.placement->reservation.native_item_id==source.item_id;});

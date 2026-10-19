@@ -6,6 +6,7 @@
 #include "crate_binding.h"
 #include "crate_member_scope_db.h"
 #include "house_binding_service.h"
+#include "house_shed_storage.h"
 #include "interior_item_content_db.h"
 #include "npc_runtime_db.h"
 #include "custody_codec.h"
@@ -57,7 +58,21 @@ Receipt ChangeChecked(Database& db,const Request& r,LiveItems::InventorySessionF
    if(yard_scene){
     const auto& members=r.crate_member?yard_scene->crate_contents:yard_scene->items;
     auto item=std::find_if(members.begin(),members.end(),[&](const auto& i){return i.stored.custody_id==r.custody_id;});
-    if(item==members.end()||(item->house&&!r.crate_member&&!r.placement)||item->crate||!item->metadata||!item->geometry)throw Failure{Error::UnsupportedItem};
+    if(item==members.end()||item->crate||!item->metadata||!item->geometry)throw Failure{Error::UnsupportedItem};
+    if(item->house&&!r.placement&&!r.crate_member){
+     // Direct building Shed storage is an exterior creator operation. The
+     // permanent room and every scope remain attached to the stable HouseID.
+     const auto& h=*item->house;const auto& s=item->stored;
+     if(r.parent_yard||!house||!profile||!h.interior||!h.pending_key.empty()||
+        h.location.kind!=HouseBinding::Location::Kind::Custody||h.location.custody_id!=s.custody_id||
+        h.item_template_id!=s.row.values.item_id||s.row.values.character_id!=r.lease.actor.character_id)
+      throw Failure{Error::Unauthorized};
+     auto attached=Scene::Service::ReadAttachedInteriorUnderTransaction(db,r.lease,yard_scene->estate_id,h.house_id,fence,*house,profile,true,crates);
+     if(!attached)throw Failure{attached.error};
+     if(!attached.value.house||attached.value.house->house_id!=h.house_id||attached.value.house->revision!=h.revision)
+      throw Failure{Error::Conflict};
+     auto quiet=HouseShedStorage::QuiescentUnderTransaction(db,attached.value);if(quiet!=Error::None)throw Failure{quiet};
+    }
     if(item->house&&r.placement){
      // Scene authentication proves the retained house/route under this lease.
      // A stored house restores that identity; it does not allocate another room.
