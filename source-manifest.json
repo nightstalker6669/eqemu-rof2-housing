@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9564,
-      "sha256": "c9833279b1ff0beee36abc7106e7418dab92dd7114b6775721c3cc54d9d6fd41"
+      "bytes": 9691,
+      "sha256": "44fcaf0dcfb6bcc82902bc68588f3ca5d31fe179b0b9c6b5064aee86fb086df6"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -61,8 +61,8 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 7806,
-      "sha256": "c2f20c8ff3ee75888bd78aff5e7989e752f286ab575f819caad4735195913540"
+      "bytes": 8603,
+      "sha256": "a7c86b69bfa2def5534386815970cf5cf359cf2f12adb966571bae571520b7e9"
     },
     {
       "path": "docs/INTERIOR-ACCESS-2026-10-19.md",
@@ -71,8 +71,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 6553,
-      "sha256": "d50aed908c7f4df9bedee76ef6fad090fa5652cb802332e425ffdb83bd00b779"
+      "bytes": 6887,
+      "sha256": "fb9d883ced6dc505d446bdbb870fd2aab76235616c0fa495fcc3793144f3b736"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -91,8 +91,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 14765,
-      "sha256": "dc02f33e2fdec912ab104f3dcb3fb7fffcedf4fd0b683f4303e36c24ccbc1946"
+      "bytes": 15591,
+      "sha256": "4ff3f5b45217e86593eaf3750b3046b58589386f65a778b2427c21a82f01e3d4"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
@@ -103,6 +103,11 @@
       "path": "docs/UPDATES-2026-10-18.md",
       "bytes": 9527,
       "sha256": "16d67dc56ec4e40e83f98f3ab848dc205d6afa5449fa91f57ebcad07a534d4a8"
+    },
+    {
+      "path": "docs/VAULT-MOVE-OUT-2026-10-19.md",
+      "bytes": 4317,
+      "sha256": "970711a9b7b2a910ddd846f4adec46b85170f3657f9438247dd01d1862aca117"
     },
     {
       "path": "overlay/common/housing/README.md",
@@ -166,8 +171,8 @@
     },
     {
       "path": "overlay/common/housing/crate_binding.cpp",
-      "bytes": 70554,
-      "sha256": "e221901951bbc0bd454f9cea1aa934467fe0eabdd959e0759b2fe6913a690b0b"
+      "bytes": 72176,
+      "sha256": "dbdf3bb7ad6a03e2e858c04b8349507eb8221baf0ff38d1ceb2749f537d23275"
     },
     {
       "path": "overlay/common/housing/crate_binding.h",
@@ -236,13 +241,18 @@
     },
     {
       "path": "overlay/common/housing/crate_storage_service.cpp",
-      "bytes": 27169,
-      "sha256": "91f259eb3e862c7e06e9038a7d6d75280b3f13260ff53ef4a196bf3fb80f3067"
+      "bytes": 36443,
+      "sha256": "94cb12c4d6371e9aa53d5598d504f3c12c1e8b0b09aac662c7564d081f70c838"
     },
     {
       "path": "overlay/common/housing/crate_storage_service.h",
-      "bytes": 3208,
-      "sha256": "068f3832db1e3a682264248a2230b054cf5acbad7cf2f6f9fb3c3eedf9a271b4"
+      "bytes": 3326,
+      "sha256": "277f1a1f172a5b930573b78a6be0e75e1e2a76b4514cd12f15f0d51ae349576a"
+    },
+    {
+      "path": "overlay/common/housing/crate_vault_members_db.h",
+      "bytes": 7714,
+      "sha256": "0bfcfd8b73237d486b29417102e9981c32b163811afca89474fcea425fdb995d"
     },
     {
       "path": "overlay/common/housing/current_estate_access.cpp",
@@ -721,8 +731,8 @@
     },
     {
       "path": "overlay/common/housing/layout_property_operations_db.h",
-      "bytes": 62278,
-      "sha256": "dac4bf7501fcdda4df0e4ff0b1bf7390f17533c80a5d344cb3fc2076c6ff23fc"
+      "bytes": 62341,
+      "sha256": "771204a26a502ee723fbfc0410dd4e6c628b4422778835dd2a375f10ccb190e1"
     },
     {
       "path": "overlay/common/housing/layout_property_outcome_db.h",
@@ -806,8 +816,8 @@
     },
     {
       "path": "overlay/common/housing/neighborhood_directory_db.h",
-      "bytes": 15578,
-      "sha256": "05b65991e5f8a4610cfbd2e159b5df0fca23cc4e966403215de5bae28ac1aae6"
+      "bytes": 16098,
+      "sha256": "38e47acd475843bc714c34c04a72723f3aeb941bc11a1477f0e6254338787984"
     },
     {
       "path": "overlay/common/housing/neighborhood_wire.h",
@@ -861,8 +871,8 @@
     },
     {
       "path": "overlay/common/housing/occupied_move_out_db.h",
-      "bytes": 17277,
-      "sha256": "0ffab025556ed2881ed7c53e7027cae0f066d4b1a64378c688f2b46cdd015a5f"
+      "bytes": 18188,
+      "sha256": "f3397d12a22fab5d332f6ca7462c4a7034fa78b4f0b3a09e33bf7819c57a61f2"
     },
     {
       "path": "overlay/common/housing/occupied_parent_yard.h",
@@ -871,8 +881,8 @@
     },
     {
       "path": "overlay/common/housing/occupied_retirement_authority.h",
-      "bytes": 5054,
-      "sha256": "121ef1a749e1a1f592a8d638d56fa0ec254b8d4fb62c433b481858614cd34213"
+      "bytes": 5391,
+      "sha256": "e93384a17a458b9101aab835aea9772e54e7c55cc624683cfc8eea9b7c8a80f0"
     },
     {
       "path": "overlay/common/housing/offline_direct_return.md",
@@ -1011,13 +1021,13 @@
     },
     {
       "path": "overlay/common/housing/scene_service.cpp",
-      "bytes": 98357,
-      "sha256": "443e4f97d12f38006215d7334c07eb09cc06c12f59f86636919c8f9290768982"
+      "bytes": 98776,
+      "sha256": "2a81702d6f367c7898a4be6d98bdcd90d1caf4297671ac8a88613212d87658f6"
     },
     {
       "path": "overlay/common/housing/scene_service.h",
-      "bytes": 14197,
-      "sha256": "d14553fcdb89d9101b6a471bc310eb806fbc3c5237d900b2e4badac380d1a963"
+      "bytes": 14233,
+      "sha256": "8194ee1d3df8ddbf243b2328eca284ebb6139362c668ca2b37a9120755a3caa9"
     },
     {
       "path": "overlay/common/housing/stack_partition_application.h",
@@ -1161,13 +1171,13 @@
     },
     {
       "path": "overlay/common/housing/vault_storage.h",
-      "bytes": 292,
-      "sha256": "9523e2d78c611216eaa9d84815dcdaebba13647922c51c532a895e409164ba1d"
+      "bytes": 371,
+      "sha256": "fee08ce346693218fb8aeed8c61aa82e1345999b15f2a51bff6d18acf7705c29"
     },
     {
       "path": "overlay/common/housing/vault_storage_db.h",
-      "bytes": 12363,
-      "sha256": "d6d79cdfc00da62b614f7668e676e46be3fd7731baa4ce4b62536fd0cad4694b"
+      "bytes": 15722,
+      "sha256": "9209fde76c955af99a3fcc9e86fff29b1b883757b23d17d61355d391523bc1cd"
     },
     {
       "path": "overlay/utils/sql/git/optional/2026_10_16_housing_npc_frames.sql",
@@ -1350,6 +1360,11 @@
       "sha256": "ab66b081ddb6fd4e2ea3b6fb0a0918ac502359cf412b0b212fc79eaf76e0f09e"
     },
     {
+      "path": "overlay/utils/sql/housing/036_crate_vault_members.sql",
+      "bytes": 655,
+      "sha256": "c42ba4aa0c59460ebdde58b49a0e197f73317ab1b85a4c1418d3d8836499fdb0"
+    },
+    {
       "path": "overlay/utils/sql/optional/2026_10_16_housing_native_guild_plot_purchase.sql",
       "bytes": 389,
       "sha256": "c1eebc6f333ac413bd14fc24044e09b87664de5645cf28ba5a9b817c8be070df"
@@ -1491,8 +1506,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 210099,
-      "sha256": "bc9c99062bbf8a637081789a8f1b1471b642e69e33fb100118ccee4cbcf18375"
+      "bytes": 210670,
+      "sha256": "48c9a451deaa6e3942556d0d6c23837570c5797cde3b8ef6cf59f1c733591826"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",

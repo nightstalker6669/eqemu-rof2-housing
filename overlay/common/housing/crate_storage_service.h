@@ -13,13 +13,14 @@ struct Request {
  std::optional<RoomContext> room;
  std::optional<LiveItems::OccupiedParentContext> parent_yard; // Current occupied room authority for its yard.
  bool to_crate=true;
+ bool vault=false; // Typed list-only source; pose_revision must be0, storage_revision is vault CAS.
  bool restore_original=true; // Explicit original-state restore; bulk Unpack and Move-to-Shed keep it stored.
 };
 struct Receipt {
  uint64_t crate_id=0,custody_id=0,crate_revision=0,storage_revision=0;
  bool replayed=false;
 };
-struct BatchMember {uint64_t custody_id=0,pose_revision=0,storage_revision=0;};
+struct BatchMember {uint64_t custody_id=0,pose_revision=0,storage_revision=0;bool vault=false;};
 struct BatchRequest {
  std::string request_key;LiveItems::Lease lease;
  EstateId estate_id=0;uint32_t native_plot_id=0;uint64_t catalog_revision=0;Route source;

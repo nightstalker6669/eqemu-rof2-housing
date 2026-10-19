@@ -8,6 +8,7 @@
 #include <set>
 #include "scene_service.h"
 #include "vault_storage_db.h"
+#include "crate_vault_members_db.h"
 #include "crate_binding.h"
 #include "interior_profile_db.h"
 #include "interior_item_content_db.h"
@@ -311,6 +312,7 @@ InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route sou
     }
    }
    out.vault_items=VaultStorage::Items(db,context.estate_id,interior.native_estate_id,binding.house_id);
+   for(const auto& c:out.contents)if(c.crate&&!c.stored.stowed){auto vaults=CrateVault::Read(db,*c.crate);out.crate_vault_items.insert(out.crate_vault_items.end(),vaults.begin(),vaults.end());}
    if(out.room_profile&&out.contents.size()>out.room_profile->definition.max_items)throw Failure{Error::Conflict};
    for(const auto& member:out.crate_contents)if(std::none_of(out.contents.begin(),out.contents.end(),[&](const auto& entry){return entry.crate&&entry.crate->binding.crate_id==member.contained_in_crate;}))throw Failure{Error::Conflict};
    return out;
@@ -450,6 +452,7 @@ if(!ItemStorage::Locked(db,s.custody_id).stowed&&!PlacementPolicy::Check(context
  if(member){if(item.crate||!storage.revision||!storage.stowed||member->origin_native_estate_id!=out.native_plot_id||member->origin_pose!=Unhex(row[7]))throw Failure{Error::Conflict};item.contained_in_crate=member->crate_id;item.crate_membership=std::make_shared<const CrateMemberScope::Membership>(*member);out.crate_contents.push_back(std::move(item));}
  else out.items.push_back(std::move(item));}
  out.vault_items=VaultStorage::Items(db,estate,out.native_plot_id);
+ for(const auto& c:out.items)if(c.crate&&!c.stored.stowed){auto vaults=CrateVault::Read(db,*c.crate);out.crate_vault_items.insert(out.crate_vault_items.end(),vaults.begin(),vaults.end());}
  // Retained contents may belong to a placed crate or its exact carried
  // inventory identity. Carried contents disappear from this plot's visible
  // snapshot, while their immutable custody/pose and crate membership persist.

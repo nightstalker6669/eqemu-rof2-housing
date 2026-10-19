@@ -685,7 +685,7 @@ std::optional<FurnitureScene> FurnitureReadScene(Client* c,Session& session,Hous
 // Every mutation resolves the actual room again in the common service.
 std::optional<Housing::Scene::Snapshot> FurnitureRoomCrateSnapshot(const Housing::Scene::InteriorSnapshot& room){
  if(!room.house||!room.house->interior||!room.room_profile||!room.profile_revision||room.room_profile->house_id!=room.house->house_id||room.room_profile->native_estate_id!=room.house->interior->native_estate_id)return {};
- Housing::Scene::Snapshot out;out.estate_id=room.context.estate_id;out.native_plot_id=room.house->interior->native_estate_id;out.current_catalog_revision=room.context.catalog_revision;out.acl_revision=room.access.acl_revision;out.access=room.access.effective;out.route=room.exterior_source.value_or(room.context.source);out.definition=room.room_profile->definition;out.region=room.room_profile->region;out.additional_regions=room.room_profile->additional_regions;out.vault_items=room.vault_items;
+ Housing::Scene::Snapshot out;out.estate_id=room.context.estate_id;out.native_plot_id=room.house->interior->native_estate_id;out.current_catalog_revision=room.context.catalog_revision;out.acl_revision=room.access.acl_revision;out.access=room.access.effective;out.route=room.exterior_source.value_or(room.context.source);out.definition=room.room_profile->definition;out.region=room.room_profile->region;out.additional_regions=room.room_profile->additional_regions;out.vault_items=room.vault_items;out.crate_vault_items=room.crate_vault_items;
  for(bool contained:{false,true})for(const auto& entry:contained?room.crate_contents:room.contents){
   if(!entry.room||entry.room->house_id!=room.house->house_id||!entry.stored.placement||entry.stored.placement->reservation.native_estate_id!=out.native_plot_id||bool(entry.contained_in_crate)!=contained)return {};
   Housing::Scene::Item item;item.stored=entry.stored;item.creator_name=entry.creator_name;item.crate=entry.crate;item.contained_in_crate=entry.contained_in_crate;(contained?out.crate_contents:out.items).push_back(std::move(item));
@@ -703,6 +703,7 @@ std::optional<FurnitureScene> FurnitureReadCrateScene(Client* c,Session& session
   auto display=stored;display.placement->reservation.native_estate_id=scene.estate;
   auto bytes=FurnitureEntry(c,display,*cached->second,&entry.creator_name,entry.house.get());if(bytes.size()>65523||!scene.entries.emplace(id,std::move(bytes)).second)return {};
  }
+ std::vector<Housing::VaultStorage::Item> vaults;for(const auto& original:yard.crate_vault_items)if(original.contained_in_crate==binding.crate_id){auto display=original;display.native_estate_id=scene.estate;vaults.push_back(std::move(display));}if(!FurnitureVaultEntries(session,scene,vaults))return {};
  FurnitureFinalizeList(scene);
  session.attached_crates[scene.estate]=binding;return scene;
 }
@@ -1427,6 +1428,7 @@ void Client::Handle_OP_RealEstatePack(const EQApplicationPacket* app){
     if(!item.stored.placement){FurnitureResult(this,1);return;}
     request.members.push_back({item.stored.custody_id,item.stored.placement->pose_revision,item.stored.storage_revision});
    }
+   for(const auto& item:packing?selected->vault_items:selected->crate_vault_items){if(!packing&&item.contained_in_crate!=request.crate_id)continue;request.members.push_back({item.stored.custody_id,0,item.revision,true});}
    if(request.members.empty()){FurnitureResult(this,11);return;}
    std::sort(request.members.begin(),request.members.end(),[](const auto& a,const auto& b){return a.custody_id<b.custody_id;});session.crate_batch=std::move(request);
   }

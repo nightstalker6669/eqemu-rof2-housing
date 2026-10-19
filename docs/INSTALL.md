@@ -84,3 +84,10 @@ After026, apply the one-time034 relocation-ledger ALTER while housing writers ar
 ### Optional existing personal-catalog crate transition
 
 Schema035 creates an empty maintenance journal and does not activate content. The one-shot `CatalogCrateUpgrade` API requires a reviewed exact previous catalog/native graph, original content witnesses and stopped writers; it coherently advances current item/interior/purchase-policy bindings. Do not bypass the normal `Catalog::Import` managed-interior refusal or directly edit a bootstrap under existing houses. See [transition instructions and limits](CRATE-CATALOG-CAPACITY-2026-10-19.md).
+
+
+## Vault-aware moving crates
+
+Apply additive migration036 after the existing vault/crate schema, while housing writers are stopped. It creates an empty typed membership table; it does not seed items, activate retirement policies or rewrite existing physical members. Back up the database first. Deploy coherent world, zone and any inventory-recovery binaries linked to the same rebuilt common library: the internal scene/request structures changed. Do not run an older recovery CLI against the new build. Shared item data and client wire structs are unchanged by this milestone.
+
+Without036 legacy non-vault behavior remains available; vault packing refuses rather than discarding contents. Do not remove the table while it has members. See [vault Move Out scope](VAULT-MOVE-OUT-2026-10-19.md).

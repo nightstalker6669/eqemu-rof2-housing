@@ -1,14 +1,14 @@
 # Status at publication
 
-Snapshot: October 18, 2026. This is an experimental source publication. Housing remains incomplete; representative original-client acceptance is distinguished from implementation and static protocol recovery.
+Snapshot: October 19, 2026. This is an experimental source publication. Housing remains incomplete; representative original-client acceptance is distinguished from implementation and static protocol recovery.
 
 | Area | Implementation / evidence | Remaining limit |
 |---|---|---|
 | Neighborhoods / ownership | Catalogs, regions, instancing, ownership and access services; native marker/inspection/purchase success | Complete original neighborhood content/economics and remote navigation matrix |
 | Personal house | Native merchant purchase, placement/persistence/interior entry; native furnished same-plot Swap Houses with contents moved to replacement storage | All house variants/capacities are not independently client-accepted |
 | Furniture | Scene/custody/geometry/storage; representative native wall cycle and closet-stored floor chair listing/placement/pickup; valid room survives optional yard-read refusal | Full floor/ceiling, curved/rotated and nonzero-centre behavior |
-| Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Full crate quantity acceptance still open |
-| Crates / houses | Stable identities and recovery; native furnished house-in-crate plot transfer, recipient unpack and retained interior entry | Vault packing; native repurchase/economics for same-plot recovery |
+| Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Native full-stack vault Move Out/unpack/retrieval passed; direct packed-member quantity controls remain open |
+| Crates / houses | Stable identities and recovery; native furnished house-in-crate plot transfer, recipient unpack and retained interior entry | Additional guild/foreign/automatic-vault returns; native repurchase/economics for same-plot recovery |
 | Layouts | Native decoder and transactional mixed-source application/recovery | Complete original-client load-layout acceptance |
 | Guild housing | Guild ownership/ACL/current-membership checks, permanent interiors, source-bound routes and Guild Lobby left-door contract | Additional hall profiles/capacities and remaining native permission-operation matrix |
 | Trophies / anchors | Native messages, placement/source validation, benefits/billing/activation and transport machinery | Authentic benefit/cost/item classifications and full native gameplay acceptance |
@@ -26,7 +26,7 @@ Snapshot: October 18, 2026. This is an experimental source publication. Housing 
 
 ## Unfinished work excluded from the implementation export
 
-The fresh personal crate catalog/capacity migration, vault-aware occupied packing successor, and faithful full floor-query integration remain separate unfinished work. Automatic personal-yard packing/creation is now included with the explicit supported limits below. They are documented as gaps, not published as completed implementation. No suites, fixtures, test reports, logs, accounts, private database contents, or original binary disassembly are included.
+The personal crate catalog/capacity transition and vault-aware occupied packing successor are now included in the October19 follow-ups below. Faithful full floor-query integration remains unfinished. Automatic personal-yard packing/creation is now included with the explicit supported limits below. They are documented as gaps, not published as completed implementation. No suites, fixtures, test reports, logs, accounts, private database contents, or original binary disassembly are included.
 
 
 ## October 18 additions
@@ -95,3 +95,8 @@ The furnished-crate relocation writer/reader and migration034 now distinguish a 
 ## Personal catalog crate capacity
 
 The older personal house-choice catalog received an explicit reviewed crate174/child-budget transition while preserving both permanent interiors and all current item bindings. The allocator excludes retained stored-house rooms from placed-child capacity while keeping the independent one-house and property-wide one-crate limits. Native inventory Place, immediate crate listing/capacity, pickup back to inventory and normal entry to the unchanged existing interior passed on a plot with one house placed and another stored. See [administrative transition, evidence and limits](CRATE-CATALOG-CAPACITY-2026-10-19.md).
+
+
+## Vault-aware occupied packing
+
+Migration036 and the typed list-only vault-member path now support mixed physical/vault packing and occupied personal Move Out. Native Move Out, retained loaded-crate placement, immediate member listing, bulk Unpack and ordinary retrieval of the complete17-item stack passed. Exact content custody bytes and the original furnished-house room were conserved; native Load Yard and normal Enter reached that original room. Ownership re-acquisition was administrative; per-item controls on still-packed vault members and automatic/guild/foreign variants remain separate limits. See [implementation, deployment and evidence scope](VAULT-MOVE-OUT-2026-10-19.md).

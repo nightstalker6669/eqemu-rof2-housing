@@ -23,7 +23,7 @@ struct ExteriorExitContext {ExitContext parent;RegionWire::Region region;std::op
 struct Admission { uint64_t house_id=0;uint32_t native_house_id=0;Route destination;std::array<float,4> spawn{},exit{}; };
 struct LobbyAdmission { uint32_t guild_id=0;std::optional<Admission> admission; };
 struct InteriorContent {LiveItems::Stored stored;uint64_t scope_revision=0;std::string creator_name;std::optional<LiveItems::InteriorReservation> room;std::shared_ptr<const CrateBinding::Allocation> crate;uint64_t contained_in_crate=0;std::shared_ptr<const CrateMemberScope::Membership> crate_membership;};
-struct InteriorSnapshot {std::shared_ptr<const HouseBinding::Binding> house;ExitContext context;CurrentEstateAccess access;std::optional<Admission> exit;std::vector<InteriorContent> contents,crate_contents;std::vector<VaultStorage::Item> vault_items;std::shared_ptr<const Housing::InteriorContent::Profile> room_profile;uint64_t profile_revision=0;std::optional<Route> exterior_source;};
+struct InteriorSnapshot {std::shared_ptr<const HouseBinding::Binding> house;ExitContext context;CurrentEstateAccess access;std::optional<Admission> exit;std::vector<InteriorContent> contents,crate_contents;std::vector<VaultStorage::Item> vault_items,crate_vault_items;std::shared_ptr<const Housing::InteriorContent::Profile> room_profile;uint64_t profile_revision=0;std::optional<Route> exterior_source;};
 class HouseScenePolicy {
 public:
  virtual ~HouseScenePolicy()=default;
@@ -77,7 +77,7 @@ public:
    Database&,LiveItems::InventorySessionFence&,const LiveItems::Lease&,
    const Snapshot&,const Item&)const {return std::nullopt;}
 };
-struct Snapshot { EstateId estate_id=0;uint32_t native_plot_id=0;uint64_t acl_revision=0;Route route;AccessPolicy::EffectiveAccess access;std::vector<Item> items;uint64_t current_catalog_revision=0;std::optional<Admission> admission;EstateWire::Definition definition;RegionWire::Region region;std::vector<Item> crate_contents;std::vector<VaultStorage::Item> vault_items;std::vector<RegionWire::Region> additional_regions; };
+struct Snapshot { EstateId estate_id=0;uint32_t native_plot_id=0;uint64_t acl_revision=0;Route route;AccessPolicy::EffectiveAccess access;std::vector<Item> items;uint64_t current_catalog_revision=0;std::optional<Admission> admission;EstateWire::Definition definition;RegionWire::Region region;std::vector<Item> crate_contents;std::vector<VaultStorage::Item> vault_items,crate_vault_items;std::vector<RegionWire::Region> additional_regions; };
 // Current read only. Enter authorizes visibility; no inventory ownership transfer.
 // Caller supplies genuine held lease and main-thread current route proof.
 class Service {

@@ -1,5 +1,6 @@
 #ifndef EQEMU_HOUSING_LAYOUT_PROPERTY_OPERATIONS_DB_H
 #define EQEMU_HOUSING_LAYOUT_PROPERTY_OPERATIONS_DB_H
+#include "vault_storage_db.h"
 #include "layout_wire.h"
 #include "rent_state_db.h"
 #include "crate_storage_service.h"
@@ -178,7 +179,7 @@ inline uint64_t SplitDestinationCount(Database& db,const Views& views,bool room,
   // or nontransactional vault schema must never become free capacity.
   auto tables=Query(db,"SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('housing_live_vault_items','housing_live_vault_transfers')");
   if(tables.RowCount()){if(tables.RowCount()!=2)throw Failure{Error::DatabaseFailure};for(auto row=tables.begin();row!=tables.end();++row)if(!row[0]||std::string(row[0])!="InnoDB")throw Failure{Error::DatabaseFailure};
-   auto used=Query(db,"SELECT COUNT(*) FROM housing_live_vault_items v JOIN housing_live_placement_reservations r ON r.native_item_id=v.native_item_id WHERE r.native_estate_id="+std::to_string(target)+" AND r.state=1 FOR UPDATE");if(used.RowCount()!=1||!used.begin()[0])throw Failure{Error::DatabaseFailure};vault=std::stoull(used.begin()[0]);
+   auto used=Query(db,"SELECT COUNT(*) FROM housing_live_vault_items v JOIN housing_live_placement_reservations r ON r.native_item_id=v.native_item_id WHERE r.native_estate_id="+std::to_string(target)+" AND r.state=1"+VaultStorage::Uncontained(db)+" FOR UPDATE");if(used.RowCount()!=1||!used.begin()[0])throw Failure{Error::DatabaseFailure};vault=std::stoull(used.begin()[0]);
   }
  }
  return (room?views.room->contents.size():views.yard.items.size())+vault;

@@ -6,6 +6,7 @@
 #include "crate_storage_service.h"
 #include "crate_binding.h"
 #include "vault_storage_db.h"
+#include "crate_vault_members_db.h"
 #include "custody_codec.h"
 #include "live_escrow_service.h"
 #include <type_traits>
@@ -56,9 +57,10 @@ inline LiveItems::Result<LiveItems::Receipt> Execute(Database& db,bool enabled,c
   if(Q(db,"SELECT estate_id FROM housing_estate_retirements WHERE request_key="+Quote(db,r.key)+" FOR UPDATE").RowCount())throw Failure{Error::Conflict};
   Empty(db,"SELECT request_key FROM housing_live_item_receipts WHERE request_key="+Quote(db,r.key));
   auto view=Scene::Service::ReadSceneUnderTransaction(db,r.lease,r.estate_id,fence,scene_policy,&crates);if(!view)throw Failure{view.error};
-  // Vault payloads need their own aggregate occupied-return witness. Never
-  // silently pack a house whose vault contents this operation cannot prove.
-  if(VaultStorage::Installed(db))Empty(db,"SELECT v.custody_id FROM housing_live_vault_items v LEFT JOIN housing_house_locations h ON h.house_id=v.house_id AND h.location_kind=2 LEFT JOIN housing_live_placed_items p ON p.custody_id=h.custody_id LEFT JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id WHERE (v.house_id IS NULL AND v.realm_estate_id="+std::to_string(r.estate_id)+") OR (v.house_id IS NOT NULL AND r.native_estate_id="+std::to_string(r.native_plot_id)+" AND r.state=1)");
+  // All yard vault rows must be freshly visible under their own immutable
+  // creator/payload witness. Existing direct packed rows remain covered by the
+  // actual container validator; house vaults retain their same house scopes.
+  if(VaultStorage::Installed(db)){auto vaults=Q(db,"SELECT custody_id FROM housing_live_vault_items v WHERE v.house_id IS NULL AND v.realm_estate_id="+std::to_string(r.estate_id)+VaultStorage::Uncontained(db)+" FOR UPDATE");if(vaults.RowCount()!=view.value.vault_items.size())throw Failure{Error::Conflict};}
   // Original Move Out help permits the owner to leave at any time. Keep
   // validating rent schema/identity while retaining its unchanged history;
   // the exception belongs only to this fully retiring aggregate.
@@ -88,12 +90,12 @@ inline LiveItems::Result<LiveItems::Receipt> Execute(Database& db,bool enabled,c
   // Original6435: a different carried/banked nonempty crate prevents sale.
   // Bank location adapters are not installed; all typed location_kind1 records
   // are conservatively checked, and unbound bank crate templates deny below.
-  auto carried=Q(db,"SELECT l.crate_id FROM housing_crate_locations l WHERE l.location_kind=1 AND l.character_id="+std::to_string(r.lease.actor.character_id)+" AND EXISTS (SELECT 1 FROM housing_crate_members m WHERE m.crate_id=l.crate_id) FOR UPDATE");if(carried.RowCount())throw Failure{Error::Conflict};
+  auto carried=Q(db,"SELECT l.crate_id FROM housing_crate_locations l WHERE l.location_kind=1 AND l.character_id="+std::to_string(r.lease.actor.character_id)+" AND (EXISTS (SELECT 1 FROM housing_crate_members m WHERE m.crate_id=l.crate_id)"+(VaultStorage::CrateMembersInstalled(db)?" OR EXISTS (SELECT 1 FROM housing_crate_vault_members vm WHERE vm.crate_id=l.crate_id)":"")+") FOR UPDATE");if(carried.RowCount())throw Failure{Error::Conflict};
   Empty(db,"SELECT h.house_id FROM housing_house_locations h WHERE h.location_kind=1 AND h.character_id="+std::to_string(r.lease.actor.character_id)+" AND EXISTS (SELECT 1 FROM housing_house_item_scopes s WHERE s.house_id=h.house_id)");
   auto bank=Q(db,"SELECT slot_id FROM inventory WHERE character_id="+std::to_string(r.lease.actor.character_id)+" AND slot_id BETWEEN "+std::to_string(EQ::invslot::BANK_BEGIN)+" AND "+std::to_string(EQ::invbag::BANK_BAGS_END)+" AND item_id IN (52147,61823,61824,61825,61826,61827,61828,61829,61830,61831,61832,61833,61834,61835,61836,61837,61838,61839,61840,61841,61842,61843,61844,61845,61846,61847,61848,61849,61850,61851,61852,61853,61854,61855,61856,61857,61858,61859,61860,61861,61862,61863,61864,61865,61866,61867,61868,61869,61870,61871,61872,61873,61874,61875,61876,61877,61878,61879,61880,61881,61882,61883,61884,61885,61886,61887,61888,61889,61890,61891,61892,61893,61894,61895,61896,61897,61898,61899,61900,61901,61902,61903,61904,61905,61906,61907,61908,61909,61910,61911,61912,61913,61914,61915,61916,61917,61918,61919,61920,61921,61922,61923,61924,61925,61926,61927,61928,61929,61930,61931,61932,61933,61934,61935,61936,61937,61938,61939,61940,61941,61942,66618,66619,66620,66660,62586,62587,62588,62589,62590,62591,62592,62593,62594,62595,62596) FOR UPDATE");if(bank.RowCount())throw Failure{Error::UnsupportedItem};
   // Reject unsupported inputs before creating the transaction-only authority.
   for(const auto& item:view.value.items)if(item.stored.custody_id!=crate->stored.custody_id&&(!item.stored.placement||item.crate))throw Failure{Error::UnsupportedItem};
-  if(uint64_t(view.value.items.size()-1)>=UINT64_MAX-crate->crate->binding.revision)throw Failure{Error::Conflict};
+  if(uint64_t(view.value.items.size()-1+view.value.vault_items.size())>=UINT64_MAX-crate->crate->binding.revision)throw Failure{Error::Conflict};
   OccupiedRetirement::Authority retirement(db,r.lease,r.key,r.estate_id,r.native_plot_id,request.destination_slot,view.value,*crate);
   uint64_t revision=crate->crate->binding.revision;const auto crate_id=crate->crate->binding.crate_id;
   unsigned index=0;
@@ -103,10 +105,11 @@ inline LiveItems::Result<LiveItems::Receipt> Execute(Database& db,bool enabled,c
    CrateStorage::Request pack;pack.request_key=r.key+":pack"+std::to_string(index++);pack.lease=r.lease;pack.estate_id=r.estate_id;pack.native_plot_id=r.native_plot_id;pack.catalog_revision=view.value.current_catalog_revision;pack.source=view.value.route;pack.crate_id=crate_id;pack.crate_revision=revision;pack.custody_id=item.stored.custody_id;pack.pose_revision=item.stored.placement->pose_revision;pack.storage_revision=item.stored.storage_revision;
    auto moved=CrateStorage::Service::PackForRetirementUnderTransaction(db,true,pack,fence,retirement,crates,scene_policy,rooms);if(!moved)throw Failure{moved.error};revision=moved.value.crate_revision;
   }
+  for(const auto& item:view.value.vault_items){CrateStorage::Request pack;pack.request_key=r.key+":pack"+std::to_string(index++);pack.lease=r.lease;pack.estate_id=r.estate_id;pack.native_plot_id=r.native_plot_id;pack.catalog_revision=view.value.current_catalog_revision;pack.source=view.value.route;pack.crate_id=crate_id;pack.crate_revision=revision;pack.custody_id=item.stored.custody_id;pack.storage_revision=item.revision;pack.vault=true;auto moved=CrateStorage::Service::PackForRetirementUnderTransaction(db,true,pack,fence,retirement,crates,scene_policy,rooms);if(!moved)throw Failure{moved.error};revision=moved.value.crate_revision;}
   // Every old-origin custody must be the container, its direct member, or an
   // interior item of a house retained as a direct member. No deletion, owner
   // rewrite or furnished-room flattening can make this proof succeed.
-  Empty(db,"SELECT c.custody_id FROM housing_live_item_custody c WHERE c.estate_id="+std::to_string(r.estate_id)+" AND c.custody_id<>"+std::to_string(crate->stored.custody_id)+" AND NOT EXISTS (SELECT 1 FROM housing_crate_members m WHERE m.crate_id="+std::to_string(crate_id)+" AND m.custody_id=c.custody_id) AND NOT EXISTS (SELECT 1 FROM housing_house_item_scopes s JOIN housing_house_locations h ON h.house_id=s.house_id AND h.location_kind=2 JOIN housing_crate_members m ON m.custody_id=h.custody_id WHERE s.custody_id=c.custody_id AND m.crate_id="+std::to_string(crate_id)+")");
+  Empty(db,"SELECT c.custody_id FROM housing_live_item_custody c WHERE c.estate_id="+std::to_string(r.estate_id)+" AND c.custody_id<>"+std::to_string(crate->stored.custody_id)+" AND NOT EXISTS (SELECT 1 FROM housing_crate_members m WHERE m.crate_id="+std::to_string(crate_id)+" AND m.custody_id=c.custody_id)"+(VaultStorage::CrateMembersInstalled(db)?" AND NOT EXISTS (SELECT 1 FROM housing_crate_vault_members vm WHERE vm.crate_id="+std::to_string(crate_id)+" AND vm.custody_id=c.custody_id)":"")+" AND NOT EXISTS (SELECT 1 FROM housing_house_item_scopes s JOIN housing_house_locations h ON h.house_id=s.house_id AND h.location_kind=2 JOIN housing_crate_members m ON m.custody_id=h.custody_id WHERE s.custody_id=c.custody_id AND m.crate_id="+std::to_string(crate_id)+")");
   Empty(db,"SELECT n.native_id FROM housing_native_estates n WHERE n.parent_native_id="+std::to_string(r.native_plot_id)+" AND n.active=1 AND n.native_id<>"+std::to_string(crate->crate->binding.native_estate_id)+" AND NOT EXISTS (SELECT 1 FROM housing_house_interiors i JOIN housing_house_locations h ON h.house_id=i.house_id AND h.location_kind=2 JOIN housing_crate_members m ON m.custody_id=h.custody_id WHERE i.native_estate_id=n.native_id AND m.crate_id="+std::to_string(crate_id)+")");
   Empty(db,"SELECT sessions.character_id FROM housing_crate_members m JOIN housing_house_locations h ON h.location_kind=2 AND h.custody_id=m.custody_id JOIN housing_house_interiors i ON i.house_id=h.house_id JOIN housing_inventory_sessions sessions ON sessions.zone_id=i.zone_id AND sessions.instance_id=i.instance_id AND sessions.active=1 WHERE m.crate_id="+std::to_string(crate_id));
   Empty(db,"SELECT storage.custody_id FROM housing_live_item_storage storage WHERE storage.native_estate_id="+std::to_string(r.native_plot_id)+" AND storage.custody_id<>"+std::to_string(crate->stored.custody_id)+" AND NOT EXISTS (SELECT 1 FROM housing_crate_members member WHERE member.crate_id="+std::to_string(crate_id)+" AND member.custody_id=storage.custody_id)");

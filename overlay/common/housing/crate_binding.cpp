@@ -1,5 +1,6 @@
 #include "crate_binding.h"
 #include "crate_creation_origin_db.h"
+#include "crate_vault_members_db.h"
 #include "crate_foreign_member_policy_db.h"
 #include "crate_house_rules.h"
 #include "crate_property_limit.h"
@@ -92,9 +93,9 @@ LiveItems::Result<uint32_t> ValidateMembersUnderTransaction(Database& db,const A
   auto tx=Q(db,"SELECT @@in_transaction");if(tx.RowCount()!=1||N(tx.begin()[0])!=1)Bad(Error::InvalidArgument);
   CrateCreationOrigin::Validate(db,a.creation_request_key,a.created_by_character_id);EncodeAllocation(a);const auto& b=a.binding;
   auto ids=Q(db,"SELECT custody_id FROM housing_crate_members WHERE crate_id="+std::to_string(b.crate_id)+" ORDER BY custody_id LIMIT 1001 FOR UPDATE");
-  if(!ids.RowCount())return {0,Error::None};if(ids.RowCount()>1000)Bad(Error::UnsupportedItem);
+  auto vaults=CrateVault::Read(db,a,true);if(!ids.RowCount()&&vaults.empty())return {0,Error::None};if(ids.RowCount()+vaults.size()>1000)Bad(Error::UnsupportedItem);
   if(a.inventory_character_id&&a.inventory_character_id!=a.created_by_character_id)Bad(Error::Conflict);
-  auto definition=ReadDefinitionUnderTransaction(db,a);if(!definition)Bad(definition.error);if(ids.RowCount()>definition.value.max_items)Bad(Error::Conflict);
+  auto definition=ReadDefinitionUnderTransaction(db,a);if(!definition)Bad(definition.error);if(ids.RowCount()+vaults.size()>definition.value.max_items||vaults.size()>definition.value.max_non_estate_items)Bad(Error::Conflict);
   auto members=Q(db,"SELECT m.custody_id,m.revision,m.origin_native_estate_id,m.origin_house_id,HEX(m.origin_pose_blob),m.origin_stowed,c.estate_id,c.owner_character_id,c.schema_descriptor,HEX(c.row_blob),p.native_item_id,p.pose_revision,HEX(p.pose_blob),r.native_estate_id,r.estate_id,r.state,r.custody_id,s.revision,s.stowed,s.native_estate_id,r.character_id,HEX(r.source_row),r.catalog_key FROM housing_crate_members m LEFT JOIN housing_live_item_custody c ON c.custody_id=m.custody_id LEFT JOIN housing_live_placed_items p ON p.custody_id=c.custody_id LEFT JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id LEFT JOIN housing_live_item_storage s ON s.custody_id=c.custody_id WHERE m.crate_id="+std::to_string(b.crate_id)+" ORDER BY m.custody_id FOR UPDATE");
   if(members.RowCount()!=ids.RowCount())Bad(Error::Conflict);
   std::vector<CrateHouseRules::House> houses;
@@ -114,6 +115,9 @@ LiveItems::Result<uint32_t> ValidateMembersUnderTransaction(Database& db,const A
     auto binding=Q(db,"SELECT h.house_id,h.revision,h.item_template_id,h.created_by_character_id,h.pending_request_key,i.native_estate_id,i.catalog_key,i.catalog_revision,n.parent_native_id,n.active,n.catalog_key,n.definition_id,i.definition_id,instance.zone,i.zone_id,instance.version,i.zone_version,instance.never_expires FROM housing_house_locations l JOIN housing_house_instances h ON h.house_id=l.house_id JOIN housing_house_interiors i ON i.house_id=h.house_id JOIN housing_native_estates n ON n.native_id=i.native_estate_id JOIN instance_list instance ON instance.id=i.instance_id WHERE l.location_kind=2 AND l.custody_id="+std::to_string(N(row[0]))+" FOR UPDATE");
     if(binding.RowCount()!=1)Bad(Error::Conflict);auto h=binding.begin();for(size_t j=0;j<18;++j)if(j!=4&&!h[j])Bad(Error::Conflict);
     if(!N(h[0])||!N(h[1])||N(h[2])!=source.values.item_id||N(h[3])!=a.created_by_character_id||h[4]||!N(h[5],UINT32_MAX)||N(h[5])==UINT32_MAX||std::string(h[6])!=b.catalog_key||N(h[7])!=b.catalog_revision||N(h[8])!=b.parent_native_estate_id||N(h[9])!=1||std::string(h[10])!=b.catalog_key||N(h[11])!=N(h[12])||N(h[13])!=N(h[14])||N(h[15])!=N(h[16])||N(h[17])!=1)Bad(Error::Conflict);
+    // A contained furnished house retains its own typed vault scope. Validate
+    // all non-placeable payloads rather than flattening them into direct members.
+    if(VaultStorage::Installed(db)){auto vault=VaultStorage::Items(db,uint32_t(N(row[6])),uint32_t(N(h[5])),N(h[0]),{true,true,false});auto expected=Q(db,"SELECT COUNT(*) FROM housing_live_vault_items WHERE house_id="+std::to_string(N(h[0]))+" FOR UPDATE");if(expected.RowCount()!=1||N(expected.begin()[0])!=vault.size())Bad(Error::Conflict);for(const auto& item:vault)if(item.stored.row.values.character_id!=a.created_by_character_id){auto pending=Q(db,"SELECT pending_key FROM housing_live_item_leases WHERE character_id="+std::to_string(item.stored.row.values.character_id)+" FOR UPDATE");if(pending.RowCount()&&pending.begin()[0])Bad(Error::PendingApplication);}}
     houses.push_back(CrateHouseRules::LockedHouse(db,N(h[0])));
    }
    auto scoped=HouseItemScope::Locked(db,N(row[0]));
@@ -125,7 +129,7 @@ LiveItems::Result<uint32_t> ValidateMembersUnderTransaction(Database& db,const A
    }else if(scoped)Bad(Error::Conflict);
   }
   if(!CrateHouseRules::Allowed(houses))Bad(Error::Conflict);
-  return {uint32_t(members.RowCount()),Error::None};
+  return {uint32_t(members.RowCount()+vaults.size()),Error::None};
  }catch(const Failure& f){return {{},f.error};}catch(...){return {{},Error::DatabaseFailure};}
 }
 
@@ -134,7 +138,9 @@ LiveItems::Result<uint32_t> ReleaseInteriorMemberScopesUnderTransaction(Database
   if(source.inventory_character_id||!source.binding.custody_id)Bad(Error::InvalidArgument);
   auto count=ValidateMembersUnderTransaction(db,source);if(!count)Bad(count.error);if(!count.value)return count;
   auto current=Q(db,"SELECT crate_id FROM housing_crate_locations WHERE crate_id="+std::to_string(source.binding.crate_id)+" AND location_kind=2 AND custody_id="+std::to_string(source.binding.custody_id)+" FOR UPDATE");if(current.RowCount()!=1)Bad(Error::Conflict);
-  auto removed=Q(db,"DELETE scope FROM housing_house_item_scopes scope JOIN housing_crate_members m ON m.custody_id=scope.custody_id AND m.origin_house_id=scope.house_id WHERE m.crate_id="+std::to_string(source.binding.crate_id));if(removed.RowsAffected()!=count.value)Bad(Error::Conflict);return count;
+  auto ordinary=Q(db,"SELECT custody_id FROM housing_crate_members WHERE crate_id="+std::to_string(source.binding.crate_id)+" FOR UPDATE");
+  auto removed=Q(db,"DELETE scope FROM housing_house_item_scopes scope JOIN housing_crate_members m ON m.custody_id=scope.custody_id AND m.origin_house_id=scope.house_id WHERE m.crate_id="+std::to_string(source.binding.crate_id));if(removed.RowsAffected()!=ordinary.RowCount())Bad(Error::Conflict);
+  if(VaultStorage::CrateMembersInstalled(db)){auto removed_vault=Q(db,"DELETE scope FROM housing_house_item_scopes scope JOIN housing_crate_vault_members m ON m.custody_id=scope.custody_id AND m.origin_house_id=scope.house_id WHERE m.crate_id="+std::to_string(source.binding.crate_id));if(removed_vault.RowsAffected()!=count.value-ordinary.RowCount())Bad(Error::Conflict);}return count;
  }catch(const Failure& f){return {{},f.error};}catch(...){return {{},Error::DatabaseFailure};}
 }
 
@@ -179,6 +185,7 @@ static std::optional<ContentBinding::HouseRoute> RelocateContainedHouse(Database
 // owns every mutation and rollback; historical reservation/content bytes remain.
 static void RelocateMembers(Database& db,const Allocation& carried,const LiveItems::Request& request,const Catalog::Bundle& bundle,Route destination,LiveItems::InventorySessionFence& fence,HouseBinding::CustodyContext* houses,const InteriorContent::PlacementReview* room){
  const auto& before=carried.binding;const auto& target=request.placement->reservation;
+ CrateVault::Relocate(db,carried,request,room);
  auto rows=Q(db,"SELECT m.custody_id,m.revision,p.native_item_id,p.pose_revision,HEX(p.pose_blob),r.character_id,r.account_id,r.lease_epoch,HEX(r.session_key),HEX(r.source_row),r.runtime_serial,s.revision,c.estate_id FROM housing_crate_members m JOIN housing_live_item_custody c ON c.custody_id=m.custody_id JOIN housing_live_placed_items p ON p.custody_id=m.custody_id JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id AND r.custody_id=m.custody_id AND r.state=1 JOIN housing_live_item_storage s ON s.custody_id=m.custody_id AND s.stowed=1 WHERE m.crate_id="+std::to_string(before.crate_id)+" ORDER BY m.custody_id FOR UPDATE");
  for(auto row=rows.begin();row.operator!=(rows.end());++row){
   for(size_t i=0;i<13;++i)if(!row[i])Bad(Error::Conflict);
@@ -199,7 +206,7 @@ static void RelocateMembers(Database& db,const Allocation& carried,const LiveIte
   auto retired=Q(db,"UPDATE housing_live_placement_reservations SET state=2,custody_id=NULL WHERE native_item_id="+std::to_string(old_item)+" AND custody_id="+std::to_string(custody)+" AND state=1");if(retired.RowsAffected()!=1)Bad(Error::Conflict);
   auto made=Q(db,"INSERT INTO housing_live_placement_reservations(request_key,character_id,account_id,lease_epoch,session_key,estate_id,native_estate_id,catalog_key,catalog_revision,source_row,runtime_serial,state,custody_id,content_binding_version,content_binding_digest) VALUES("+S(db,key)+","+row[5]+","+row[6]+","+row[7]+",UNHEX('"+row[8]+"'),"+std::to_string(request.estate_id)+","+std::to_string(target.native_estate_id)+","+S(db,target.catalog_key)+","+std::to_string(target.catalog_revision)+",UNHEX('"+row[9]+"'),"+row[10]+",1,"+std::to_string(custody)+","+(binding?std::to_string(binding->version):"NULL")+","+(binding?"UNHEX('"+Hex(binding->digest)+"')":"NULL")+")");
   if(made.RowsAffected()!=1||!made.LastInsertedID()||made.LastInsertedID()>=UINT32_MAX)Bad(Error::Conflict);
-  auto moved=Q(db,"UPDATE housing_live_item_custody SET estate_id="+std::to_string(request.estate_id)+" WHERE custody_id="+std::to_string(custody)+" AND estate_id="+row[12]);if(moved.RowsAffected()!=1)Bad(Error::Conflict);
+  if(N(row[12])!=request.estate_id){auto moved=Q(db,"UPDATE housing_live_item_custody SET estate_id="+std::to_string(request.estate_id)+" WHERE custody_id="+std::to_string(custody)+" AND estate_id="+row[12]);if(moved.RowsAffected()!=1)Bad(Error::Conflict);}
   if(room){
    const auto& profile=room->profile;const auto& context=profile.context;
    auto tag=Q(db,"INSERT INTO housing_interior_placement_reservations(native_item_id,house_id,house_revision,profile_revision,source_zone,source_version,source_instance,content_version,content_digest) VALUES("+std::to_string(made.LastInsertedID())+","+std::to_string(profile.room.house_id)+","+std::to_string(context.house->revision)+","+std::to_string(profile.profile_revision)+","+std::to_string(destination.zone_id)+","+std::to_string(destination.zone_version)+","+std::to_string(destination.instance_id)+",3,UNHEX('"+Hex(room_identity->digest)+"'))");if(tag.RowsAffected()!=1)Bad(Error::Conflict);
