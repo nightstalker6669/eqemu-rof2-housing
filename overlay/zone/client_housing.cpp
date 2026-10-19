@@ -1524,6 +1524,10 @@ void Client::Handle_OP_RealEstateLoadLayout(const EQApplicationPacket* app){
   auto prepared=Housing::LayoutNative::Prepare(*load,physical,bool(view->interior),yard.value,room?&*room:nullptr,session.presentations,&refusal);
   if(!prepared){LogInfo("Native layout scene rejected actor [{}] yard [{}] house [{}] operations [{}] reason [{}]",CharacterID(),load->yard_estate_id,load->house_estate_id,load->operations.size(),refusal);finish("The layout items have changed or are not supported yet. Refresh the property and try again.");return;}
   if(load->operations.empty()){finish();return;}
+  const bool restores_house=std::any_of(load->operations.begin(),load->operations.end(),[&](const auto& operation){
+   const auto* placement=std::get_if<Housing::LayoutWire::PlacementOperation>(&operation);if(!placement)return false;
+   return std::any_of(yard.value.items.begin(),yard.value.items.end(),[&](const auto& item){return item.house&&item.stored.stowed&&item.stored.placement&&placement->source_estate_id==yard.value.native_plot_id&&placement->target_estate_id==yard.value.native_plot_id&&placement->native_item_id==item.stored.placement->reservation.native_item_id;});
+  });
   Bytes wire(app->pBuffer,app->pBuffer+app->size);
   auto result=bridge->LoadLayoutMixed(FurnitureKey("layout:"),wire,prepared.value.intent,prepared.value.owners,true);
   if(!result){LogInfo("Native layout rejected actor [{}] yard [{}] operations [{}] code [{}]",CharacterID(),load->yard_estate_id,load->operations.size(),int(result.error));finish("The housing layout could not be loaded. No layout changes were committed.");return;}
@@ -1531,7 +1535,7 @@ void Client::Handle_OP_RealEstateLoadLayout(const EQApplicationPacket* app){
   // Owner slots are held through Bridge's known durable ACK. Retired owner
   // nodes may now be removed; old actor GUIDs remain in sent_worlds for removal.
   for(auto i=session.presentations.begin();i!=session.presentations.end();)if(!i->second)i=session.presentations.erase(i);else ++i;
-  FurnitureBroadcastScenes();finish();
+  FurnitureBroadcastScenes(restores_house);finish();
  }catch(...){finish(durable_success?nullptr:"The housing layout could not be loaded.");}
 }
 

@@ -335,18 +335,29 @@ inline LiveItems::Result<Effect> ExecuteUnderTransaction(Database& db,bool enabl
    const Identity actual{target,out.after.placement->reservation.native_item_id};auto alias=state.aliases.emplace(actual,item.stored.custody_id);if(!alias.second&&alias.first->second!=item.stored.custody_id)throw Detail::Failure{Error::Conflict};state.witnesses.emplace(actual,state.witnesses.at(source));return {std::move(out),Error::None};
   }
 
-  // A placed house keeps its unique binding, interior route and furnished
-  // contents. This pose-only member belongs to the aggregate journal: no
-  // independent receipt, token adoption, relocation, storage or inventory debit.
+  // A house keeps its unique binding, interior route and furnished contents.
+  // Stored restoration uses the existing storage service under this aggregate
+  // transaction; it cannot adopt a token or allocate/relocate an interior.
   if(item.house){
    if(!RentState::MutableItem(db,item.stored.estate_id,views.yard.native_plot_id,item.stored.custody_id))return {{},Error::Unauthorized};
-   if(!pose||item.room||item.stored.stowed||available!=1||target!=views.yard.native_plot_id||target!=item.stored.placement->reservation.native_estate_id)return {{},Error::UnsupportedItem};
+   if(!pose||item.room||available!=1||target!=views.yard.native_plot_id||target!=item.stored.placement->reservation.native_estate_id)return {{},Error::UnsupportedItem};
    if(!views.yard.access.Allows(AccessPolicy::Capability::MoveItem))return {{},Error::Unauthorized};
    auto actor=std::find_if(views.yard.items.begin(),views.yard.items.end(),[&](const auto& p){return p.stored.custody_id==item.stored.custody_id;});
    if(actor==views.yard.items.end()||!actor->metadata||!actor->geometry||!LayoutHouse::Same(actor->house,item.house)||!LayoutHouse::Shape(*item.house,item.stored))return {{},Error::Conflict};
    auto creator=Detail::Query(db,"SELECT pending_key FROM housing_live_item_leases WHERE character_id="+std::to_string(item.stored.row.values.character_id)+" FOR UPDATE");
    if(creator.RowCount()>1)return {{},Error::DatabaseFailure};if(creator.RowCount()&&creator.begin()[0])return {{},Error::PendingApplication};
    const auto transform=LayoutWire::PlacementTransform(*pose);const auto& before=*item.stored.placement;
+   if(item.stored.stowed){
+    InteriorStorage::Request restore;restore.request_key=Detail::Key(parent_key,ordinal,"house-restore");restore.lease=lease;
+    restore.custody_id=item.stored.custody_id;restore.native_item_id=before.reservation.native_item_id;
+    restore.expected_pose_revision=before.pose_revision;restore.expected_storage_revision=item.stored.storage_revision;restore.placement=transform;
+    restore.exterior=InteriorStorage::ExteriorContext{context.estate_id,views.yard.native_plot_id,views.yard.current_catalog_revision,views.yard.route};
+    if(context.inside)restore.parent_yard=Detail::ParentOrigin(views,context);
+    auto changed=InteriorStorage::Service::ChangeUnderTransaction(db,true,restore,fence,houses,rooms,crates);if(!changed)return {{},changed.error};
+    auto current=Detail::Read(db,lease,context,fence,houses,rooms,crates,need_room);auto after=Detail::Find(current,item.stored.custody_id);
+    if(!after||after->stored.stowed||!LayoutHouse::Same(after->house,item.house))return {{},Error::Conflict};
+    Effect out;out.action=Action::Restore;out.before=item.stored;out.after=after->stored;state.locations[item.stored.custody_id]=target;return {std::move(out),Error::None};
+   }
    PlacementPolicy::Context checked{target,views.yard.definition.type,views.yard.region.id,views.yard.access,true};
    if(!PlacementPolicy::CheckAny(checked,*actor->metadata,*actor->geometry,views.yard.region,views.yard.additional_regions,transform,PlacementPolicy::Operation::Move)||before.pose_revision==UINT64_MAX)return {{},Error::Conflict};
    CustodyCodec::Bytes bytes;for(float v:{transform.heading,transform.pitch,transform.roll,transform.scale,transform.position[0],transform.position[1],transform.position[2]}){uint32_t n;std::memcpy(&n,&v,4);CustodyCodec::W(bytes,n,4);}const char* hex="0123456789abcdef";std::string blob="x'";for(auto v:bytes){blob+=hex[v>>4];blob+=hex[v&15];}blob+="'";

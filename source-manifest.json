@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 8304,
-      "sha256": "ab76306690c5a53790ee4037618778376fa6cee7b74e29980608bbe5e58280e4"
+      "bytes": 8590,
+      "sha256": "233559a618b10b82468dc8a699977281109146c158f53677655eb6e56789f88f"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -36,8 +36,8 @@
     },
     {
       "path": "docs/CRATE-PREVIEW-2026-10-19.md",
-      "bytes": 1837,
-      "sha256": "8cfdbc1e8bd27fadebd94aa914224e59b4674fe7c8866eac273577c65b6b9282"
+      "bytes": 2169,
+      "sha256": "09eb0e94ba98ff5a6a1a9345bf97239617a9ee1f8e1d3f72c0befce7c65caf06"
     },
     {
       "path": "docs/INSTALL.md",
@@ -61,8 +61,13 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 10762,
-      "sha256": "06c157e2bd8878e64e404e5cb3cb32ba24b731de5d561ca88407a145280d4821"
+      "bytes": 10900,
+      "sha256": "33c511ed2e0c25fc26fef2fe5cfd3cb000bbd6743f722f764d64d797c2fa01c8"
+    },
+    {
+      "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
+      "bytes": 2188,
+      "sha256": "7694613a61bce50bc8fab38246af2e6c5608da1e0051d7837653a7c63e4806cc"
     },
     {
       "path": "docs/UPDATES-2026-10-18.md",
@@ -601,8 +606,8 @@
     },
     {
       "path": "overlay/common/housing/layout_house_identity.h",
-      "bytes": 5189,
-      "sha256": "ce1ac588968dc20f06484d962d514989f03f8309af5cbd2c2ca68260e39b375d"
+      "bytes": 5212,
+      "sha256": "ad977eed176731bfee9430a59547ffaf880f635dcf95416f805d0285ae297d9c"
     },
     {
       "path": "overlay/common/housing/layout_inventory_application.h",
@@ -671,13 +676,13 @@
     },
     {
       "path": "overlay/common/housing/layout_property_operations_db.h",
-      "bytes": 61082,
-      "sha256": "8eb0dc93412e17d506ae58dd366ccae80850db3c7c61bab237e6db340b97fcad"
+      "bytes": 62278,
+      "sha256": "dac4bf7501fcdda4df0e4ff0b1bf7390f17533c80a5d344cb3fc2076c6ff23fc"
     },
     {
       "path": "overlay/common/housing/layout_property_outcome_db.h",
-      "bytes": 32544,
-      "sha256": "6ac454575b34dc2ae39918a1072ad5c451f4a06b900314ef3eae69d8708374af"
+      "bytes": 32773,
+      "sha256": "126393f11a2d9b5b446a84fb0e1285c1bce10f30ddf97a38e152f24938ef8daa"
     },
     {
       "path": "overlay/common/housing/layout_retained_token_outcome_db.h",
@@ -1431,8 +1436,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 208157,
-      "sha256": "78443d4f6ca2bf6373d0ab814a5ab35326dba62f1887b4dbe41f5f83793e6f1c"
+      "bytes": 208758,
+      "sha256": "f76d54a01fad60de057c66098fed14d23828c1bb0764e6e5a8941a9ce7e325a3"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",

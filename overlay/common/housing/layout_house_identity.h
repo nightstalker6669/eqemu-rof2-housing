@@ -22,7 +22,7 @@ inline Identity Decode(const CustodyCodec::Bytes& b){
 }
 inline bool Same(const Identity& a,const Identity& b){return HousePresentation::SameBinding(a,b);}
 inline bool Shape(const HouseBinding::Binding& h,const LiveItems::Stored& s){
- if(!Valid(h)||!s.placement||s.stowed||h.location.custody_id!=s.custody_id||h.item_template_id!=s.row.values.item_id)return false;
+ if(!Valid(h)||!s.placement||(s.stowed&&!s.storage_revision)||h.location.custody_id!=s.custody_id||h.item_template_id!=s.row.values.item_id)return false;
  bool recognized=false;for(const auto& record:HouseGeometry::Records)recognized|=record.item_id==h.item_template_id;
  const auto& r=s.placement->reservation;return recognized&&r.content_binding&&r.content_binding->version==ContentBinding::HouseVersion&&
   h.interior->catalog_key==r.catalog_key&&h.interior->catalog_revision==s.current_catalog_revision;

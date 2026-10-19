@@ -4,7 +4,7 @@ An experimental implementation of EverQuest personal and guild housing for EQEmu
 
 This repository publishes the housing implementation, recovered client opcode/packet documentation, database schemas, integration patch, and a candid account of working behavior and remaining work. It is a housing-only source overlay for EQEmu, not a complete server distribution or a finished recreation of Live.
 
-Snapshot updated **October 19, 2026**. See the [crate preview handoff update](docs/CRATE-PREVIEW-2026-10-19.md) for the latest fix and the remaining furnished-hall recovery check. See the [change summary](docs/UPDATES-2026-10-18.md) for the current implementation and protocol additions.
+Snapshot updated **October 19, 2026**. See the [crate preview handoff update](docs/CRATE-PREVIEW-2026-10-19.md) for the preview fix, and [stored-house layout restoration](docs/STORED-HOUSE-LAYOUT-2026-10-19.md) for the completed furnished Standard Guild Hall recovery check. See the [change summary](docs/UPDATES-2026-10-18.md) for the current implementation and protocol additions.
 
 ## What works
 
@@ -21,6 +21,7 @@ The original client has completed the following representative workflows against
 - Transfer a reviewed furnished personal plot with recipient consent, preserving content and creator identities; refuse acceptance after contents change.
 - Pack a furnished house into a moving crate, transfer its plot, then unpack and enter its retained interior as the recipient.
 - Show a closet-stored chair inside its house, place it and return it to inventory. An optional yard-view failure no longer erases the independently authorized room list.
+- Restore a furnished Standard Guild Hall from yard storage through native Load Yard on a guild plot, enter its original interior normally, and retain the hall and furniture after relogging.
 
 The server implementation also includes instanced neighborhoods/interiors; estate ownership and ACLs; furniture scenes and geometry checks; inventory custody and recovery; house and crate identity; packing/unpacking; layout transactions; escrow/upkeep machinery; guild hall routing; and personal/guild trophy and anchor machinery. **Implemented code and original-client acceptance are distinct evidence levels.** See [status](docs/STATUS.md).
 
