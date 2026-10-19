@@ -89,3 +89,5 @@ Default-off witnessed catch-up, reviewed guild inactivity returns and checked gu
 ## Mixed-owner return follow-up
 
 Optional all-recipient atomic returns, direct rightful-owner delivery and sealed settlement are included. Combined SQL/reload and private guarded guild-deletion verification passed. Representative native recipient login, rightful direct returns, loose-crate placement/unpack and chair pickup also passed; the carried furnished-hall crate was not unpacked. Actual native guild deletion also passed after the settlement follow-up fix, preserving returned items and the separate protected guild. Final deployment and original-state conservation passed; new activation reviews remain empty. See [scope and limits](docs/MIXED-RETURNS-2026-10-18.md).
+
+Plot pricing: all personal and guild plots receive positive purchase and daily upkeep defaults, including custom addresses. Known Sunrise street tiers are preserved; see [plot pricing configuration](overlay/common/housing/plot_pricing_defaults.md) for rates, fallbacks and safe economic-only catalogue upgrades. These are approximate emulator defaults.

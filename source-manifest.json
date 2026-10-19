@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9818,
-      "sha256": "9af51dc518f93a3f3b3e588cd3b42afc9c5aaa7593fe1d19cc2775c63cd181d5"
+      "bytes": 10172,
+      "sha256": "c705777a08d5be2eb3d6068b47bec5cac5029134f786323ed25b0848ce86240b"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -153,6 +153,11 @@
       "path": "overlay/common/housing/catalog_crate_upgrade_db.h",
       "bytes": 17030,
       "sha256": "64587786104f42907010450d907081a08ae2f5870031622202211a60d093bf9a"
+    },
+    {
+      "path": "overlay/common/housing/catalog_pricing_upgrade_db.h",
+      "bytes": 7931,
+      "sha256": "2ccc84a75220db44602ee1b39befe46f9fee00317b3faffce9b0c688c087f566"
     },
     {
       "path": "overlay/common/housing/catalog_service.cpp",
@@ -966,13 +971,13 @@
     },
     {
       "path": "overlay/common/housing/plot_pricing_defaults.h",
-      "bytes": 3643,
-      "sha256": "6ad2f526c87c70ed550571ebacc7115f050207a05cb01362c0d5215dab5416e1"
+      "bytes": 4212,
+      "sha256": "763a32af6f8022399718fe039acd2b1f48aea0f9f04d4377641fee9673ec4cc8"
     },
     {
       "path": "overlay/common/housing/plot_pricing_defaults.md",
-      "bytes": 2740,
-      "sha256": "8aeca95e50c8d9e74e7d1a9d852fff9fd0e5c5a364d4a56595705003bc93bcd1"
+      "bytes": 2742,
+      "sha256": "1898d109b7c7aaf7119d6d41bc495de7abb5fd83655951a3621bdbd0301925f1"
     },
     {
       "path": "overlay/common/housing/plot_search_dispatch.h",
@@ -1483,6 +1488,11 @@
       "path": "overlay/utils/sql/optional/2026_10_18_housing_witnessed_upkeep_catchup.sql",
       "bytes": 3165,
       "sha256": "3176a0dc4cfd98146b4bcf71ef406908952aaa8c06d95858fc491f5fe7f6afdc"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_19_housing_catalog_pricing_upgrade.sql",
+      "bytes": 554,
+      "sha256": "5b112d89e1f4d99facc49f4839385624160342f6f3c2dd546ab08ec1b1ac5e65"
     },
     {
       "path": "overlay/utils/sql/optional/housing_occupied_refund_review_policy.sql",

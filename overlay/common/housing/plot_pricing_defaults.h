@@ -30,13 +30,23 @@ inline std::optional<Tariff> Lookup(uint32_t type,std::string_view address){
  else if(street=="Terminus Heights"&&number==106)platinum=168;
  if(!platinum)return {};return Tariff{platinum*1000,platinum*100};
 }
+// Stable emulator fallback for custom/unlabelled plots. Callers can still use
+// Lookup alone when they require a documented street tier. No plot type is free
+// merely because its address is missing from the reconstructed table.
+inline std::optional<Tariff> LookupWithFallback(uint32_t type,std::string_view address){
+ if(auto known=Lookup(type,address))return known;
+ if(type==4)return Tariff{84000,8400};
+ if(type==8)return Tariff{21000,2000};
+ return {};
+}
 // Explicit administrative operation on an unpublished definition. Separate IDs
 // avoid conflating purchase payment and the selected daily upkeep component.
-// Never overwrite an existing price or silently price an unknown address.
+// Never overwrite an existing price. Unknown personal/guild addresses use the
+// explicit emulator fallback above; these values are not a historical claim.
 inline void Apply(EstateWire::Definition& definition,std::vector<EstateWire::CostScheme>& costs,
  uint32_t purchase_scheme,uint32_t purchase_component,uint32_t upkeep_scheme,uint32_t upkeep_component){
- const auto tariff=Lookup(definition.type,definition.address);
- if(!tariff||definition.purchase_scheme||definition.upkeep_scheme)throw std::invalid_argument("Default tariff requires a known unpriced plot");
+ const auto tariff=LookupWithFallback(definition.type,definition.address);
+ if(!tariff||definition.purchase_scheme||definition.upkeep_scheme)throw std::invalid_argument("Default tariff requires an unpriced personal or guild plot");
  for(auto id:{purchase_scheme,purchase_component,upkeep_scheme,upkeep_component})EstateWire::Detail::Identity(id);
  if(purchase_scheme==upkeep_scheme||purchase_component==upkeep_component)throw std::invalid_argument("Distinct tariff identities required");
  for(const auto& scheme:costs){if(scheme.id==purchase_scheme||scheme.id==upkeep_scheme)throw std::invalid_argument("Tariff scheme collision");for(const auto& component:scheme.components)if(component.id==purchase_component||component.id==upkeep_component)throw std::invalid_argument("Tariff component collision");}

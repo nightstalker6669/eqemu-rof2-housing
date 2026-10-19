@@ -1,13 +1,51 @@
-# Reconstructed default plot tariffs
+# Plot prices
 
-`PlotPricingDefaults::Lookup` contains address-specific copper defaults for71 personal plot addresses and4 guild plot addresses. `Apply` explicitly installs separate purchase and daily-upkeep schemes/components in an unpublished definition; it refuses unknown addresses, already priced definitions and ID collisions. This is an administrative content operation, not an automatic override of loaded catalogues or current ownership.
+Every Sunrise Hills personal and guild plot receives a positive copper purchase
+price and daily plot upkeep. Known streets retain the reconstructed tiers:
 
-Personal defaults range from21pp to168pp purchase and2.1pp to16.8pp daily upkeep. 101/102 Market Street use42pp and4.2pp daily. The address tiers come from the published community housing table at https://forum.gamer.com.tw/C.php?bsn=5179&snA=2008 (2022/2023). The table's date does not establish an exact May2013 tariff snapshot. It is used as the closest documented address-based default, with later refinement allowed.
+| Plot tier | Purchase, platinum | Daily upkeep, platinum |
+|---|---:|---:|
+| Small personal | 21 | 2.1 |
+| Market Street 101–102 | 42 | 4.2 |
+| Ordinary personal | 84 | 8.4 |
+| Large personal | 126 | 12.6 |
+| Premium personal | 168 | 16.8 |
+| Guild | 21 | 2 |
 
-Guild defaults are21pp purchase and2pp daily upkeep, using the firsthand guide at https://www.redguides.com/community/threads/so-you-want-to-buy-a-guild-hall.89350/ (2023/2024). The upkeep figure is reported approximately; exact2013 guild tariffs remain unverified. House/item upkeep is separate and is not guessed from plot rent. These defaults do not establish capacities or physical plot boundaries.
+The address table in `plot_pricing_defaults.h` selects the exact tier.
+Unlisted or custom personal addresses use 84/8.4 platinum; unlisted guild
+addresses use 21/2 platinum. Other estate types do not receive a plot tariff.
+`Lookup` remains a strict lookup; `LookupWithFallback` and `Apply` provide the
+complete personal/guild coverage. `Apply` refuses already-priced definitions
+and colliding identities, so an administrator must explicitly review repricing.
 
-The official launch-era housing guide defines escrow-funded approximately hourly assessments of daily upkeep, not automatic player-bank withdrawal: https://www.everquest.com/news/imported-eq-enus-52047 . A2011 published patch-note record says plot prices and upkeep were reduced by90percent; old2010 examples must not be reused without checking their date. Apply the defaults as stated rather than reducing the later table a second time.
+These are approximate emulator defaults, using later community price tables,
+not an authenticated May 2013 catalogue. Provenance is recorded in the header.
+House and placed-item upkeep remains separate and contributes through the
+existing placed-item billing graph; stowed items do not accrue that upkeep.
 
-For an activated catalogue, publish the price and upkeep schemes, then create matching native-purchase and upkeep-enrollment reviews bound to the exact catalogue revision and payload hashes. Paid personal plots use the existing carried-coin profile journal. Paid guild plots additionally require `2026_10_18_housing_paid_guild_plot_purchase.sql`, `allow_guild_carried_copper=1`, `allow_carried_copper=1`, actual current leader/action27/expansion authority, a reviewed member minimum and the guild plot cap. The new internal offer version3 binds paid guild currency semantics; legacy personal1/free guild2 records remain unchanged. This does not introduce a new client opcode.
+## Existing catalogues
 
-Existing plots are not repriced or enrolled by including the header or applying the schema. Repricing occupied catalogues requires reviewing custody/house bindings and billing history; do not change their blobs behind those checks. Full-neighborhood marker/address and physical-boundary recovery remains separate content work.
+`CatalogPricingUpgrade::ApplyUnderTransaction` is an offline administrative
+operation for experimental catalogues, with a caller-owned transaction and
+explicit review. Install the optional pricing journal schema first. Supply an
+exact before catalogue and a revision increment containing only plot scheme
+changes and additional cost schemes. Old cost records remain immutable.
+The operation compares stored bytes, refuses live sessions, pending applications,
+previews and existing rent contracts, and verifies transactional table engines.
+It advances current placement, permanent interior and crate links without
+changing spatial fingerprints, source custody, native identities or geometry.
+Purchase policies receive the new catalogue hash. Other revision-bound grants
+remain stale until separately reviewed; the migration does not broaden them.
+Historical outcomes retain their original revision.
+
+The journal stores before/after definition payloads. A failed operation rolls
+back to its savepoint, and the caller must roll back the containing transaction.
+Do not reverse an applied price revision after new transactions use it; publish
+another reviewed forward revision instead.
+
+Prices alone do not authorize a purchase or start a rent clock. Review the
+purchase and upkeep enrollment policies against the new catalogue hashes.
+This transition never debits a wallet, refunds a purchase, or manufactures old
+arrears. Existing contracts need a separate prospective-rate migration and are
+refused by this operation.
