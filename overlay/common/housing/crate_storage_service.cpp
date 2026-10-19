@@ -1,3 +1,4 @@
+#include "crate_storage_destination.h"
 #include "occupied_retirement_authority.h"
 #include "rent_state_db.h"
 #include "occupied_parent_yard.h"
@@ -117,6 +118,7 @@ static LiveItems::Result<Receipt> TransferCurrent(Database* database_,bool enabl
     if(used>=definition.value.max_items)throw Failure{Error::Conflict};
     auto inserted=q("INSERT INTO housing_crate_members(custody_id,crate_id,revision,origin_native_estate_id,origin_house_id,origin_pose_blob,origin_stowed) VALUES("+std::to_string(r.custody_id)+","+std::to_string(r.crate_id)+",1,"+std::to_string(r.native_plot_id)+","+(r.room?std::to_string(r.room->house_id):"NULL")+",x'"+Hex(pose)+"',"+std::to_string(state.stowed)+")");if(inserted.RowsAffected()!=1)throw Failure{Error::Conflict};
    }else{
+    if(!CrateStorageDestination::Allowed(*member->metadata,yard.definition.type,member->house&&member->house->interior?member->house->interior->definition_id:0,yard.definition.children))throw Failure{Error::UnsupportedItem};
     if(!yard.definition.max_items||yard.items.size()>=yard.definition.max_items)throw Failure{Error::Conflict};
     if(scope->origin_house_id!=(r.room?r.room->house_id:0)||scope->crate_id!=r.crate_id||scope->origin_native_estate_id!=r.native_plot_id||scope->origin_pose!=pose||!state.stowed)throw Failure{Error::Conflict};stowed=r.restore_original?scope->origin_stowed:true;
     if(!stowed){
@@ -154,7 +156,7 @@ LiveItems::Result<BatchReceipt> Service::Pack(const BatchRequest& r,LiveItems::I
  if(!Key(r.request_key)||r.request_key.size()>80||!Key(r.lease.session_key)||!r.lease.actor.character_id||!r.lease.actor.account_id||!r.lease.epoch||r.native_plot_id==UINT32_MAX||!r.crate_id||!r.crate_revision||r.members.empty()||r.members.size()>1000||r.crate_revision>=UINT64_MAX-r.members.size()||!r.estate_id||!r.native_plot_id||!r.catalog_revision||!r.source.zone_id||!r.source.instance_id)return {{},Error::InvalidArgument};
  for(size_t i=0;i<r.members.size();++i){const auto& m=r.members[i];if(!m.custody_id||!m.pose_revision||m.storage_revision==UINT64_MAX||(i&&r.members[i-1].custody_id>=m.custody_id))return {{},Error::InvalidArgument};}
  if(!fence.HeldFor(r.lease.actor,r.lease.epoch,r.lease.session_key))return {{},Error::UnheldFence};
- Request prototype;prototype.request_key=r.request_key;prototype.lease=r.lease;prototype.estate_id=r.estate_id;prototype.native_plot_id=r.native_plot_id;prototype.catalog_revision=r.catalog_revision;prototype.source=r.source;prototype.crate_id=r.crate_id;prototype.crate_revision=r.crate_revision;prototype.to_crate=r.packing;prototype.restore_original=true;prototype.room=r.room;
+ Request prototype;prototype.request_key=r.request_key;prototype.lease=r.lease;prototype.estate_id=r.estate_id;prototype.native_plot_id=r.native_plot_id;prototype.catalog_revision=r.catalog_revision;prototype.source=r.source;prototype.crate_id=r.crate_id;prototype.crate_revision=r.crate_revision;prototype.to_crate=r.packing;prototype.restore_original=r.packing;prototype.room=r.room;
  auto binding=Binding(prototype);CustodyCodec::W(binding,0x42554c4b,4);CustodyCodec::W(binding,r.members.size(),4);for(const auto& m:r.members){CustodyCodec::W(binding,m.custody_id,8);CustodyCodec::W(binding,m.pose_revision,8);CustodyCodec::W(binding,m.storage_revision,8);}
  const auto key="x'"+Hex(Bytes(r.request_key.begin(),r.request_key.end()))+"'";
  std::lock_guard<std::mutex> lock(mutex_);auto& db=*database_;bool active=false;
@@ -198,7 +200,10 @@ LiveItems::Result<BatchReceipt> Service::Pack(const BatchRequest& r,LiveItems::I
     if(item->house&&(!house||!yard.access.Allows(AccessPolicy::Capability::AddHouse)||!yard.access.Allows(AccessPolicy::Capability::RemoveHouse)))continue;
     if(r.packing&&item->house){auto houses=planned_houses;houses.push_back(CrateHouseRules::LockedHouse(db,item->house->house_id));if(!CrateHouseRules::Allowed(houses))continue;planned_houses=std::move(houses);}
     if(!r.packing){auto membership=CrateMemberScope::Locked(db,candidate.custody_id,bool(r.room));if(!membership||membership->crate_id!=r.crate_id)throw Failure{Error::Conflict};
-     if(!membership->origin_stowed){PlacementPolicy::Context destination{yard.native_plot_id,yard.definition.type,yard.region.id,yard.access,true};if(!PlacementPolicy::CheckAny(destination,*item->metadata,*item->geometry,yard.region,yard.additional_regions,item->stored.placement->transform,PlacementPolicy::Operation::Add))continue;}
+     // Bulk Unpack moves eligible items to Shed/Closet. A saved layout or
+     // native Place supplies their destination pose afterward; stale source
+     // coordinates cannot exclude an otherwise valid storage item.
+     if(!CrateStorageDestination::Allowed(*item->metadata,yard.definition.type,item->house&&item->house->interior?item->house->interior->definition_id:0,yard.definition.children))continue;
     }
     chosen.push_back(candidate);
    }

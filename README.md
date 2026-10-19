@@ -22,6 +22,7 @@ The original client has completed the following representative workflows against
 - Pack a furnished house into a moving crate, transfer its plot, then unpack and enter its retained interior as the recipient.
 - Show a closet-stored chair inside its house, place it and return it to inventory. An optional yard-view failure no longer erases the independently authorized room list.
 - Restore a furnished Standard Guild Hall from yard storage through native Load Yard on a guild plot, enter its original interior normally, and retain the hall and furniture after relogging.
+- Bulk Pack and Unpack a furnished Standard Guild Hall, immediately display it in yard storage, restore its layout and enter its retained interior. See the [bulk Unpack update](docs/BULK-UNPACK-2026-10-19.md) for behavior and scope.
 
 The server implementation also includes instanced neighborhoods/interiors; estate ownership and ACLs; furniture scenes and geometry checks; inventory custody and recovery; house and crate identity; packing/unpacking; layout transactions; escrow/upkeep machinery; guild hall routing; and personal/guild trophy and anchor machinery. **Implemented code and original-client acceptance are distinct evidence levels.** See [status](docs/STATUS.md).
 

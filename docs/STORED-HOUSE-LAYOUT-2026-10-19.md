@@ -9,3 +9,5 @@ The zone build and focused private journal checks passed, including valid Restor
 The native layout was prepared from original client XML item records with a reviewed destination pose. This confirms the client Load Yard path and server restoration; it does not establish that bulk Unpack or manual dragging succeeded. The preceding crate extraction used Shed. Cross-plot layout relocation, crate-contained house layout sources and arbitrary house stow operations are outside this change. Existing Live-equivalence and catalog gaps remain.
 
 Only production source and documentation are published. Private checks, captures, client XML, accounts and runtime configuration remain excluded.
+
+Subsequent [bulk Unpack acceptance](BULK-UNPACK-2026-10-19.md) completed Pack → Unpack into storage → Load Yard → Enter for the same representative furnished Standard Guild Hall.

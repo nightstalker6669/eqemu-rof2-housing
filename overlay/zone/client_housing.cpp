@@ -1427,6 +1427,9 @@ void Client::Handle_OP_RealEstatePack(const EQApplicationPacket* app){
   }
   auto result=bridge->PackCrate(*session.crate_batch);
   if(!result){if(result.error!=Housing::LiveItems::Error::CommitUncertain)session.crate_batch.reset();FurnitureResult(this,result.error==Housing::LiveItems::Error::NotFound?11:1);return;}
+  // A successful bulk transfer supersedes canceled previews of its candidate
+  // items. Failures retain both the original preview and retry request.
+  if(session.move&&std::any_of(session.crate_batch->members.begin(),session.crate_batch->members.end(),[&](const auto& member){return member.custody_id==session.move->before.custody_id;}))session.move.reset();
   session.crate_batch.reset();durable_success=true;FurnitureResult(this,0);FurnitureBroadcastScenes(true);
  }catch(...){FurnitureResult(this,durable_success?0:1);}
 }

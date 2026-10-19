@@ -10,4 +10,4 @@ At the end of this initial preview-fix batch, the complete furnished guild-hall 
 
 No additional housing opcode was discovered in this batch. This change corrects state handling on existing mapped messages. This repository contains the production fix and summary only; private runtime evidence and client layout files are excluded.
 
-Follow-up completed: [stored-house layout restoration](STORED-HOUSE-LAYOUT-2026-10-19.md) restored the same furnished Standard Guild Hall, confirmed normal entry and retained furniture, and passed a post-placement relog. The bulk Unpack and manual-drag limitations above are not claimed as fixed.
+Follow-up completed: [stored-house layout restoration](STORED-HOUSE-LAYOUT-2026-10-19.md) restored the same furnished Standard Guild Hall, confirmed normal entry and retained furniture, and passed a post-placement relog. The later [bulk Unpack follow-up](BULK-UNPACK-2026-10-19.md) accepted Unpack into storage followed by Load Layout and normal entry. Manual dragging is not newly accepted.

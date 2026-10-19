@@ -13,7 +13,7 @@ struct Request {
  std::optional<RoomContext> room;
  std::optional<LiveItems::OccupiedParentContext> parent_yard; // Current occupied room authority for its yard.
  bool to_crate=true;
- bool restore_original=true; // Unpack restores pose/state; Move-to-Shed keeps it stored.
+ bool restore_original=true; // Explicit original-state restore; bulk Unpack and Move-to-Shed keep it stored.
 };
 struct Receipt {
  uint64_t crate_id=0,custody_id=0,crate_revision=0,storage_revision=0;
