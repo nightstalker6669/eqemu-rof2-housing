@@ -9,6 +9,7 @@
 #include "crate_member_scope_db.h"
 #include <limits>
 #include "upkeep_clock.h"
+#include "upkeep_catchup_db.h"
 namespace Housing::UpkeepCycle {
 enum class Status { Disabled, NotDue, Applied, Replayed, Unsupported, Pending, Conflict, DatabaseFailure, CommitUncertain };
 struct Outcome {Status status=Status::Disabled;uint64_t charged=0;uint32_t stowed=0;};
@@ -107,6 +108,18 @@ inline std::vector<Item> Obligations(Database& db,uint32_t estate,const Graph& g
 inline uint32_t PlotExpired(Database& db,uint32_t estate,uint32_t native){auto r=Q(db,"SELECT native_plot_id,expired_since FROM housing_upkeep_property_state WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(!r.RowCount())return 0;if(r.RowCount()!=1||N(r.begin()[0])!=native||N(r.begin()[1])>UINT32_MAX)throw Stop{Status::Conflict};return uint32_t(N(r.begin()[1]));}
 inline bool RecoveryReviewed(Database& db,uint32_t estate,const Graph& g){auto r=Q(db,"SELECT native_plot_id,catalog_revision,mode,review_reference FROM housing_upkeep_reactivation_policy WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(!r.RowCount())return false;if(r.RowCount()!=1||N(r.begin()[0])!=g.native||N(r.begin()[1])!=g.revision||N(r.begin()[2])!=1||!r.begin()[3]||std::string(r.begin()[3]).empty())throw Stop{Status::Conflict};return true;}
 inline uint64_t Total(const std::vector<Item>& items){uint64_t total=0;for(const auto& i:items){if(i.rate>uint64_t(INT64_MAX)-total)throw Stop{Status::Unsupported};total+=i.rate;}return total;}
+// Financial obligation identity is independent of UTC rounding phase and pose
+// changes that leave billing membership unchanged. Append-only placement and
+// escrow history guards also catch a change-and-return-to-the-same-state gap.
+inline UpkeepCatchup::Digest CatchupWitness(Database& db,uint32_t estate,const Graph& g,const std::vector<Item>& items){
+ std::vector<uint8_t> proof;using UpkeepCatchup::Word;using UpkeepCatchup::Blob;
+ for(uint64_t n:{uint64_t(estate),uint64_t(g.native),g.revision,uint64_t(g.plot_component),uint64_t(PlotExpired(db,estate,g.native))})Word(proof,n);
+ auto selected=Q(db,"SELECT component_id,revision FROM housing_upkeep_selection WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(selected.RowCount()>1||(g.plot_component&&(selected.RowCount()!=1||N(selected.begin()[0])!=g.plot_component||!N(selected.begin()[1]))))throw Stop{Status::Conflict};Word(proof,selected.RowCount()?N(selected.begin()[1]):0);
+ auto coins=Q(db,"SELECT COUNT(*) FROM housing_live_escrow_receipts WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(coins.RowCount()!=1)throw Stop{Status::DatabaseFailure};Word(proof,N(coins.begin()[0]));
+ auto history=Q(db,"SELECT COUNT(*),COALESCE(MAX(native_item_id),0),COALESCE(SUM(state),0) FROM housing_live_placement_reservations WHERE estate_id="+std::to_string(estate)+" OR native_estate_id IN (SELECT i.native_estate_id FROM housing_house_interiors i JOIN housing_house_locations l ON l.house_id=i.house_id AND l.location_kind=2 JOIN housing_live_item_custody host ON host.custody_id=l.custody_id WHERE host.estate_id="+std::to_string(estate)+") FOR UPDATE");if(history.RowCount()!=1)throw Stop{Status::DatabaseFailure};for(unsigned i=0;i<3;++i)Word(proof,N(history.begin()[i]));
+ Word(proof,items.size());for(const auto& i:items){for(uint64_t n:{i.custody,i.storage,uint64_t(i.native),uint64_t(i.creator),uint64_t(i.component),uint64_t(i.expired_before),uint64_t(i.scope.kind),uint64_t(i.scope.native),i.scope.house,i.scope.profile})Word(proof,n);Blob(proof,i.raw);Blob(proof,i.scope.proof);}
+ return UpkeepCatchup::Hash(proof);
+}
 }
 // Native expiry is a delinquent-since marker; it is never a paid-until date.
 inline uint32_t Expired(Database& db,uint64_t custody,uint32_t native_item){using namespace Detail;auto r=db.QueryDatabase("SELECT expired_since FROM housing_upkeep_item_state WHERE custody_id="+std::to_string(custody)+" AND native_item_id="+std::to_string(native_item),false);if(!r.Success()){if(r.ErrorNumber()==ER_NO_SUCH_TABLE)return 0;throw Stop{Status::DatabaseFailure};}if(r.RowCount()>1||(r.RowCount()&&N(r.begin()[0])>UINT32_MAX))throw Stop{Status::DatabaseFailure};return r.RowCount()?uint32_t(N(r.begin()[0])):0;}
@@ -126,11 +139,15 @@ inline Outcome Tick(Database& db,uint32_t estate,uint32_t due,uint32_t now){
  try{if(!Installed(db))return {};auto tx=Q(db,"SELECT @@in_transaction");if(tx.RowCount()!=1||N(tx.begin()[0]))return {Status::Conflict};Q(db,"START TRANSACTION");active=true;
   auto previous=Q(db,"SELECT charged_copper,stowed_count FROM housing_upkeep_cycles WHERE estate_id="+std::to_string(estate)+" AND due_epoch="+std::to_string(due)+" FOR UPDATE");
   if(previous.RowCount()){Outcome o{Status::Replayed,N(previous.begin()[0]),uint32_t(N(previous.begin()[1]))};Q(db,"ROLLBACK");active=false;return o;}
-  auto c=Q(db,"SELECT native_plot_id,owner_kind,owner_id,catalog_revision,next_due_epoch,revision FROM housing_upkeep_contracts WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(c.RowCount()!=1)throw Stop{Status::Conflict};auto p=c.begin();if(N(p[4])!=due)throw Stop{Status::Conflict};if(now<due)throw Stop{Status::NotDue};if(!due||due>UINT32_MAX-3600||uint64_t(now)>=uint64_t(due)+3600)throw Stop{Status::Unsupported};
+  auto c=Q(db,"SELECT native_plot_id,owner_kind,owner_id,catalog_revision,next_due_epoch,revision FROM housing_upkeep_contracts WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(c.RowCount()!=1)throw Stop{Status::Conflict};auto p=c.begin();if(N(p[4])!=due)throw Stop{Status::Conflict};if(now<due)throw Stop{Status::NotDue};if(!due||due>UINT32_MAX-3600)throw Stop{Status::Unsupported};const bool overdue=uint64_t(now)>=uint64_t(due)+3600;
   auto owner=Q(db,"SELECT owner_kind,owner_id FROM housing_current_estates WHERE id="+std::to_string(estate)+" FOR UPDATE");if(owner.RowCount()!=1||N(owner.begin()[0])!=N(p[1])||N(owner.begin()[1])!=N(p[2]))throw Stop{Status::Conflict};
   PendingEstate(db,estate,uint32_t(N(p[1])),uint32_t(N(p[2])));
   auto g=Current(db,estate,N(p[0]),N(p[3]),due);auto items=Obligations(db,estate,g);auto total=Total(items);if(g.plot_rate>uint64_t(INT64_MAX)-total)throw Stop{Status::Unsupported};total+=g.plot_rate;auto plot_expired=PlotExpired(db,estate,g.native);
-  Q(db,"INSERT IGNORE INTO housing_escrow_balances(estate_id,copper) VALUES("+std::to_string(estate)+",0)");auto b=Q(db,"SELECT copper FROM housing_escrow_balances WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(b.RowCount()!=1)throw Stop{Status::DatabaseFailure};const auto before=N(b.begin()[0]);bool pay=before>=total;
+  Q(db,"INSERT IGNORE INTO housing_escrow_balances(estate_id,copper) VALUES("+std::to_string(estate)+",0)");auto b=Q(db,"SELECT copper FROM housing_escrow_balances WHERE estate_id="+std::to_string(estate)+" FOR UPDATE");if(b.RowCount()!=1)throw Stop{Status::DatabaseFailure};const auto before=N(b.begin()[0]);
+  auto catchup=UpkeepCatchup::Reviewed(db,estate,g.native,uint32_t(N(p[1])),uint32_t(N(p[2])),g.revision,EstateWire::EncodeBootstrap(g.bundle.definitions,g.bundle.costs),RegionWire::EncodeBootstrap(g.bundle.regions));
+  std::optional<UpkeepCatchup::Checkpoint> checkpoint;
+  if(overdue){if(!catchup)throw Stop{Status::Unsupported};checkpoint=UpkeepCatchup::MatchPast(db,estate,due,now,N(p[5]),before,CatchupWitness(db,estate,g,items),*catchup);if(!checkpoint)throw Stop{Status::Unsupported};}
+  bool pay=before>=total;
   // Below the cheapest positive obligation none can be paid, regardless of
   // ordering. All other partially affordable cohorts remain unsupported.
   if(!pay&&((g.plot_rate&&before>=g.plot_rate)||std::any_of(items.begin(),items.end(),[&](const auto& i){return before>=i.rate;})))throw Stop{Status::Unsupported};
@@ -148,6 +165,7 @@ inline Outcome Tick(Database& db,uint32_t estate,uint32_t due,uint32_t now){
   Q(db,"INSERT INTO housing_upkeep_property_state VALUES("+std::to_string(estate)+","+std::to_string(g.native)+","+std::to_string(expired_after)+","+std::to_string(due)+") ON DUPLICATE KEY UPDATE expired_since=VALUES(expired_since),last_due_epoch=VALUES(last_due_epoch)");
   auto debit=Q(db,"UPDATE housing_escrow_balances SET copper="+std::to_string(after)+" WHERE estate_id="+std::to_string(estate)+" AND copper="+std::to_string(before));if(out.charged&&debit.RowsAffected()!=1)throw Stop{Status::Conflict};
   auto advance=Q(db,"UPDATE housing_upkeep_contracts SET next_due_epoch="+std::to_string(due+3600)+",revision=revision+1 WHERE estate_id="+std::to_string(estate)+" AND revision="+std::to_string(N(p[5])));if(advance.RowsAffected()!=1)throw Stop{Status::Conflict};
+  if(catchup){auto next_graph=Current(db,estate,g.native,g.revision,due+3600);auto next_items=Obligations(db,estate,next_graph);UpkeepCatchup::Advance(db,estate,due,now,N(p[5])+1,after,CatchupWitness(db,estate,next_graph,next_items),*catchup,checkpoint);}
   committing=true;auto commit=db.QueryDatabase(std::string("COMMIT"),false);active=false;if(!commit.Success())return {Status::CommitUncertain};return out;
  }catch(const Stop& s){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {committing?Status::CommitUncertain:s.status};}catch(...){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {committing?Status::CommitUncertain:Status::DatabaseFailure};}
 }

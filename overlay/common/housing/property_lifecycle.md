@@ -56,3 +56,13 @@ After the native guild purchase schema, `2026_10_18_housing_paid_guild_plot_purc
 Representative actual SQL verifies the paid guild debit, unchanged bank/cursor/crystal balances, receipt replay/application acknowledgement, legacy modes, permission loss, rollback and certified-writer-death recovery. A separate guild plot billing graph verifies24 hourly assessments sum to the configured2000 copper daily rate, insolvency expiry, reviewed funded recovery and late-debit rollback. Native paid-guild acceptance and partial/alternate-currency/overdue-history behavior remain outstanding.
 
 Native paid-personal acceptance now covers a42-platinum purchase with4-platinum2-gold daily upkeep, purchase-time contract enrollment, a5-platinum cursor deposit, an actual world-timer175-copper charge and individual withdrawals of the remaining4825 copper. The test advanced only that property's due clock to avoid waiting an hour; the world performed the debit. Add Day, Add Week and Withdraw All remain unsupported. The management window's daily-cost label truncates the displayed denomination and its open escrow balance remained stale after the world charge until a financial refresh; those presentation issues are not resolved by this acceptance. New-purchase recovery enrollment also passed actual SQL expiry, funding and final-insertion rollback checks. This does not establish native acceptance of every lifecycle branch or complete neighborhood plot content.
+
+
+## Witnessed overdue assessments and guild disposition
+
+See `upkeep_catchup.md` for the default-off, prior-observation catch-up extension. More than one missed interval is supported only with a genuine earlier on-time checkpoint and unchanged validated funding/content history; unknown arrears still defer. See `guild_inactivity_returns.md` for separate30-day, current-roster, explicit-recipient guild returns and the dissolution interlock. These extensions supersede the corresponding earlier limitations above only within their reviewed supported cases. Unpaid rent alone still locks/stows; it does not trigger a new invented eviction rule.
+
+
+## Mixed recipients, vaults and multiple moving crates
+
+See `offline_return_batches.md` for generation-bound all-recipient returns and `return_settlement_db.h` for the immutable conservation seal used by guild dissolution. Supported foreign room/vault items now return to their original owners, exterior cargo is partitioned into owner-specific capacity-limited crates, and a verified settled generation can disband without orphaning retained cargo. The new policy is default-off and does not retroactively certify earlier occupied returns. These changes supersede the corresponding earlier single-recipient limits only within the documented supported shapes.

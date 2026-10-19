@@ -226,6 +226,15 @@ Result<Estate> PersistenceService::ProvisionEstate(const std::string& request_ke
 		return Result<Estate>::Failure(Error::InvalidArgument);
 	if (!Ready()) return Result<Estate>::Failure(Error::DatabaseFailure);
 	return Mutate<Estate>(*database_, [&]() {
+		if (owner_kind == OwnerKind::Guild) {
+			// Serialize administrative provisioning with guild dissolution too.
+			// Existence must be checked under the same transaction as the insert.
+			auto engine = Checked(*database_, "SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='guilds' AND table_type='BASE TABLE'");
+			if (engine.RowCount() != 1 || !engine.begin()[0] || std::string(engine.begin()[0]) != "InnoDB")
+				throw Failure{Error::DatabaseFailure};
+			auto guild = Checked(*database_, "SELECT id FROM guilds WHERE id=" + std::to_string(owner_id) + " FOR UPDATE");
+			if (guild.RowCount() != 1) throw Failure{Error::NotFound};
+		}
 		auto plot = Checked(*database_, "SELECT id FROM housing_plot_definitions WHERE id=" +
 			std::to_string(plot_id) + " FOR UPDATE");
 		if (!plot.RowCount()) throw Failure{Error::NotFound};

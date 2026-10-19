@@ -152,15 +152,98 @@ index 0a13492..0a44c49 100644
  	uint32	name_length;	//total length of all of the char names, excluding terminators
  	uint32	note_length;	//total length of all the public notes, excluding terminators
 diff --git a/common/guild_base.cpp b/common/guild_base.cpp
-index 3f34c36..7c102e8 100644
+index 3f34c36..72c9729 100644
 --- a/common/guild_base.cpp
 +++ b/common/guild_base.cpp
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,5 @@
 +#include "housing/guild_favor.h"
++#include "housing/guild_dissolution_db.h"
  /*	EQEMu: Everquest Server Emulator
      Copyright (C) 2001-2006 EQEMu Development Team (http://eqemulator.net)
  
-@@ -1297,6 +1298,9 @@ bool BaseGuildManager::StoreGuildDB(uint32 guild_id)
+@@ -547,63 +549,24 @@ uint32 BaseGuildManager::UpdateDbCreateGuild(std::string name, uint32 leader)
+ 
+ bool BaseGuildManager::UpdateDbDeleteGuild(uint32 guild_id, bool local_delete, bool db_delete)
+ {
+-	auto const where_filter = fmt::format("guild_id = {}", guild_id);
+-	auto const bank_items   = GuildBankRepository::GetWhere(*m_db, where_filter);
+-
+-	if (local_delete) {
+-		if (!bank_items.empty()) {
+-			LogError(
+-				"Attempt to delete guild id [{}] that still has [{}] items in the bank. Please remove them and try "
+-				"again.",
+-				guild_id,
+-				bank_items.size()
+-			);
+-			LogGuilds(
+-				"Attempt to delete guild id [{}] that still has [{}] items in the bank. Please remove them and try "
+-				"again.",
+-				guild_id,
+-				bank_items.size()
+-			);
+-
+-			return false;
+-		}
+-
+-		auto res = m_guilds.find(guild_id);
+-		if (res != m_guilds.end()) {
+-			safe_delete(res->second);
+-			m_guilds.erase(res);
+-			LogGuilds("Deleted guild [{}] from memory", guild_id);
+-			// Does this need to be sent to world?
+-		}
+-	}
+-
+-	if (db_delete) {
+-		if (!bank_items.empty()) {
+-			LogError(
+-				"Attempt to delete guild id [{}] that still has [{}] items in the bank. Please remove them and try "
+-				"again.",
+-				guild_id,
+-				bank_items.size()
+-			);
+-			LogGuilds(
+-				"Attempt to delete guild id [{}] that still has [{}] items in the bank. Please remove them and try "
+-				"again.",
+-				guild_id,
+-				bank_items.size()
+-			);
+-
+-			return false;
+-		}
+-
+-		GuildTributesRepository::DeleteOne(*m_db, guild_id);
+-		GuildsRepository::DeleteOne(*m_db, guild_id);
+-		GuildRanksRepository::DeleteWhere(*m_db, where_filter);
+-		GuildPermissionsRepository::DeleteWhere(*m_db, where_filter);
+-		GuildMembersRepository::DeleteWhere(*m_db, where_filter);
+-		LogGuilds("Deleted guild [{}] from the database", guild_id);
+-	}
+-
+-	return true;
++ if (db_delete) {
++  const auto result = Housing::GuildDissolution::Delete(*m_db, guild_id);
++  if (result != Housing::GuildDissolution::Status::Committed) {
++   LogError("Guild [{}] deletion deferred: housing/bank assets, unavailable schema, SQL failure or uncertain commit (status [{}]); guild cache retained", guild_id, static_cast<int>(result));
++   return false;
++  }
++ } else {
++  // Preserve the cache-only API, while treating a failed bank query as failure.
++  auto bank = m_db->QueryDatabase("SELECT guild_id FROM guild_bank WHERE guild_id=" + std::to_string(guild_id) + " LIMIT 1", false);
++  if (!bank.Success() || bank.RowCount()) { return false; }
++ }
++ // Publish local authority removal only after a successful database COMMIT.
++ if (local_delete) {
++  auto res = m_guilds.find(guild_id);
++  if (res != m_guilds.end()) { safe_delete(res->second); m_guilds.erase(res); }
++ }
++ LogGuilds("Deleted guild [{}] (database [{}], local [{}])", guild_id, db_delete, local_delete);
++ return true;
+ }
+ 
+ bool BaseGuildManager::UpdateDbRenameGuild(uint32 guild_id, std::string new_name)
+@@ -1297,6 +1260,9 @@ bool BaseGuildManager::StoreGuildDB(uint32 guild_id)
  	return _StoreGuildDB(guild_id);
  }
  
@@ -1340,7 +1423,7 @@ index b158ad2..76b5534 100644
  	//Client* GetClient(uint32 char_id);
  
 diff --git a/world/main.cpp b/world/main.cpp
-index c938612..dcee873 100644
+index c938612..a7b2dda 100644
 --- a/world/main.cpp
 +++ b/world/main.cpp
 @@ -47,6 +47,10 @@
@@ -1349,12 +1432,12 @@ index c938612..dcee873 100644
  #include "../common/evolving_items.h"
 +#include "../common/housing/persistence_service.h"
 +#include "../common/housing/upkeep_cycle_db.h"
-+#include "../common/housing/offline_property_delivery_db.h"
++#include "../common/housing/offline_return_batch_db.h"
 +#include <ctime>
  
  #ifdef _WINDOWS
  #include <process.h>
-@@ -158,7 +162,37 @@ int main(int argc, char **argv)
+@@ -158,7 +162,38 @@ int main(int argc, char **argv)
  		return 1;
  	}
  
@@ -1387,12 +1470,13 @@ index c938612..dcee873 100644
  	// timers
 +	Housing::UpkeepClock::Cursor housing_upkeep_cursor;
 +    uint32_t housing_inactivity_cursor=0;
++    uint32_t housing_guild_inactivity_cursor=0;
 +	Timer housing_upkeep_timer(60000);
 +	housing_upkeep_timer.Start(60000);
  	Timer PurgeInstanceTimer(450000);
  	PurgeInstanceTimer.Start(450000);
  	Timer EQTimeTimer(600000);
-@@ -371,6 +405,22 @@ int main(int argc, char **argv)
+@@ -371,6 +406,28 @@ int main(int argc, char **argv)
  
  	auto loop_fn = [&](EQ::Timer* t) {
  		Timer::SetCurrentTime();
@@ -1402,11 +1486,17 @@ index c938612..dcee873 100644
 +                if(current>0&&uint64_t(current)<=UINT32_MAX){
 +                    auto batch=Housing::UpkeepCycle::ProcessDue(*housing_upkeep_database,uint32_t(current),housing_upkeep_cursor);
 +                    try{
-+                        auto inactivity=Housing::InactivityRetirement::ProcessDue(*housing_upkeep_database,uint32_t(current),housing_inactivity_cursor,&Housing::OfflinePropertyDelivery::Retire);
++                        auto inactivity=Housing::InactivityRetirement::ProcessDue(*housing_upkeep_database,uint32_t(current),housing_inactivity_cursor,&Housing::OfflineReturnBatch::Retire);
 +                        batch.refresh=batch.refresh||inactivity.refresh;
-+                        if(inactivity.retired)LogInfo("Housing inactivity retired [{}] reviewed empty personal properties",inactivity.retired);
++                        if(inactivity.retired)LogInfo("Housing inactivity retired [{}] reviewed personal properties",inactivity.retired);
 +                        if(inactivity.deferred)LogInfo("Housing inactivity deferred [{}] properties requiring return, refund or pending resolution",inactivity.deferred);
 +                    }catch(...){LogError("Housing inactivity assessment failed; upkeep refresh retained");}
++                    try{
++                        auto guild=Housing::OfflinePropertyDelivery::ProcessGuildDue(*housing_upkeep_database,uint32_t(current),housing_guild_inactivity_cursor,&Housing::OfflineReturnBatch::RetireGuild);
++                        batch.refresh=batch.refresh||guild.refresh;
++                        if(guild.retired)LogInfo("Housing guild inactivity retired [{}] reviewed properties",guild.retired);
++                        if(guild.deferred)LogInfo("Housing guild inactivity deferred [{}] properties requiring safe return",guild.deferred);
++                    }catch(...){LogError("Housing guild inactivity assessment failed; no disposition inferred");}
 +                    if(batch.refresh){ServerPacket refresh(ServerOP_HousingUpkeepRefresh,1);refresh.pBuffer[0]=0;ZSList::Instance()->SendPacket(&refresh);LogInfo("Housing upkeep invalidation broadcast after [{}] applied assessments",batch.applied);}
 +                    if(batch.unsupported)LogInfo("Housing upkeep deferred [{}] unsupported or pending contracts",batch.unsupported);
 +                }

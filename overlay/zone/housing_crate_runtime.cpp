@@ -18,11 +18,23 @@ std::shared_ptr<const Content> selected;bool initialized=false;
 std::string Lower(std::string s){for(auto& c:s)if(c>='A'&&c<='F')c=char(c-'A'+'a');return s;}
 bool DatabaseReady(){const auto* config=EQEmuConfig::get();return config&&config->DatabaseDB=="peq_housing_test"&&InventoryBridge::IsRegisteredZoneThread()&&RuleB(Housing,EnablePlayerHousing);}
 bool Metadata(Database& db,const Content& s){
- auto r=db.QueryDatabase(std::string("SELECT idfile,UNK224,UNK227,UNK228,UNK229,itemclass,bagslots,stackable,UNK226 FROM items WHERE id=62586 FOR UPDATE"),false);if(!r.Success()||r.RowCount()!=1)return false;auto row=r.begin();for(size_t i=0;i<9;++i)if(!row[i])return false;
- if(std::string(row[0])!="IT20028"||std::stoull(row[1])!=s.placement_mask||std::stoull(row[2])!=174||std::stoull(row[3])!=s.minimum_scale_bits||std::stoull(row[4])!=s.maximum_scale_bits)return false;for(size_t i=5;i<9;++i)if(std::stoull(row[i]))return false;
- auto catalog=db.QueryDatabase("SELECT revision,origin,client_build,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key='"+db.Escape(s.catalog_key)+"' FOR UPDATE",false);
- if(!catalog.Success()||catalog.RowCount()!=1)return false;auto c=catalog.begin();for(size_t i=0;i<5;++i)if(!c[i])return false;
- return std::stoull(c[0])==s.catalog_revision&&std::stoull(c[1])==2&&std::stoull(c[2])==20130510&&Lower(c[3])==s.definitions_hex&&Lower(c[4])==s.regions_hex;
+ try{
+  auto r=db.QueryDatabase(std::string("SELECT idfile,UNK224,UNK227,UNK228,UNK229,itemclass,bagslots,stackable,UNK226 FROM items WHERE id=62586 FOR UPDATE"),false);if(!r.Success()||r.RowCount()!=1)return false;auto row=r.begin();for(size_t i=0;i<9;++i)if(!row[i])return false;
+  if(std::string(row[0])!="IT20028"||std::stoull(row[1])!=s.placement_mask||std::stoull(row[2])!=174||std::stoull(row[3])!=s.minimum_scale_bits||std::stoull(row[4])!=s.maximum_scale_bits)return false;for(size_t i=5;i<9;++i)if(std::stoull(row[i]))return false;
+  auto catalog=db.QueryDatabase("SELECT revision,origin,client_build,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key='"+db.Escape(s.catalog_key)+"' FOR UPDATE",false);
+  if(!catalog.Success()||catalog.RowCount()!=1)return false;auto c=catalog.begin();for(size_t i=0;i<5;++i)if(!c[i])return false;
+  if(std::stoull(c[0])<s.catalog_revision||std::stoull(c[1])!=2||std::stoull(c[2])!=20130510||Lower(c[4])!=s.regions_hex)return false;
+  const auto reviewed=Catalog::DecodePayloads(CrateTest::Unhex(s.definitions_hex),CrateTest::Unhex(s.regions_hex));
+  const auto current=Catalog::DecodePayloads(CrateTest::Unhex(Lower(c[3])),CrateTest::Unhex(Lower(c[4])));
+  auto crate=[](const Catalog::Bundle& b)->const EstateWire::Definition*{
+   const EstateWire::Definition* found=nullptr;for(const auto& d:b.definitions)if(d.id==174){if(found||d.type!=7)return nullptr;found=&d;}return found;
+  };
+  const auto* expected=crate(reviewed);const auto* actual=crate(current);if(!expected||!actual)return false;
+  // Billing may revise unrelated plot costs. Preserve the immutable resource
+  // manifest and exact crate definition; services still validate the actual
+  // source/destination generation, content, physical route and fresh ACL.
+  return EstateWire::EncodeBootstrap({*expected},{})==EstateWire::EncodeBootstrap({*actual},{});
+ }catch(...){return false;}
 }
 std::string Hex(const std::vector<uint8_t>& bytes){const char* h="0123456789abcdef";std::string out;for(auto b:bytes){out+=h[b>>4];out+=h[b&15];}return out;}
 bool ClientReady(Client& c){return DatabaseReady()&&zone&&c.ClientVersion()==EQ::versions::ClientVersion::RoF2&&c.Connected()&&c.ClientDataLoaded()&&c.HasInventorySessionReservation()&&c.CharacterID()&&c.AccountID();}

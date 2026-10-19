@@ -77,3 +77,13 @@ EQEmu upstream's GPLv3 license text is retained in [LICENSE](LICENSE). Existing 
 ## Billing and Sunrise follow-up
 
 The latest production source and optional finance-window patch are included. Representative personal bulk controls, paid guild purchase/enrollment/upkeep, and all 75 Plot Search rows have native acceptance. The guild-frame click and automatic refresh of an already-open finance window also passed. See [billing and Sunrise update](docs/BILLING-SUNRISE-2026-10-18.md) for scope and compatibility limits.
+
+
+## Overdue upkeep and guild inactivity follow-up
+
+Default-off witnessed catch-up, reviewed guild inactivity returns and checked guild dissolution are included. The original server world-timer empty-guild release/refund passed, and client inventory displayed the refunded wallet at login. Furnished guild-crate reload was verified separately through private SQL; native crate placement remains outside that evidence. Cleanup completed with original state/currency restored, activation reviews cleared and immutable history retained. See [scope and evidence](docs/OVERDUE-INACTIVITY-2026-10-18.md).
+
+
+## Mixed-owner return follow-up
+
+Optional all-recipient atomic returns, direct rightful-owner delivery and sealed settlement are included. Combined SQL/reload and private guarded guild-deletion verification passed. Representative native recipient login, rightful direct returns, loose-crate placement/unpack and chair pickup also passed; the carried furnished-hall crate was not unpacked. Actual native guild deletion also passed after the settlement follow-up fix, preserving returned items and the separate protected guild. Final deployment and original-state conservation passed; new activation reviews remain empty. See [scope and limits](docs/MIXED-RETURNS-2026-10-18.md).

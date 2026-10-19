@@ -65,7 +65,7 @@ inline std::string Cargo(Database& db,uint64_t crate,uint32_t owner,const std::v
 // locking its actual inactive owner, generation and exact delivery review.
 // Review absence retains the prior packed-crate-only behavior.
 struct Packing {uint32_t count=0;std::string before,after,before_allocation,after_allocation,review;};
-inline Packing PackLoose(Database& db,uint32_t estate,uint32_t owner,const LiveItems::Stored& root,const CrateBinding::Allocation& crate){
+inline Packing PackLoose(Database& db,uint32_t estate,uint32_t owner,const LiveItems::Stored& root,const CrateBinding::Allocation& crate,bool guild=false){
  Packing out;auto schema=Q(db,"SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('housing_inactivity_packing_policy','housing_inactivity_packings')");
  if(!schema.RowCount())return out;if(schema.RowCount()!=2)throw Stop{Status::DatabaseFailure};for(auto r=schema.begin();r!=schema.end();++r)if(!r[0]||std::string(r[0])!="InnoDB")throw Stop{Status::DatabaseFailure};
  const auto& b=crate.binding;
@@ -84,7 +84,7 @@ inline Packing PackLoose(Database& db,uint32_t estate,uint32_t owner,const LiveI
   Empty(db,"SELECT custody_id FROM housing_house_item_scopes WHERE custody_id="+Id(id));Empty(db,"SELECT custody_id FROM housing_live_npc_frames WHERE custody_id="+Id(id));Empty(db,"SELECT custody_id FROM housing_live_vault_items WHERE custody_id="+Id(id));
   auto metadata=Q(db,"SELECT idfile,itemclass,bagslots,loregroup,nodrop,evoitem FROM items WHERE id="+Id(v.item_id)+" FOR UPDATE");if(metadata.RowCount()!=1)throw Stop{Status::Deferred};auto m=metadata.begin();
   if(!m[0]||N(m[1])||N(m[2])||std::stoll(m[3])!=s.catalog.lore_group||std::stoll(m[4])!=s.catalog.no_drop||N(m[5])||s.catalog.item_class||s.catalog.bag_slots)throw Stop{Status::Deferred};
-  const auto* house=HouseGeometry::Lookup(v.item_id,m[0]);if((house&&HouseTemplates::Type(v.item_id)!=3)||(!house&&!StaticFurniture::Lookup(v.item_id,m[0])))throw Stop{Status::Deferred};
+  const auto* house=HouseGeometry::Lookup(v.item_id,m[0]);if((house&&HouseTemplates::Type(v.item_id)!=(guild?2u:3u))||(!house&&!StaticFurniture::Lookup(v.item_id,m[0])))throw Stop{Status::Deferred};
   Empty(db,"SELECT id FROM items_evolving_details WHERE item_id="+Id(v.item_id));Empty(db,"SELECT id FROM character_evolving_items WHERE character_id="+Id(owner)+" AND item_id="+Id(v.item_id)+" AND deleted_at IS NULL");
   auto house_row=Q(db,"SELECT h.house_id,h.created_by_character_id,h.item_template_id,h.pending_request_key FROM housing_house_instances h JOIN housing_house_locations l ON l.house_id=h.house_id WHERE l.location_kind=2 AND l.custody_id="+Id(id)+" FOR UPDATE");
   if(house){if(house_row.RowCount()!=1||N(house_row.begin()[1])!=owner||N(house_row.begin()[2])!=v.item_id||house_row.begin()[3])throw Stop{Status::Deferred};houses.push_back(CrateHouseRules::LockedHouse(db,N(house_row.begin()[0])));}else if(house_row.RowCount())throw Stop{Status::Deferred};
@@ -111,7 +111,7 @@ inline uint32_t Destination(Database& db,uint32_t owner){
 struct Created {bool made=false;CrateBinding::Allocation initial;LiveItems::InventoryRow row;std::string review;};
 // No simulated placed item, custody receipt or Client reservation. The new
 // permanent typed crate starts carried; GUID0 uses the normal inventory loader.
-inline Created CreateCarried(Database& db,uint32_t estate,uint32_t owner,uint32_t native,const std::string& catalog,uint64_t revision,const char* reviewed_manifest){
+inline Created CreateCarried(Database& db,uint32_t estate,uint32_t owner,uint32_t native,const std::string& catalog,uint64_t revision,const char* reviewed_manifest,bool guild=false){
  Created out;auto schema=Q(db,"SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('housing_inactivity_crate_creation_policy','housing_inactivity_crate_creations')");if(!schema.RowCount())return out;if(schema.RowCount()!=2)throw Stop{Status::DatabaseFailure};for(auto r=schema.begin();r!=schema.end();++r)if(!r[0]||std::string(r[0])!="InnoDB")throw Stop{Status::DatabaseFailure};
  auto column=Q(db,"SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='housing_inactivity_deliveries' AND column_name='source_kind'");if(column.RowCount()!=1||N(column.begin()[0])!=1)throw Stop{Status::DatabaseFailure};
  auto policy=Q(db,"SELECT HEX(crate_manifest_sha256),review_reference FROM housing_inactivity_crate_creation_policy WHERE estate_id="+Id(estate)+" AND native_plot_id="+Id(native)+" AND catalog_revision="+Id(revision)+" AND mode=1 FOR UPDATE");if(!policy.RowCount())return out;if(policy.RowCount()!=1||!policy.begin()[0]||!reviewed_manifest||std::string(policy.begin()[0])!=reviewed_manifest||!policy.begin()[1]||!policy.begin()[1][0])throw Stop{Status::Deferred};out.review=policy.begin()[1];
@@ -120,7 +120,7 @@ inline Created CreateCarried(Database& db,uint32_t estate,uint32_t owner,uint32_
  auto packing=Q(db,"SELECT estate_id FROM housing_inactivity_packing_policy WHERE estate_id="+Id(estate)+" AND native_plot_id="+Id(native)+" AND catalog_revision="+Id(revision)+" AND mode=1 FOR UPDATE");if(packing.RowCount()!=1)throw Stop{Status::Deferred};
  auto item=Q(db,"SELECT idfile,itemclass,bagslots,stackable,UNK227,UNK226,maxcharges,evoitem,loregroup FROM items WHERE id=62586 FOR UPDATE");if(item.RowCount()!=1)throw Stop{Status::Deferred};auto m=item.begin();if(!m[0]||std::string(m[0])!="IT20028"||N(m[1])||N(m[2])||N(m[3])||N(m[4])!=174||N(m[5])||std::stoll(m[6])||N(m[7])||std::stoll(m[8]))throw Stop{Status::Deferred};Empty(db,"SELECT id FROM items_evolving_details WHERE item_id=62586");Empty(db,"SELECT id FROM character_evolving_items WHERE character_id="+Id(owner)+" AND item_id=62586 AND deleted_at IS NULL");
  out.row.values=InventoryRepository::NewEntity();auto& v=out.row.values;v.character_id=owner;v.slot_id=Destination(db,owner);v.item_id=62586;v.charges=0;v.guid=0;v.custom_data.clear();out.row.null_fields=0;
- const std::string key="offline-inactivity:"+Id(estate);CrateCreationOrigin::Offline(db,key,estate);auto made=Q(db,"INSERT INTO housing_crate_instances(item_template_id,created_by_character_id,creation_request_key,content_manifest_sha256) VALUES(62586,"+Id(owner)+","+Quote(db,key)+",x'"+std::string(reviewed_manifest)+"')");const auto crate=made.LastInsertedID();if(made.RowsAffected()!=1||!crate)throw Stop{Status::Conflict};
+ const std::string key=std::string(guild?"offline-guild-inactivity:":"offline-inactivity:")+Id(estate);if(guild)CrateCreationOrigin::OfflineGuild(db,key,estate,owner);else CrateCreationOrigin::Offline(db,key,estate);auto made=Q(db,"INSERT INTO housing_crate_instances(item_template_id,created_by_character_id,creation_request_key,content_manifest_sha256) VALUES(62586,"+Id(owner)+","+Quote(db,key)+",x'"+std::string(reviewed_manifest)+"')");const auto crate=made.LastInsertedID();if(made.RowsAffected()!=1||!crate)throw Stop{Status::Conflict};
  auto parent=Q(db,"SELECT neighborhood_id FROM housing_native_estates WHERE native_id="+Id(native)+" AND ownership_estate_id="+Id(estate)+" AND active=1 FOR UPDATE");if(parent.RowCount()!=1)throw Stop{Status::Conflict};
  auto allocated=Q(db,"INSERT INTO housing_native_estates(catalog_key,node_key,parent_native_id,neighborhood_id,definition_id,static_id,active) VALUES("+Quote(db,catalog)+","+Quote(db,"crate:"+Id(crate))+","+Id(native)+","+Id(N(parent.begin()[0]))+",174,0,0)");const auto child=allocated.LastInsertedID();if(allocated.RowsAffected()!=1||!child||child>=UINT32_MAX)throw Stop{Status::Conflict};
  One(db,"INSERT INTO inventory("+std::string(InventoryRowDB::WriteColumns)+") VALUES("+InventoryRowDB::Values(out.row,v.slot_id)+")");
@@ -133,20 +133,34 @@ inline Created CreateCarried(Database& db,uint32_t estate,uint32_t owner,uint32_
 // Server-owned offline disposition, independent of Client lease/fence journals.
 // Supported: empty funded plot, or one existing placed small moving crate whose
 // full belongings are already packed, or separately reviewed yard packing.
-// A separate review can create one carried crate when absent. Guild estates,
-// foreign belongings, vaults and parcel conversion remain unsupported.
-inline Status Retire(Database& db,uint32_t estate,uint32_t now){
+// A separate review can create one carried crate when absent. Guild mode uses
+// separate inactivity/recipient authority and journals. Foreign belongings,
+// vaults and parcel conversion remain unsupported.
+inline Status RetireImpl(Database& db,uint32_t estate,uint32_t now,bool guild){
  using namespace Detail;bool active=false,committing=false;
  try{
- if(!estate||now<InactivityRetirement::InactiveSeconds||!Installed(db))return Status::NotDue;
+ const uint32_t inactive_seconds=guild?2592000u:InactivityRetirement::InactiveSeconds;
+ if(!estate||now<inactive_seconds||!Installed(db))return Status::NotDue;
  auto tx=Q(db,"SELECT @@in_transaction");if(tx.RowCount()!=1||N(tx.begin()[0]))return Status::Conflict;
  Q(db,"START TRANSACTION");active=true;
- auto row=Q(db,"SELECT e.plot_id,e.owner_id,c.account_id,c.last_login,n.native_id,n.definition_id,cat.revision,p.review_reference,HEX(cat.definitions_blob),HEX(cat.regions_blob),HEX(d.crate_manifest_sha256),d.review_reference FROM housing_current_estates e JOIN character_data c ON c.id=e.owner_id AND c.deleted_at IS NULL JOIN account a ON a.id=c.account_id JOIN housing_native_estates n ON n.ownership_estate_id=e.id AND n.plot_id=e.plot_id AND n.active=1 JOIN housing_catalogs cat ON cat.catalog_key=n.catalog_key JOIN housing_inactivity_policy p ON p.estate_id=e.id AND p.native_plot_id=n.native_id AND p.catalog_revision=cat.revision AND p.inactive_seconds=7776000 JOIN housing_inactivity_delivery_policy d ON d.estate_id=e.id AND d.native_plot_id=n.native_id AND d.catalog_revision=cat.revision AND d.mode=1 WHERE e.id="+Id(estate)+" AND e.owner_kind=1 AND cat.client_build=20130510 AND cat.origin IN (1,2) FOR UPDATE");
+ const auto personal_query="SELECT e.plot_id,e.owner_id,c.account_id,c.last_login,n.native_id,n.definition_id,cat.revision,p.review_reference,HEX(cat.definitions_blob),HEX(cat.regions_blob),HEX(d.crate_manifest_sha256),d.review_reference FROM housing_current_estates e JOIN character_data c ON c.id=e.owner_id AND c.deleted_at IS NULL JOIN account a ON a.id=c.account_id JOIN housing_native_estates n ON n.ownership_estate_id=e.id AND n.plot_id=e.plot_id AND n.active=1 JOIN housing_catalogs cat ON cat.catalog_key=n.catalog_key JOIN housing_inactivity_policy p ON p.estate_id=e.id AND p.native_plot_id=n.native_id AND p.catalog_revision=cat.revision AND p.inactive_seconds=7776000 JOIN housing_inactivity_delivery_policy d ON d.estate_id=e.id AND d.native_plot_id=n.native_id AND d.catalog_revision=cat.revision AND d.mode=1 WHERE e.id="+Id(estate)+" AND e.owner_kind=1 AND cat.client_build=20130510 AND cat.origin IN (1,2) FOR UPDATE";
+ const auto guild_query="SELECT e.plot_id,p.recipient_character_id,c.account_id,c.last_login,n.native_id,n.definition_id,cat.revision,p.review_reference,HEX(cat.definitions_blob),HEX(cat.regions_blob),HEX(d.crate_manifest_sha256),d.review_reference,e.owner_id FROM housing_current_estates e JOIN housing_guild_inactivity_policy p ON p.estate_id=e.id JOIN guilds g ON g.id=e.owner_id AND g.leader=p.recipient_character_id JOIN guild_members leader ON leader.guild_id=g.id AND leader.char_id=g.leader JOIN character_data c ON c.id=p.recipient_character_id AND c.deleted_at IS NULL JOIN account a ON a.id=c.account_id JOIN housing_native_estates n ON n.ownership_estate_id=e.id AND n.plot_id=e.plot_id AND n.active=1 AND n.native_id=p.native_plot_id JOIN housing_catalogs cat ON cat.catalog_key=n.catalog_key AND cat.revision=p.catalog_revision AND p.definitions_sha256=UNHEX(SHA2(cat.definitions_blob,256)) AND p.regions_sha256=UNHEX(SHA2(cat.regions_blob,256)) JOIN housing_inactivity_delivery_policy d ON d.estate_id=e.id AND d.native_plot_id=n.native_id AND d.catalog_revision=cat.revision AND d.mode=1 WHERE e.id="+Id(estate)+" AND e.owner_kind=3 AND p.inactive_seconds=2592000 AND cat.client_build=20130510 AND cat.origin IN (1,2) FOR UPDATE";
+ if(guild){
+  auto schema=Q(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_name IN ('housing_guild_inactivity_policy','housing_guild_inactivity_retirements','housing_guild_inactivity_deliveries','housing_guild_inactivity_packings','housing_guild_inactivity_crate_creations','guilds','guild_members')");if(schema.RowCount()!=1||N(schema.begin()[0])!=7)throw Stop{Status::DatabaseFailure};
+  auto identity=Q(db,"SELECT owner_id FROM housing_current_estates WHERE id="+Id(estate)+" AND owner_kind=3");if(identity.RowCount()!=1)throw Stop{Status::NotDue};
+  auto locked=Q(db,"SELECT id FROM guilds WHERE id="+Id(N(identity.begin()[0]))+" FOR UPDATE");if(locked.RowCount()!=1)throw Stop{Status::Deferred};
+ }
+ auto row=Q(db,guild?guild_query:personal_query);
  if(!row.RowCount())throw Stop{Status::NotDue};if(row.RowCount()!=1)throw Stop{Status::Conflict};auto r=row.begin();
- const auto plot=N(r[0]),owner=N(r[1]),account=N(r[2]),last=N(r[3]),native=N(r[4]),revision=N(r[6]);
+ const auto plot=N(r[0]),owner=N(r[1]),account=N(r[2]),native=N(r[4]),revision=N(r[6]);uint64_t last=N(r[3]);const uint64_t owner_id=guild?N(r[12]):owner;
+ if(guild){
+  auto members=Q(db,"SELECT m.char_id,c.last_login,c.deleted_at FROM guild_members m LEFT JOIN character_data c ON c.id=m.char_id WHERE m.guild_id="+Id(owner_id)+" ORDER BY m.char_id FOR UPDATE");if(!members.RowCount())throw Stop{Status::Deferred};last=0;
+  for(auto member=members.begin();member!=members.end();++member){if(!member[1]||member[2]||!N(member[1]))throw Stop{Status::Deferred};last=std::max(last,N(member[1]));}
+  Empty(db,"SELECT s.character_id FROM housing_inventory_sessions s JOIN guild_members m ON m.char_id=s.character_id WHERE s.active=1 AND m.guild_id="+Id(owner_id));
+ }
  if(!plot||!owner||owner>UINT32_MAX||!account||!native||native>=UINT32_MAX||!revision||!r[7]||!r[7][0]||!r[11]||!r[11][0])throw Stop{Status::Conflict};
- if(!last||last>uint64_t(now)-InactivityRetirement::InactiveSeconds)throw Stop{Status::NotDue};
- auto bundle=Catalog::DecodePayloads(UpkeepSelection::Detail::Unhex(r[8]),UpkeepSelection::Detail::Unhex(r[9]));auto definition=std::find_if(bundle.definitions.begin(),bundle.definitions.end(),[&](const auto& d){return d.id==N(r[5]);});if(definition==bundle.definitions.end()||definition->type!=4)throw Stop{Status::Conflict};
+ if(!last||last>uint64_t(now)-inactive_seconds)throw Stop{Status::NotDue};
+ auto bundle=Catalog::DecodePayloads(UpkeepSelection::Detail::Unhex(r[8]),UpkeepSelection::Detail::Unhex(r[9]));auto definition=std::find_if(bundle.definitions.begin(),bundle.definitions.end(),[&](const auto& d){return d.id==N(r[5]);});if(definition==bundle.definitions.end()||definition->type!=(guild?8u:4u))throw Stop{Status::Conflict};
  // Account/character row locks serialize real inventory-session acquisition.
  // Pending foreign returns require a global item-application barrier as well.
  Empty(db,"SELECT character_id FROM housing_live_item_leases WHERE pending_key IS NOT NULL");
@@ -155,7 +169,7 @@ inline Status Retire(Database& db,uint32_t estate,uint32_t now){
  if(CoinPending::Inspect(db,uint32_t(owner),true)!=CoinPending::State::Clear)throw Stop{Status::Deferred};
  const auto inventory_pending=HouseInventory::InspectPending(db,uint32_t(owner),true);if(inventory_pending!=HouseInventory::PendingState::Clear)throw Stop{inventory_pending==HouseInventory::PendingState::Pending?Status::Deferred:Status::DatabaseFailure};
  if(Q(db,"SELECT id FROM housing_plot_definitions WHERE id="+Id(plot)+" FOR UPDATE").RowCount()!=1)throw Stop{Status::Conflict};
- Empty(db,"SELECT estate_id FROM housing_inactivity_retirements WHERE estate_id="+Id(estate));
+ Empty(db,"SELECT estate_id FROM "+std::string(guild?"housing_guild_inactivity_retirements":"housing_inactivity_retirements")+" WHERE estate_id="+Id(estate));
  Empty(db,"SELECT instance_key FROM housing_fixture_item_custody WHERE estate_id="+Id(estate));
  Empty(db,"SELECT native_item_id FROM housing_live_placement_reservations WHERE (estate_id="+Id(estate)+" OR native_estate_id="+Id(native)+") AND state=0");
  Empty(db,"SELECT p.request_key FROM housing_live_escrow_pending p JOIN housing_live_escrow_receipts r ON r.request_key=p.request_key WHERE r.estate_id="+Id(estate));
@@ -175,7 +189,7 @@ inline Status Retire(Database& db,uint32_t estate,uint32_t now){
   if(!CrateBinding::ReadDefinitionUnderTransaction(db,a))throw Stop{Status::Deferred};
   Empty(db,"SELECT custody_id FROM housing_house_item_scopes WHERE custody_id="+Id(root_id));
   Empty(db,"SELECT custody_id FROM housing_live_npc_frames WHERE custody_id="+Id(root_id));
-  packing=PackLoose(db,estate,uint32_t(owner),stored,*allocation);if(packing.count){auto packed=CrateBinding::ReadPlacedUnderTransaction(db,stored);if(!packed)throw Stop{Status::Conflict};allocation=packed.value;}
+  packing=PackLoose(db,estate,uint32_t(owner),stored,*allocation,guild);if(packing.count){auto packed=CrateBinding::ReadPlacedUnderTransaction(db,stored);if(!packed)throw Stop{Status::Conflict};allocation=packed.value;}
   const auto allowed="SELECT m.custody_id FROM housing_crate_members m WHERE m.crate_id="+Id(crate);
   Empty(db,"SELECT c.custody_id FROM housing_live_item_custody c WHERE c.estate_id="+Id(estate)+" AND c.custody_id<>"+Id(root_id)+" AND c.custody_id NOT IN ("+allowed+") AND NOT EXISTS (SELECT 1 FROM housing_house_item_scopes s JOIN housing_house_locations h ON h.house_id=s.house_id AND h.location_kind=2 WHERE s.custody_id=c.custody_id AND h.custody_id IN ("+allowed+"))");
   Empty(db,"SELECT n.native_id FROM housing_native_estates n WHERE n.parent_native_id="+Id(native)+" AND n.active=1 AND n.native_id<>"+Id(b.native_estate_id)+" AND NOT EXISTS (SELECT 1 FROM housing_house_interiors i JOIN housing_house_locations h ON h.house_id=i.house_id AND h.location_kind=2 WHERE i.native_estate_id=n.native_id AND h.custody_id IN ("+allowed+"))");
@@ -196,10 +210,10 @@ inline Status Retire(Database& db,uint32_t estate,uint32_t now){
   One(db,"DELETE FROM housing_live_item_custody WHERE custody_id="+Id(root_id));
  }else{
   auto cat=Q(db,"SELECT catalog_key FROM housing_native_estates WHERE native_id="+Id(native)+" FOR UPDATE");if(cat.RowCount()!=1||!cat.begin()[0])throw Stop{Status::Conflict};
-  created=CreateCarried(db,estate,uint32_t(owner),uint32_t(native),cat.begin()[0],revision,r[10]);
+  created=CreateCarried(db,estate,uint32_t(owner),uint32_t(native),cat.begin()[0],revision,r[10],guild);
   if(created.made){
    delivered=created.row;slot=delivered.values.slot_id;crate=created.initial.binding.crate_id;allocation=created.initial;LiveItems::Stored carrier;carrier.row=delivered;
-   packing=PackLoose(db,estate,uint32_t(owner),carrier,*allocation);if(!packing.count)throw Stop{Status::Deferred};
+   packing=PackLoose(db,estate,uint32_t(owner),carrier,*allocation,guild);if(!packing.count)throw Stop{Status::Deferred};
    auto packed=CrateBinding::ReadCarriedUnderTransaction(db,delivered);if(!packed)throw Stop{Status::Conflict};allocation=packed.value;
    const auto allowed="SELECT m.custody_id FROM housing_crate_members m WHERE m.crate_id="+Id(crate);
    Empty(db,"SELECT c.custody_id FROM housing_live_item_custody c WHERE c.estate_id="+Id(estate)+" AND c.custody_id NOT IN ("+allowed+") AND NOT EXISTS (SELECT 1 FROM housing_house_item_scopes s JOIN housing_house_locations h ON h.house_id=s.house_id AND h.location_kind=2 WHERE s.custody_id=c.custody_id AND h.custody_id IN ("+allowed+"))");
@@ -217,20 +231,30 @@ inline Status Retire(Database& db,uint32_t estate,uint32_t now){
  if(refund){One(db,"UPDATE character_currency SET copper="+Id(after_money[3])+" WHERE id="+Id(owner)+" AND copper="+Id(before_money[3]));One(db,"UPDATE housing_escrow_balances SET copper=0 WHERE estate_id="+Id(estate)+" AND copper="+Id(refund));}
  if(Currency(db,uint32_t(owner))!=after_money)throw Stop{Status::Conflict};
  One(db,"UPDATE housing_native_estates SET ownership_estate_id=NULL WHERE native_id="+Id(native)+" AND ownership_estate_id="+Id(estate)+" AND plot_id="+Id(plot)+" AND active=1");
- One(db,"UPDATE housing_estates SET active=0 WHERE id="+Id(estate)+" AND owner_kind=1 AND owner_id="+Id(owner)+" AND active=1");
+ One(db,"UPDATE housing_estates SET active=0 WHERE id="+Id(estate)+" AND owner_kind="+Id(guild?3:1)+" AND owner_id="+Id(owner_id)+" AND active=1");
  if(allocation){auto actual=CrateBinding::ReadCarriedUnderTransaction(db,delivered);if(!actual)throw Stop{Status::Conflict};auto expected=*allocation;if(!created.made)expected.binding.revision++;expected.binding.custody_id=0;expected.inventory_character_id=uint32_t(owner);expected.inventory_slot_id=slot;
  if(CrateBinding::EncodeAllocation(actual.value)!=CrateBinding::EncodeAllocation(expected)||Cargo(db,crate,uint32_t(owner))!=cargo)throw Stop{Status::Conflict};after_root=Hex(CrateBinding::EncodeAllocation(actual.value))+":"+Hex(CustodyCodec::Encode(delivered));}
- One(db,"INSERT INTO housing_inactivity_retirements(estate_id,native_plot_id,plot_id,character_id,account_id,last_login,retired_epoch,catalog_revision,review_reference) VALUES("+Id(estate)+","+Id(native)+","+Id(plot)+","+Id(owner)+","+Id(account)+","+Id(last)+","+Id(now)+","+Id(revision)+","+Quote(db,r[7])+")");
+ One(db,"INSERT INTO "+std::string(guild?"housing_guild_inactivity_retirements":"housing_inactivity_retirements")+"("+std::string(guild?"guild_id,":"")+"estate_id,native_plot_id,plot_id,character_id,account_id,last_login,retired_epoch,catalog_revision,review_reference) VALUES("+std::string(guild?Id(owner_id)+",":"")+Id(estate)+","+Id(native)+","+Id(plot)+","+Id(owner)+","+Id(account)+","+Id(last)+","+Id(now)+","+Id(revision)+","+Quote(db,r[7])+")");
  const auto cargo_hex=Hex(cargo);auto packet=Q(db,"SELECT @@max_allowed_packet");if(packet.RowCount()!=1||cargo_hex.size()*2+before_root.size()*2+after_root.size()*2+65536>N(packet.begin()[0]))throw Stop{Status::Deferred};
- One(db,"INSERT INTO housing_inactivity_deliveries("+std::string(created.made?"source_kind,":"")+"estate_id,character_id,crate_id,source_custody_id,destination_slot,refund_copper,currency_before,currency_after,root_before,root_after,cargo_blob,cargo_sha256,review_reference) VALUES("+std::string(created.made?"2,":"")+Id(estate)+","+Id(owner)+","+(crate?Id(crate):"NULL")+","+(root_id?Id(root_id):"NULL")+","+(slot?Id(slot):"NULL")+","+Id(refund)+",x'"+Hex(CurrencyBytes(before_money))+"',x'"+Hex(CurrencyBytes(after_money))+"',x'"+Hex(before_root)+"',x'"+Hex(after_root)+"',x'"+cargo_hex+"',UNHEX(SHA2(x'"+cargo_hex+"',256)),"+Quote(db,r[11])+")");
+ One(db,"INSERT INTO "+std::string(guild?"housing_guild_inactivity_deliveries":"housing_inactivity_deliveries")+"("+std::string(created.made?"source_kind,":"")+"estate_id,character_id,crate_id,source_custody_id,destination_slot,refund_copper,currency_before,currency_after,root_before,root_after,cargo_blob,cargo_sha256,review_reference) VALUES("+std::string(created.made?"2,":"")+Id(estate)+","+Id(owner)+","+(crate?Id(crate):"NULL")+","+(root_id?Id(root_id):"NULL")+","+(slot?Id(slot):"NULL")+","+Id(refund)+",x'"+Hex(CurrencyBytes(before_money))+"',x'"+Hex(CurrencyBytes(after_money))+"',x'"+Hex(before_root)+"',x'"+Hex(after_root)+"',x'"+cargo_hex+"',UNHEX(SHA2(x'"+cargo_hex+"',256)),"+Quote(db,r[11])+")");
  if(packing.count){
   const auto before=Hex(packing.before),after=Hex(packing.after);auto limit=Q(db,"SELECT @@max_allowed_packet");if(limit.RowCount()!=1||before.size()*2+after.size()*2+65536>N(limit.begin()[0]))throw Stop{Status::Deferred};
-  One(db,"INSERT INTO housing_inactivity_packings(estate_id,crate_id,member_count,before_allocation,after_allocation,before_blob,after_blob,before_sha256,after_sha256,review_reference) VALUES("+Id(estate)+","+Id(crate)+","+Id(packing.count)+",x'"+Hex(packing.before_allocation)+"',x'"+Hex(packing.after_allocation)+"',x'"+before+"',x'"+after+"',UNHEX(SHA2(x'"+before+"',256)),UNHEX(SHA2(x'"+after+"',256)),"+Quote(db,packing.review)+")");
+  One(db,"INSERT INTO "+std::string(guild?"housing_guild_inactivity_packings":"housing_inactivity_packings")+"(estate_id,crate_id,member_count,before_allocation,after_allocation,before_blob,after_blob,before_sha256,after_sha256,review_reference) VALUES("+Id(estate)+","+Id(crate)+","+Id(packing.count)+",x'"+Hex(packing.before_allocation)+"',x'"+Hex(packing.after_allocation)+"',x'"+before+"',x'"+after+"',UNHEX(SHA2(x'"+before+"',256)),UNHEX(SHA2(x'"+after+"',256)),"+Quote(db,packing.review)+")");
  }
- if(created.made)One(db,"INSERT INTO housing_inactivity_crate_creations(estate_id,crate_id,native_estate_id,inventory_row,initial_allocation,delivered_allocation,review_reference) VALUES("+Id(estate)+","+Id(crate)+","+Id(created.initial.binding.native_estate_id)+",x'"+Hex(CustodyCodec::Encode(delivered))+"',x'"+Hex(CrateBinding::EncodeAllocation(created.initial))+"',x'"+Hex(CrateBinding::EncodeAllocation(*allocation))+"',"+Quote(db,created.review)+")");
+ if(created.made)One(db,"INSERT INTO "+std::string(guild?"housing_guild_inactivity_crate_creations":"housing_inactivity_crate_creations")+"(estate_id,crate_id,native_estate_id,inventory_row,initial_allocation,delivered_allocation,review_reference) VALUES("+Id(estate)+","+Id(crate)+","+Id(created.initial.binding.native_estate_id)+",x'"+Hex(CustodyCodec::Encode(delivered))+"',x'"+Hex(CrateBinding::EncodeAllocation(created.initial))+"',x'"+Hex(CrateBinding::EncodeAllocation(*allocation))+"',"+Quote(db,created.review)+")");
  committing=true;auto commit=db.QueryDatabase(std::string("COMMIT"),false);active=false;return commit.Success()?Status::Retired:Status::CommitUncertain;
  }catch(const Stop& e){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return committing?Status::CommitUncertain:e.status;}
  catch(...){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return committing?Status::CommitUncertain:Status::DatabaseFailure;}
+}
+inline Status Retire(Database& db,uint32_t estate,uint32_t now){return RetireImpl(db,estate,now,false);}
+inline Status RetireGuild(Database& db,uint32_t estate,uint32_t now){return RetireImpl(db,estate,now,true);}
+inline InactivityRetirement::Batch ProcessGuildDue(Database& db,uint32_t now,uint32_t& cursor,Status (*delivery)(Database&,uint32_t,uint32_t)=nullptr){
+ using namespace Detail;InactivityRetirement::Batch out;
+ auto schema=Q(db,"SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_guild_inactivity_policy'");if(!schema.RowCount())return out;if(schema.RowCount()!=1||!schema.begin()[0]||std::string(schema.begin()[0])!="InnoDB")throw Stop{Status::DatabaseFailure};
+ auto read=[&](){return Q(db,"SELECT e.id FROM housing_guild_inactivity_policy p JOIN housing_current_estates e ON e.id=p.estate_id AND e.owner_kind=3 WHERE e.id>"+Id(cursor)+" ORDER BY e.id LIMIT 100");};
+ auto rows=read();if(!rows.RowCount()&&cursor){cursor=0;rows=read();}
+ for(auto r=rows.begin();r!=rows.end();++r){auto id=N(r[0]);if(!id||id>UINT32_MAX)throw Stop{Status::DatabaseFailure};cursor=uint32_t(id);auto result=delivery?delivery(db,cursor,now):RetireGuild(db,cursor,now);if(result==Status::Retired){++out.retired;out.refresh=true;}else if(result==Status::CommitUncertain){++out.deferred;out.refresh=true;}else if(result!=Status::NotDue)++out.deferred;}
+ return out;
 }
 }
 #endif
