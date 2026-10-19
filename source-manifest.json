@@ -1,7 +1,7 @@
 {
   "upstream": "https://github.com/EQEmu/EQEmu",
   "base_commit": "8175ae61874cbf20d7b05102821f6f8a4f4d1c39",
-  "publication_date": "2026-10-18",
+  "publication_date": "2026-10-19",
   "scope": "Housing production source, SQL, protocol and integration documentation; no suites, fixtures, logs, private runtime configuration or client assets.",
   "files": [
     {
@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 8163,
-      "sha256": "01435766b5693bee2f617b768d0558219588aea89fd3de57ba060dd3931eb240"
+      "bytes": 8304,
+      "sha256": "ab76306690c5a53790ee4037618778376fa6cee7b74e29980608bbe5e58280e4"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -33,6 +33,11 @@
       "path": "docs/BILLING-SUNRISE-2026-10-18.md",
       "bytes": 4190,
       "sha256": "ec27fa48af3ccef14d23bda172a597e30956a3b25c7796e3b37981f70c0fd7ae"
+    },
+    {
+      "path": "docs/CRATE-PREVIEW-2026-10-19.md",
+      "bytes": 1837,
+      "sha256": "8cfdbc1e8bd27fadebd94aa914224e59b4674fe7c8866eac273577c65b6b9282"
     },
     {
       "path": "docs/INSTALL.md",
@@ -56,8 +61,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 10411,
-      "sha256": "58d47ce4913b5a62e6b6bed13d718e3c4648c7bb6b05da185dd914c01a9554e2"
+      "bytes": 10762,
+      "sha256": "06c157e2bd8878e64e404e5cb3cb32ba24b731de5d561ca88407a145280d4821"
     },
     {
       "path": "docs/UPDATES-2026-10-18.md",
@@ -1426,8 +1431,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 207813,
-      "sha256": "012b942f02d1176485ac0b8f18091046502082534ec76b49078065acb0ef5842"
+      "bytes": 208157,
+      "sha256": "78443d4f6ca2bf6373d0ab814a5ab35326dba62f1887b4dbe41f5f83793e6f1c"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",

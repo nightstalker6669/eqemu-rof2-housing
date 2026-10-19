@@ -1685,7 +1685,12 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
    }
    auto result=bridge->TransferCrate(prior->second.request);
    if(!result){LogInfo("Native crate member transfer rejected actor [{}] action [{}] code [{}]",CharacterID(),action,int(result.error));FurnitureResult(this,1);return;}
-   durable_success=true;prior->second.completed=true;FurnitureResult(this,0);FurnitureBroadcastScenes(true);return;
+   durable_success=true;prior->second.completed=true;
+   // Escape ends the native preview locally. Moving that item between crate
+   // and yard supersedes its old source, including an uncommitted preview.
+   // Invalidate only after durable transfer; a refusal keeps its retry state.
+   if(session.move&&session.move->before.custody_id==prior->second.request.custody_id)session.move.reset();
+   FurnitureResult(this,0);FurnitureBroadcastScenes(true);return;
   }
   if(view&&!view->interior){
    const Housing::Scene::InteriorSnapshot* selected=nullptr;bool ambiguous=false;
