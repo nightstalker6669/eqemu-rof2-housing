@@ -46,6 +46,8 @@ struct VaultContext {
  EstateId estate_id=0;
  uint32_t native_estate_id=0;uint64_t catalog_revision=0,house_id=0,house_revision=0,profile_revision=0;
  Route source;uint32_t expected_native_item_id=0;uint64_t expected_revision=0;
+ // Optional typed containment, authenticated against the current placed crate.
+ uint64_t crate_id=0,crate_revision=0,member_revision=0;
 };
 struct StackPartition;
 struct VaultTransferRequest {std::string request_key;Lease lease;EstateId estate_id=0;uint64_t custody_id=0;VaultContext from,to;InventoryRow expected;uint32_t partition_quantity=0,partition_serial=0;};

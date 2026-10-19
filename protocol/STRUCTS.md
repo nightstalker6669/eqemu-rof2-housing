@@ -214,6 +214,8 @@ Direction: C2S. Mapped: yes. Layout: complete; meaning: partial.
 
 C2S exact48: OperationSource44 plus destination actionu32@44; concrete buttons2closet,3shed,6crate, context-derived supertype values retain same framing.
 
+Implementation follow-up: typed nonplaceable members in a placed crate now use the existing source quantity for individual Shed/Crate transfers and `0x2036` Inventory retrieval. A representative native personal-yard whole/partial cycle passed. Container/member revisions are internal server witnesses, not added packet fields. See [scope](../docs/INDIVIDUAL-VAULT-CRATE-2026-10-19.md).
+
 Remaining limits: Zero quantity and context-derived actions0/1/4/5/7/8/9 do not establish complete custody operations or destination policy.
 
 ## 0x3968 — Access response and cache invalidation variant

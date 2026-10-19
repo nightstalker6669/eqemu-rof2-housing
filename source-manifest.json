@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9691,
-      "sha256": "44fcaf0dcfb6bcc82902bc68588f3ca5d31fe179b0b9c6b5064aee86fb086df6"
+      "bytes": 9818,
+      "sha256": "9af51dc518f93a3f3b3e588cd3b42afc9c5aaa7593fe1d19cc2775c63cd181d5"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -60,9 +60,14 @@
       "sha256": "ca94c58cc61d7a8993f791d83b475f6dd433f2404d006e5b3b1aeff63cc72355"
     },
     {
+      "path": "docs/INDIVIDUAL-VAULT-CRATE-2026-10-19.md",
+      "bytes": 4122,
+      "sha256": "1400ef263cc7fe0f13e3f6b0963664be060cc938adb8f1f3da0b24808d1620ae"
+    },
+    {
       "path": "docs/INSTALL.md",
-      "bytes": 8603,
-      "sha256": "a7c86b69bfa2def5534386815970cf5cf359cf2f12adb966571bae571520b7e9"
+      "bytes": 9050,
+      "sha256": "05a107bc0c4164ca0c79de7da253d581f4883c7108d9fa0c3686e248b725cefa"
     },
     {
       "path": "docs/INTERIOR-ACCESS-2026-10-19.md",
@@ -71,8 +76,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 6887,
-      "sha256": "fb9d883ced6dc505d446bdbb870fd2aab76235616c0fa495fcc3793144f3b736"
+      "bytes": 7084,
+      "sha256": "ac2af65ba472bf1687bfadbec67dc675696ff1634e03430bda45f90dc7dfe69e"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -91,8 +96,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 15591,
-      "sha256": "4ff3f5b45217e86593eaf3750b3046b58589386f65a778b2427c21a82f01e3d4"
+      "bytes": 16424,
+      "sha256": "6ad0373d5969581032dfcda2c4f7e57fd128613ad0d0bdecbe8318de4ac87b23"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
@@ -106,8 +111,8 @@
     },
     {
       "path": "docs/VAULT-MOVE-OUT-2026-10-19.md",
-      "bytes": 4317,
-      "sha256": "970711a9b7b2a910ddd846f4adec46b85170f3657f9438247dd01d1862aca117"
+      "bytes": 4488,
+      "sha256": "caa53e4e975eb8f7490592b47cb2206b513380065f60bb4e6e03a0736c18160f"
     },
     {
       "path": "overlay/common/housing/README.md",
@@ -766,13 +771,13 @@
     },
     {
       "path": "overlay/common/housing/live_item_service.cpp",
-      "bytes": 223389,
-      "sha256": "56d8ac4e83afe6bf8852f93ecf25c25234c6900d90329a80903b53bd9ff72814"
+      "bytes": 225673,
+      "sha256": "129f782fbfb47af9b41bdebb35008f21e67819dc4d76d8fa83f7bb3317584770"
     },
     {
       "path": "overlay/common/housing/live_item_service.h",
-      "bytes": 19928,
-      "sha256": "895bb41a09cd63260dccce0c5e2b96a312186e61046b94ebcaa4745c5b1d8928"
+      "bytes": 20065,
+      "sha256": "c90694619af11e1d762340678cdc69bd32a17cff87449571dc0b39e2418b84ae"
     },
     {
       "path": "overlay/common/housing/mount_admission.h",
@@ -1176,8 +1181,8 @@
     },
     {
       "path": "overlay/common/housing/vault_storage_db.h",
-      "bytes": 15722,
-      "sha256": "9209fde76c955af99a3fcc9e86fff29b1b883757b23d17d61355d391523bc1cd"
+      "bytes": 21612,
+      "sha256": "8051e6abb26ae4dd331bc1ecebc3dc8c0960b1eff0c5f9a1b827c1eec159831f"
     },
     {
       "path": "overlay/utils/sql/git/optional/2026_10_16_housing_npc_frames.sql",
@@ -1506,8 +1511,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 210670,
-      "sha256": "48c9a451deaa6e3942556d0d6c23837570c5797cde3b8ef6cf59f1c733591826"
+      "bytes": 212563,
+      "sha256": "fb4ac98fc9f85a167756739f681884d58a4bb80ae69168c944f6bb1664d101a3"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",
@@ -1701,8 +1706,8 @@
     },
     {
       "path": "protocol/STRUCTS.md",
-      "bytes": 29326,
-      "sha256": "87174071e2570f32a26c4b3042fdc172b3c58efd8f23d8888942d06cd9d4ea1b"
+      "bytes": 29713,
+      "sha256": "36a61b2ae18d866153fed6566ae59384a26b6fbf9767e843afaf1d638aab0cc3"
     },
     {
       "path": "protocol/housing-wire-reference.json",

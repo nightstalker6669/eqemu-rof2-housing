@@ -91,3 +91,8 @@ Schema035 creates an empty maintenance journal and does not activate content. Th
 Apply additive migration036 after the existing vault/crate schema, while housing writers are stopped. It creates an empty typed membership table; it does not seed items, activate retirement policies or rewrite existing physical members. Back up the database first. Deploy coherent world, zone and any inventory-recovery binaries linked to the same rebuilt common library: the internal scene/request structures changed. Do not run an older recovery CLI against the new build. Shared item data and client wire structs are unchanged by this milestone.
 
 Without036 legacy non-vault behavior remains available; vault packing refuses rather than discarding contents. Do not remove the table while it has members. See [vault Move Out scope](VAULT-MOVE-OUT-2026-10-19.md).
+
+
+### Individual vault-item crate transfers
+
+The [individual-control follow-up](INDIVIDUAL-VAULT-CRATE-2026-10-19.md) uses the same036 table; no further migration or client patch is needed. Deploy matching world, zone and inventory-recovery CLI binaries rebuilt against the same common library. Internal vault contexts and recovery decoding now carry typed container witnesses. Legacy bindings without those witnesses retain their original bytes.

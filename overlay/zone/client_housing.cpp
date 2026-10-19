@@ -627,9 +627,20 @@ Housing::Route VaultSource(){if(!zone)return {};return {zone->GetZoneID(),uint8_
 std::optional<VaultRealm> VaultRoom(const Housing::Scene::InteriorSnapshot& room){
  if(!room.house||!room.house->interior||!room.room_profile)return {};VaultRealm out;auto& c=out.context;c.estate_id=room.context.estate_id;c.native_estate_id=room.house->interior->native_estate_id;c.catalog_revision=room.context.catalog_revision;c.house_id=room.house->house_id;c.house_revision=room.house->revision;c.profile_revision=room.profile_revision;c.source=VaultSource();out.items=room.vault_items;return out;
 }
+template<class Entries> std::optional<VaultRealm> VaultCrateRealm(VaultRealm realm,const Entries& entries,const std::vector<Housing::VaultStorage::Item>& members,uint64_t selected=0){
+ const Housing::CrateBinding::Allocation* container=nullptr;
+ for(const auto& item:entries)if(item.crate&&!item.stored.stowed&&!item.crate->packed&&(!selected||item.crate->binding.crate_id==selected)){if(container)return {};container=item.crate.get();}
+ if(!container||container->binding.parent_native_estate_id!=realm.context.native_estate_id)return {};
+ realm.context.crate_id=container->binding.crate_id;realm.context.crate_revision=container->binding.revision;realm.items.clear();for(const auto& v:members)if(v.contained_in_crate==realm.context.crate_id)realm.items.push_back(v);return realm;
+}
 std::optional<VaultRealm> VaultRealmFor(Client* c,Session& session,Housing::InventoryBridge::Bridge& bridge,const HousingView& view,uint32_t action,uint32_t requested=0){
  std::optional<Housing::Scene::Snapshot> yard;
- if(view.interior){auto room=bridge.ReadInterior();if(!room)return {};if((!requested&&action==2)||(requested&&room.value.house&&room.value.house->interior&&room.value.house->interior->native_estate_id==requested))return VaultRoom(room.value);auto parent=bridge.ReadParentScene();if(parent)yard=std::move(parent.value);}
+ if(requested){auto shown=session.attached_crates.find(requested);if(shown!=session.attached_crates.end()){
+  auto base=VaultRealmFor(c,session,bridge,view,0,shown->second.parent_native_estate_id);if(!base)return {};
+  if(base->context.house_id){auto room=view.interior?bridge.ReadInterior():bridge.ReadAttachedInterior(base->context.estate_id,base->context.house_id);if(!room)return {};return VaultCrateRealm(std::move(*base),room.value.contents,room.value.crate_vault_items,shown->second.crate_id);}
+  auto read=view.interior?bridge.ReadParentScene():bridge.ReadScene(base->context.estate_id);if(!read)return {};return VaultCrateRealm(std::move(*base),read.value.items,read.value.crate_vault_items,shown->second.crate_id);
+ }}
+ if(view.interior){auto room=bridge.ReadInterior();if(!room)return {};if((!requested&&(action==2||action==6))||(requested&&room.value.house&&room.value.house->interior&&room.value.house->interior->native_estate_id==requested)){auto realm=VaultRoom(room.value);if(realm&&action==6)return VaultCrateRealm(std::move(*realm),room.value.contents,room.value.crate_vault_items);return realm;}auto parent=bridge.ReadParentScene();if(parent)yard=std::move(parent.value);}
  else for(const auto&node:view.data.catalog.nodes){
   if(!node.ownership_estate_id||!node.native_id.value||node.neighborhood_id!=view.neighborhood||node.parent_key.empty()||view.ids.at(node.parent_key)!=view.root)continue;
   auto definition=std::find_if(view.data.catalog.definitions.begin(),view.data.catalog.definitions.end(),[&](const auto&d){return d.id==node.definition_id;});if(definition==view.data.catalog.definitions.end()||(definition->type!=4&&definition->type!=8))continue;
@@ -639,7 +650,7 @@ std::optional<VaultRealm> VaultRealmFor(Client* c,Session& session,Housing::Inve
   if(!requested)match=FurniturePlayerInRegion(c,*region);if(!match)continue;auto read=bridge.ReadScene(node.ownership_estate_id);if(!read)continue;if(yard)return {};yard=std::move(read.value);
  }
  if(!yard)return {};
- if((!requested&&action==3)||requested==yard->native_plot_id){VaultRealm out;out.context.estate_id=yard->estate_id;out.context.native_estate_id=yard->native_plot_id;out.context.catalog_revision=yard->current_catalog_revision;out.context.source=VaultSource();out.items=yard->vault_items;return out;}
+ if((!requested&&(action==3||action==6))||requested==yard->native_plot_id){VaultRealm out;out.context.estate_id=yard->estate_id;out.context.native_estate_id=yard->native_plot_id;out.context.catalog_revision=yard->current_catalog_revision;out.context.source=VaultSource();out.items=yard->vault_items;if(action==6)return VaultCrateRealm(std::move(out),yard->items,yard->crate_vault_items);return out;}
  const Housing::Scene::Item* house=nullptr;for(const auto&item:yard->items)if(item.house&&item.house->interior&&!item.stored.stowed&&(!requested||item.house->interior->native_estate_id==requested)){if(house)return {};house=&item;}
  if(!house)return {};auto room=bridge.ReadAttachedInterior(yard->estate_id,house->house->house_id);if(!room)return {};session.attached_rooms[room.value.house->interior->native_estate_id]=room.value;return VaultRoom(room.value);
 }
@@ -879,7 +890,7 @@ bool FurnitureVaultOperation(Client* c,Session& session,Housing::InventoryBridge
   auto slot=Housing::PlacementWire::InventorySlot(source);auto* item=slot?c->GetInv().GetItem(int16_t(*slot)):nullptr;const auto* data=item?item->GetUnscaledItem():nullptr;
   if(previous==session.vault_actions.end()&&(!data||data->Placeable))return false;
   if(previous!=session.vault_actions.end()&&previous->second.completed&&item){session.vault_actions.erase(previous);previous=session.vault_actions.end();}
-  if(action!=2&&action!=3){FurnitureResult(c,17);return true;}
+  if(action!=2&&action!=3&&action!=6){FurnitureResult(c,17);return true;}
   if(previous==session.vault_actions.end()){
    if(!slot||source.estate_id!=UINT32_MAX||source.item_id!=UINT32_MAX||!item||!data||!Housing::InventoryProjection::VaultCandidate(*data)||!SourceGuid(source,*item)||!VaultQuantity(source,*item)||(*slot==33&&c->GetInv().CursorSize()!=1)){FurnitureResult(c,data&&data->NoTransfer?43:9);return true;}
    auto row=FurnitureInventory(c,*slot);if(!row||!Housing::InventoryBridge::MatchesProjection(*row,*item)||!VaultRoomRetrySpace(session)){FurnitureResult(c,9);return true;}
@@ -892,14 +903,14 @@ bool FurnitureVaultOperation(Client* c,Session& session,Housing::InventoryBridge
  }
  auto cached=session.presentations.find(source.item_id);const auto* data=cached!=session.presentations.end()&&cached->second?cached->second->GetUnscaledItem():nullptr;
  if(previous==session.vault_actions.end()&&(!data||data->Placeable))return false;
- if(action!=2&&action!=3){FurnitureResult(c,17);return true;}if(!StoredSource(source)){FurnitureResult(c,9);return true;}
+ if(action!=2&&action!=3&&action!=6){FurnitureResult(c,17);return true;}if(!StoredSource(source)){FurnitureResult(c,9);return true;}
  if(previous!=session.vault_actions.end()&&previous->second.completed&&previous->second.partition&&previous->second.transfer&&cached!=session.presentations.end()&&cached->second&&!Housing::InventoryProjection::Matches(previous->second.transfer->expected,*cached->second)){session.vault_actions.erase(previous);previous=session.vault_actions.end();}
  if(previous!=session.vault_actions.end()&&previous->second.completed){FurnitureResult(c,0);FurnitureBroadcastScenes();return true;}
  if(previous==session.vault_actions.end()){
   if(!data||!cached->second||!SourceGuid(source,*cached->second)||!VaultQuantity(source,*cached->second)||!VaultRoomRetrySpace(session)){FurnitureResult(c,9);return true;}
   auto view=LoadHousingView(c);auto from=view?VaultRealmFor(c,session,bridge,*view,0,source.estate_id):std::nullopt;auto to=view?VaultRealmFor(c,session,bridge,*view,action):std::nullopt;if(!from||!to){FurnitureResult(c,23);return true;}
   auto found=std::find_if(from->items.begin(),from->items.end(),[&](const auto&v){return v.native_item_id==source.item_id;});if(found==from->items.end()||!Housing::InventoryBridge::MatchesProjection(found->stored.row,*cached->second)){FurnitureResult(c,9);return true;}
-  Session::VaultPending pending;pending.key=FurnitureKey("vault-transfer:");Housing::LiveItems::VaultTransferRequest request;request.request_key=pending.key;request.estate_id=from->context.estate_id;request.custody_id=found->stored.custody_id;request.from=from->context;request.from.expected_native_item_id=found->native_item_id;request.from.expected_revision=found->revision;request.to=to->context;request.expected=found->stored.row;request.partition_quantity=Housing::StackPartitionApplication::Requested(*cached->second,source.opaque);pending.partition=bool(request.partition_quantity);pending.transfer=request;previous=session.vault_actions.emplace(incoming,std::move(pending)).first;
+  Session::VaultPending pending;pending.key=FurnitureKey("vault-transfer:");Housing::LiveItems::VaultTransferRequest request;request.request_key=pending.key;request.estate_id=from->context.estate_id;request.custody_id=found->stored.custody_id;request.from=from->context;request.from.expected_native_item_id=found->native_item_id;request.from.expected_revision=found->revision;request.from.member_revision=found->membership_revision;request.to=to->context;request.expected=found->stored.row;request.partition_quantity=Housing::StackPartitionApplication::Requested(*cached->second,source.opaque);pending.partition=bool(request.partition_quantity);pending.transfer=request;previous=session.vault_actions.emplace(incoming,std::move(pending)).first;
  }
  if(!previous->second.transfer){FurnitureResult(c,9);return true;}auto result=bridge.TransferVault(*previous->second.transfer);if(!result){FurnitureResult(c,VaultResult(result.error));return true;}previous->second.completed=true;FurnitureResult(c,0);FurnitureBroadcastScenes();return true;
 }
@@ -914,7 +925,7 @@ bool FurnitureVaultPickup(Client* c,Session& session,const Housing::PlacementWir
   auto view=LoadHousingView(c);auto realm=view?VaultRealmFor(c,session,*bridge,*view,0,source.estate_id):std::nullopt;if(!realm){FurnitureResult(c,23);return true;}
   auto found=std::find_if(realm->items.begin(),realm->items.end(),[&](const auto&v){return v.native_item_id==source.item_id;});if(found==realm->items.end()||found->stored.row.values.character_id!=c->CharacterID()||!Housing::InventoryBridge::MatchesProjection(found->stored.row,*cached->second)){FurnitureResult(c,9);return true;}
   if(!RoF2::SerializeHousingItem(*cached->second,EQ::invslot::slotCursor)){FurnitureResult(c,1);return true;}
-  Session::VaultPending pending;pending.key=FurnitureKey("vault-return:");pending.item=*found;pending.context=realm->context;pending.context.expected_native_item_id=found->native_item_id;pending.context.expected_revision=found->revision;previous=session.vault_actions.emplace(incoming,std::move(pending)).first;
+  Session::VaultPending pending;pending.key=FurnitureKey("vault-return:");pending.item=*found;pending.context=realm->context;pending.context.expected_native_item_id=found->native_item_id;pending.context.expected_revision=found->revision;pending.context.member_revision=found->membership_revision;previous=session.vault_actions.emplace(incoming,std::move(pending)).first;
  }
  auto& pending=previous->second;if(!pending.item||c->GetInv().CursorSize()||c->GetInv().GetItem(EQ::invslot::slotCursor)){FurnitureResult(c,1);return true;}
  auto result=bridge->ReturnVault(pending.key,*pending.item,pending.context,EQ::invslot::slotCursor,source.opaque);if(!result){FurnitureResult(c,VaultResult(result.error));return true;}pending.completed=true;pending.partition=bool(result.value.partition);auto* item=c->GetInv().GetItem(EQ::invslot::slotCursor);pending.serial=item?item->GetSerialNumber():0;if(item)c->SendItemPacket(EQ::invslot::slotCursor,item,ItemPacketTrade);if(!result.value.partition)session.presentations.erase(source.item_id);FurnitureResult(c,0);FurnitureBroadcastScenes();return true;

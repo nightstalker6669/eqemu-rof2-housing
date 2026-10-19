@@ -22,7 +22,7 @@ The old experimental plot has no purchase scheme. A new ownership generation was
 
 ## Remaining limits
 
-- Individual Inventory/Crate controls on a vault member while it remains packed are not implemented. Use bulk Unpack first, then ordinary vault retrieval.
+- Follow-up: [individual vault-item crate controls](INDIVIDUAL-VAULT-CRATE-2026-10-19.md) now support representative native whole/partial Inventory and Shed/Crate transfers from an owned placed personal-yard crate. Bulk Unpack remains available. Carried-crate editing and the wider permission/interior matrix remain separate.
 - Automatic generated-crate vault returns, guild/foreign-owner return combinations and the full interior-container matrix are not newly client-accepted here.
 - Overflow across multiple crates, historical eviction/refund rules, unsupported custody classes and original catalogue capacities remain separate gaps.
 - The additive membership schema does not activate any retirement policy. Do not remove it while members exist. Rebuild and deploy matching world, zone and recovery binaries together; internal C++ scene/request structures changed.
