@@ -46,3 +46,8 @@ Completion requires end-to-end original-client acceptance for personal and guild
 ## Updated lifecycle boundary
 
 Single-small-crate personal-yard automatic generation, offline return, refund and native unpack/retrieval are now implemented and representatively accepted. This does not close multi-container overflow, guild/foreign-owner/vault returns, complete retirement of arbitrary furnishings, missing historical billing policy, alternate currencies or partial affordability. Final tradeskill trophies remain rejected as evolving items; reconstructed catalogue rows do not remedy that custody limitation.
+
+
+## Guild routing and access follow-up
+
+The [guild access and routing follow-up](GUILD-ACCESS-ROUTING-2026-10-19.md) confirms representative native left-door owned-hall admission, packed-hall basic fallback and source-bound slash-command exit. Native named Trustee editing and current server authority checks cover role/grant revocation semantics; separate native delegated placement/pickup and denied-entry sessions remain. Direct furnished-house Shed storage is still refused; use the supported Pack/Unpack/Layout workflow. Interior ACL editing and Standard model-door egress are not newly accepted.

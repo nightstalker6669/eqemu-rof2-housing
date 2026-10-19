@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 8823,
-      "sha256": "543107053b4ee0d6bc8e1497aa46f12f3dd92b1a01ebd5afbc0fdb1216fc9c97"
+      "bytes": 8971,
+      "sha256": "845ec5d9af43541df45bbc735f196413c941f879ba50d3299c8f9c2db622aa7e"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -45,14 +45,19 @@
       "sha256": "c05566a0a25527428a427177188ee62f46f26de89bf88d8baa85aec27b53622a"
     },
     {
+      "path": "docs/GUILD-ACCESS-ROUTING-2026-10-19.md",
+      "bytes": 4629,
+      "sha256": "978db42a543c14cc820e80f6b4dd463aef7233b776a2676016372d8a6dfe23d9"
+    },
+    {
       "path": "docs/INSTALL.md",
       "bytes": 6265,
       "sha256": "c5ddf4f9613c1de09f4036163b4e11fc92b219079e7c76c04e574a65eb7659e0"
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 5349,
-      "sha256": "aeba648661cc19598edcf1dbbf035168e7f71c24ad3e3957c203c46d905ed1bd"
+      "bytes": 5952,
+      "sha256": "b1e70a23d339de6ec36cf61e10e8a04f8de84bcb2a68f63256d6ce6501407956"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -66,8 +71,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 11342,
-      "sha256": "5bdce40dd33199bbead6d2f6fc353cd86e686fccc8d50d6b19ecdc3d598c30b9"
+      "bytes": 11992,
+      "sha256": "2a968a5d93c8ed0e0480755aaa1c2691977809de06966da7dae9e8ef04c0d180"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
