@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9383,
-      "sha256": "f5da107a6b1e951a81a77394269aa0b3649cb2b1050c0e8c7e165a3649aad799"
+      "bytes": 9439,
+      "sha256": "a75d55e28feaa9214b6c5e140c25eb2d0ffa85ba5a236e84fd3cb5dc157c60ab"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -66,8 +66,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 6413,
-      "sha256": "771d1641d6db0747bf126711cd2106127b4cb712ed63835a2fbaa941de595874"
+      "bytes": 6488,
+      "sha256": "f573ef3162b18f0e8da2e9b3ccb25a9e919472a6f591079eb3a086a7c821a748"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -81,13 +81,13 @@
     },
     {
       "path": "docs/SAME-PLOT-RECOVERY-2026-10-19.md",
-      "bytes": 2899,
-      "sha256": "c998d03c84063c8578a8a9cef7e02a9437908a256b3601d1d930f934a0f11ab9"
+      "bytes": 4127,
+      "sha256": "d0d0aeb0dfb3dda6e66abf2d7d9eddcd71f46e832bc627b714c8ab6b3f9a7a01"
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 13693,
-      "sha256": "0ef8f8a3c967a30bcbb8c046ece230622c5f2556c9f6a9ffb47120a29ef4d30e"
+      "bytes": 14157,
+      "sha256": "836ff12f130d16c8e77daca9c2d09dbdad97f4b09d5c91702908c7803ce842d5"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
@@ -1476,8 +1476,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 209769,
-      "sha256": "7573aa2178eb6675e1b8057895b5f29ea574b6b58caf6bc3d406ffb60b8bc514"
+      "bytes": 210099,
+      "sha256": "bc9c99062bbf8a637081789a8f1b1471b642e69e33fb100118ccee4cbcf18375"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",

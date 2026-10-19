@@ -14,7 +14,7 @@ Internal ServerOP_Housing messages are emulator coordination, not recovered Live
 
 - The newest experimental personal catalog lacks crate definition 174 and its allowed-child entry. Its capacity policy also conflates a house with total estate children. Merely increasing that limit could allow multiple houses and is not an acceptable fix.
 - The existing occupied-property path rejects nonplaceable vault payloads rather than fully packing them. The draft successor is not in this export.
-- The same-plot ownership-generation relocation restriction now has an implemented fix with exact ownership evidence and private replay/constraint checks; the native move-out/rebuy/furnished recovery round trip remains pending. See [same-plot recovery](SAME-PLOT-RECOVERY-2026-10-19.md).
+- The same-plot ownership-generation relocation fix now has native Move Out, returned-crate placement, Unpack, house restoration and original-room entry evidence. Ownership re-acquisition was administrative; native repurchase/debit/economics remain unverified. See [same-plot recovery](SAME-PLOT-RECOVERY-2026-10-19.md).
 - Complete original inactive-owner eviction, guild dissolution, refunds and overflow delivery rules remain unfinished.
 
 ## Interior versus parent-yard presentation
@@ -23,7 +23,7 @@ Indoor parent-yard and populated moving-crate lists now use a separately authent
 
 ## Relocation acceptance
 
-A representative personal loaded-crate/furnished-house round trip across plots, neighborhoods and catalogs completed through the original client. House and crate identities, closet contents and permanent interior were retained; the user placed the house at the destination. The stored-house restore rejection was fixed with retained binding, permission and child-capacity checks. Direct house-inventory relocation, interior-loaded and guild/delegated variants remain separately unverified. This does not close the same-plot/rebought ownership-generation issue above.
+A representative personal loaded-crate/furnished-house round trip across plots, neighborhoods and catalogs completed through the original client. House and crate identities, closet contents and permanent interior were retained; the user placed the house at the destination. The stored-house restore rejection was fixed with retained binding, permission and child-capacity checks. Direct house-inventory relocation, interior-loaded and guild/delegated variants remain separately unverified. Same-plot/new-generation recovery is separately accepted with the administrative re-acquisition limit described above.
 
 ## Placement fidelity
 

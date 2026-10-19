@@ -1543,7 +1543,11 @@ void Client::Handle_OP_RealEstateLoadLayout(const EQApplicationPacket* app){
   // Owner slots are held through Bridge's known durable ACK. Retired owner
   // nodes may now be removed; old actor GUIDs remain in sent_worlds for removal.
   for(auto i=session.presentations.begin();i!=session.presentations.end();)if(!i->second)i=session.presentations.erase(i);else ++i;
-  FurnitureBroadcastScenes(restores_house);finish();
+  // Retained inventory tokens also create live house/crate estate links.
+  // Publish those links before their item lists so the original client can
+  // select a newly placed crate and enable Unpack without re-entering the zone.
+  const bool containers_changed=restores_house||!result.value.outcome.retained_tokens.empty();
+  FurnitureBroadcastScenes(containers_changed);finish();
  }catch(...){finish(durable_success?nullptr:"The housing layout could not be loaded.");}
 }
 
