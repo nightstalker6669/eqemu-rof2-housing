@@ -1,0 +1,4 @@
+case 0x10131c1cu:v=0x3f000000u;break;
+case 0x101336b8u:v=0xff7fffffu;break;
+case 0x101336bcu:v=0x7f7fffffu;break;
+case 0x1013f858u:v=0x3eaaaaabu;break;

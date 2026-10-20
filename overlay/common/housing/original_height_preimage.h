@@ -33,7 +33,25 @@ struct Snapshot {Digest digest{};uint64_t generation{};};
 inline bool Same(const Snapshot& a,const Snapshot& b){return a.generation==b.generation&&a.digest==b.digest;}
 // Callback contract: frozen authenticated source snapshot, complete native
 // filtered nearest sweep, no post-hoc omission of an inconvenient early hit.
-struct Reply {Snapshot snapshot;bool complete{};F::HeightResult height;};
+// Reduced witness type: scene actor contacts do not expose the full WORLD
+// feature point, so never fabricate OriginalSphereQuery::Result.kind/point.
+struct Contact {bool hit{};float fraction{};Point normal{},stopped{};};
+struct Sweep {
+ OriginalSphereSource::Status status=OriginalSphereSource::Status::InvalidInput;
+ uint64_t source_id{};Contact contact{};uint32_t sources{},narrowphase{};uint64_t operations{};
+ explicit operator bool()const{return status==OriginalSphereSource::Status::Hit;}
+};
+struct Height {
+ Sweep sweep;double height{};bool valid{};
+ Height()=default;
+ // Keeps existing terrain-only callback aggregate initialization compatible.
+ Height(const F::HeightResult& h):height(h.height),valid(h.valid){
+  const auto&s=h.sweep;sweep.status=s.status;sweep.source_id=s.source_id;
+  sweep.contact={s.contact.hit,s.contact.fraction,s.contact.normal,s.contact.stopped};
+  sweep.sources=s.sources;sweep.narrowphase=s.narrowphase;sweep.operations=s.operations;
+ }
+};
+struct Reply {Snapshot snapshot;bool complete{};Height height;};
 using Query=std::function<Reply(const F::HeightRequest&,OriginalSphereSource::Limits)>;
 // Must use recovered original normal/mode predicate AFTER nearest selection.
 using Normal=std::function<bool(F::Mode,const Point&)>;
@@ -45,7 +63,7 @@ struct Policy {
 enum class Status {Witness,Inconclusive,InvalidInput,Unavailable,SourceChanged};
 struct Result {
  Status status=Status::InvalidInput;std::array<Interval,2> xy{};uint32_t queries{},narrowphase{};uint64_t operations{};
- F::HeightRequest request;F::HeightResult height;Snapshot snapshot;
+ F::HeightRequest request;Height height;Snapshot snapshot;
  explicit operator bool()const{return status==Status::Witness;}
 };
 inline bool ValidFields(const Policy& p){
@@ -67,7 +85,7 @@ inline std::vector<float> Probes(const Interval& interval,uint32_t maximum){
  else {add(interval.first);add(interval.last);add(interval.first+uint32_t((interval.size()-1)/2));add(interval.first+uint32_t((interval.size()-1)/4));}return out;
 }
 // Exact forward equality; never require inverse QueryCenter(actor)==input XY.
-inline bool Matches(const Point& actor,const F::Frame& frame,const F::HeightRequest& request,const F::HeightResult& height,const std::array<Interval,2>& xy){
+inline bool Matches(const Point& actor,const F::Frame& frame,const F::HeightRequest& request,const Height& height,const std::array<Interval,2>& xy){
  if(!height.valid||!height.sweep||!F::ValidMode(request.mode)||std::bit_cast<uint32_t>(request.radius)!=std::bit_cast<uint32_t>(frame.radius)||!xy[0].Contains(request.input[0])||!xy[1].Contains(request.input[1]))return false;
  auto generated=F::ActorFromHeight(request.input,height.height,frame,request.mode);return generated&&OriginalSphereSource::Bits(*generated,actor);
 }
@@ -79,20 +97,24 @@ inline Result Find(const Point& actor,const F::Frame& frame,F::Mode mode,const P
   auto x=Probes(out.xy[0],policy.xy_probes),y=Probes(out.xy[1],policy.xy_probes);std::set<uint32_t> seen_z;
   const auto try_z=[&](float z)->bool{
    if(z<policy.minimum[2]||z>policy.maximum[2]||!seen_z.insert(std::bit_cast<uint32_t>(z)).second)return false;
-   for(float qx:x)for(float qy:y){
+   for(float qx:x){for(float qy:y){
     if(out.queries==policy.queries||out.narrowphase==policy.narrowphase||policy.operations-out.operations<48000){out.status=Status::Inconclusive;return true;}
     // Recovered FINAL ordinary branch: arg8=0; normal initialized display1.
     F::HeightRequest request{mode,{qx,qy,z},frame.radius,0,1};++out.queries;OriginalSphereSource::Limits remaining{policy.source_limit,policy.narrowphase-out.narrowphase,policy.operations-out.operations};auto reply=query(request,remaining);
-    if(!reply.complete){out.status=Status::Unavailable;return true;}
-    if(!Same(reply.snapshot,policy.snapshot)){out.status=Status::SourceChanged;return true;}
+    // Account all completed bounded work even when a later unknown source or
+    // freshness failure makes this probe unavailable. Never spend another probe
+    // after those failures, but do not report discarded terrain/actor work as 0.
     const auto& sweep=reply.height.sweep;const auto status=sweep.status;
     if(sweep.narrowphase>remaining.narrowphase||sweep.operations>remaining.operations||sweep.sources>remaining.sources){out.status=Status::Unavailable;return true;}out.narrowphase+=sweep.narrowphase;out.operations+=sweep.operations;
+    if(Nonzero(reply.snapshot.digest)&&!Same(reply.snapshot,policy.snapshot)){out.status=Status::SourceChanged;return true;}
+    if(!reply.complete||!Same(reply.snapshot,policy.snapshot)){out.status=Status::Unavailable;return true;}
     if(status==OriginalSphereSource::Status::BudgetExceeded){out.status=Status::Inconclusive;return true;}
     if(status==OriginalSphereSource::Status::Clear){if(reply.height.valid||sweep.contact.hit){out.status=Status::Unavailable;return true;}continue;}
     if(status!=OriginalSphereSource::Status::Hit||!reply.height.valid||!sweep.contact.hit||!std::isfinite(sweep.contact.fraction)||!OriginalSphereSource::Finite(sweep.contact.normal)||!OriginalSphereSource::Finite(sweep.contact.stopped)){out.status=Status::Unavailable;return true;}
     if(sweep.contact.fraction<=0||sweep.contact.fraction>1||!normal(mode,sweep.contact.normal))continue;
     if(Matches(actor,frame,request,reply.height,out.xy)){out.status=Status::Witness;out.request=request;out.height=reply.height;out.snapshot=reply.snapshot;return true;}
-   }return false;
+   }}
+   return false;
   };
   if(try_z(policy.minimum[2])||try_z(policy.maximum[2]))return out;
   // Versioned dyadic schedule, NOT a claim to enumerate all transient heights.

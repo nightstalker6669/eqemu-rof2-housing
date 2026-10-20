@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 11800,
-      "sha256": "ae21d8b641f8989adee6a90bb9742ab540510890de53f8e8f8e89115125c783c"
+      "bytes": 12106,
+      "sha256": "73c95c45de010c92a2e2958c7f93a9eec59d8ed1927aad337b5c9959bb150376"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -81,13 +81,18 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 9767,
-      "sha256": "954b19d54b3fcb2d50c4c17f9bfed8c0629e343a5fbdaf0a36c40deb6aa572f3"
+      "bytes": 10164,
+      "sha256": "763d3d086592bc47599e7bd2b854f926547f9281405b62c97ddf0c47c7a76807"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
       "bytes": 6644,
       "sha256": "de6d72b0e28faa3753d685f92d7561a84b23a345e4f5284cbe096f371cd344f7"
+    },
+    {
+      "path": "docs/ORIGINAL-SCENE-INTEGRATION-2026-10-20.md",
+      "bytes": 11442,
+      "sha256": "ac33a59679ad7336685a62353cc14b730321cbba1ff0dcf24fe615edac88b1d1"
     },
     {
       "path": "docs/OVERDUE-INACTIVITY-2026-10-18.md",
@@ -1006,8 +1011,13 @@
     },
     {
       "path": "overlay/common/housing/original_height_preimage.h",
-      "bytes": 9293,
-      "sha256": "7454f3315f814f6c3cf8f96808902272ab13bb039b94d99d2b2007ddac066acb"
+      "bytes": 10564,
+      "sha256": "6de10478d97083c863732a9e9e0ec1f82002316afd51cddd906597ac651e7034"
+    },
+    {
+      "path": "overlay/common/housing/original_height_preimage_scene_adapter.h",
+      "bytes": 3255,
+      "sha256": "e1b25d07f4571459de2bcaf3eecd56fddcb99ffb85fb33c974b041d5bf6a2535"
     },
     {
       "path": "overlay/common/housing/original_height_scene_collector.h",
@@ -1016,13 +1026,13 @@
     },
     {
       "path": "overlay/common/housing/original_height_scene_query.h",
-      "bytes": 10887,
-      "sha256": "3bc8c65ab4dd19b3cd63d194c959dde0175fbc3f87707bbe74d0d7abe0982419"
+      "bytes": 21515,
+      "sha256": "b1764ac333fe1f225da0b51b1773b56a7895552651e22842e66a363fc31e6a0c"
     },
     {
       "path": "overlay/common/housing/original_mesh_catalog.h",
-      "bytes": 1044,
-      "sha256": "25ba0c40f2376613cbecf013a6a878404342fb3b7aeef1b18d7ccc9b7aeccd40"
+      "bytes": 1264,
+      "sha256": "f08235752fc38ad9a023599e85cd8c2bdb986e7f97ce948bf75c6fa3cc9db8b9"
     },
     {
       "path": "overlay/common/housing/original_mesh_sidecar.h",
@@ -1030,9 +1040,19 @@
       "sha256": "e59b3b9ec2022d8a5292e576fa6a266d3bc415b2a77fe1b8699bf72e8ccdb8ec"
     },
     {
+      "path": "overlay/common/housing/original_placement_frame.h",
+      "bytes": 1497,
+      "sha256": "9ab4814f619cba2e2fd832926a7dde5608a969ffe73d38a69184533e27afe487"
+    },
+    {
       "path": "overlay/common/housing/original_planar_inventory_data.h",
       "bytes": 136910,
       "sha256": "2eaa2567b4d0ef105164d03f9eaf3da57700d61d40ec0b7b3b51c41b2fdca3b4"
+    },
+    {
+      "path": "overlay/common/housing/original_prepared_furniture.h",
+      "bytes": 6639,
+      "sha256": "8cceb578fdfc58e1ede7f8aa5428c659bdfbc543b4531a02ee5edd57d9096d7e"
     },
     {
       "path": "overlay/common/housing/original_renderer_box.h",
@@ -1045,6 +1065,16 @@
       "sha256": "f7f42f1a58fd8273531c4069ed1339bcea7d0fd439e1d5a8b0bf07584127b0d7"
     },
     {
+      "path": "overlay/common/housing/original_reviewed_cache.h",
+      "bytes": 2936,
+      "sha256": "e24f96ca3a060f7e404493cec40520a24d4c8577a51f317370228cbb3779dae8"
+    },
+    {
+      "path": "overlay/common/housing/original_simple_linear_query.h",
+      "bytes": 6189,
+      "sha256": "3559ed717c43f4c76d4f210b0dd4dcba79a2faaabcaf4149062af794d7c9b40c"
+    },
+    {
       "path": "overlay/common/housing/original_simple_tree_catalog.h",
       "bytes": 730,
       "sha256": "956bcc977c1c7f145e7f8ac581a9f2d126d3cef947ae209dadf4ca9f824083f0"
@@ -1053,6 +1083,21 @@
       "path": "overlay/common/housing/original_simple_tree_constants.inc",
       "bytes": 76,
       "sha256": "8cf619feb37190025dabf9a5cc6603a340bc5bbbbeb2f1a24ae8319215cc3b9a"
+    },
+    {
+      "path": "overlay/common/housing/original_simple_tree_generator.h",
+      "bytes": 7920,
+      "sha256": "10e964fee4646289f61fe79430951e48e2ba036d333f9aa617d8285684a120f2"
+    },
+    {
+      "path": "overlay/common/housing/original_simple_tree_generator_constants.inc",
+      "bytes": 152,
+      "sha256": "be440b7de3a2253a09d89a479a4a242676101979d7ec99b2a1042bb186e618d4"
+    },
+    {
+      "path": "overlay/common/housing/original_simple_tree_generator_operations.inc",
+      "bytes": 25393,
+      "sha256": "630468cc1168ec9f9647d961c3ed2e3d6d0c4e31f5cc7d7441f95f96e43e4273"
     },
     {
       "path": "overlay/common/housing/original_simple_tree_operations.inc",
@@ -1093,6 +1138,31 @@
       "path": "overlay/common/housing/original_sphere_source.h",
       "bytes": 4671,
       "sha256": "861086b35cf936ad17d8ea75feeb4c1a47d3bcb96a5def166f764820a973e06a"
+    },
+    {
+      "path": "overlay/common/housing/original_terrain_source.h",
+      "bytes": 6227,
+      "sha256": "88da9ee429b666c223381d6d95f126300f45e88cbd9b3b207d121412e37c0a44"
+    },
+    {
+      "path": "overlay/common/housing/original_wall_frame.h",
+      "bytes": 2087,
+      "sha256": "09565319b13a4a66be04171bd5bd0bb7ff2e05a7c4f61e7e1e1af0850f32c8d6"
+    },
+    {
+      "path": "overlay/common/housing/original_zon_authored_actor_catalog.h",
+      "bytes": 48307,
+      "sha256": "6ffe500033c229aa4b52ae79b4e61b5f710961da392e3c8c667c6b2093231bb2"
+    },
+    {
+      "path": "overlay/common/housing/original_zon_personal_door_catalog.h",
+      "bytes": 3098,
+      "sha256": "29620fb5601adc867d22fc560ef1723141027451f76c096c681c46b7ca42053a"
+    },
+    {
+      "path": "overlay/common/housing/original_zon_static_actor.h",
+      "bytes": 10112,
+      "sha256": "920e03b9b2cc70957c27bfd3a35b0c436b532b978bce00659cee72b97b949781"
     },
     {
       "path": "overlay/common/housing/ownership_transfer_service.cpp",

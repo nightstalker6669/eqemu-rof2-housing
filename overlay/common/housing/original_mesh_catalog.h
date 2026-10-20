@@ -5,10 +5,11 @@
 #include <string_view>
 namespace Housing::OriginalHeightScene {
 struct MeshCatalogEntry {uint32_t item_id;std::string_view model,mesh_sha256,archive_sha256,member_sha256;};
-inline constexpr std::array<MeshCatalogEntry,3> OriginalMeshCatalog{{
+inline constexpr std::array<MeshCatalogEntry,4> OriginalMeshCatalog{{
 {54573,"IT23240","2c308adccd65ab8a6a65697c63e7a0d8fd3b41c3fb8788af39f07e2a46db4869","bb7227361b55a0f12b3630c17b88d6d9d38e68b27947518ffdc4962d8a25366d","7102e1e5b903acc0b00ec2675a2aabf2cf9cbf216521b90481425af59c119da3"},
 {52295,"IT11909","d1872e4d7e55708fd27c796c507fc6d975fa8a0138745a6e6885d2f7fd6f8880","411f9f3ad6f91ca58f514b81ca46ea277c37c2ce9ca0ced07187d9b97dce1df3","e3088740a33ba6ff474a601ac973bb2a7bd145f27072414273878c2586fa8e43"},
 {66803,"IT23404","9d9806c759de280abac59f2aa749fda7fcad6078bb63d0787fde63b2104baa29","03a3f8cb142a6605bf7d75f5e7933f5ea9d19c1da6ef2cdaba61c85e315fe0cf","e719c0960d401b89467bfdb61967685e50bd0f2d734fca41e26f235d35206646"},
+{62586,"IT20028","7108e763705536823a2bdc785384358b073d281715ab9bf80161787eba22f5a7","d73ffa6a7aa461066079d5fc7bc171399285f7570b16350adfcb73fc3b05b884","c7a3bb27f59a3e6b546e7ec2531068d3192fdd92cd9e11122633e4e29a100f36"},
 }};
 }
 #endif
