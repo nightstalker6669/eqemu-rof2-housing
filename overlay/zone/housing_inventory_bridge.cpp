@@ -224,6 +224,12 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
     // on the complete source index space before a V5 exemption is considered.
     if(!wall_selection->source_policy||map->SourceTriangleCount()!=wall_selection->source_policy->planar_source_triangle_count)return std::vector<uint32_t>{};
     return map->SourcePlanarMountPatch(volume,seed,candidates);
+   },[&](const auto& volume,const auto& seed,const auto& entries,const auto& limits){
+    // New curved support retains only the reviewed zero-centre anchor profile.
+    // Nonzero-centre Wall needs its separately recovered frame-aware successor.
+    if(std::any_of(model->geometry.center.begin(),model->geometry.center.end(),[](double value){return value!=0;}))return CurvedMount::Proof{};
+    if(!wall_selection->source_policy||map->SourceTriangleCount()!=wall_selection->source_policy->planar_source_triangle_count)return CurvedMount::Proof{};
+    return map->SourceCurvedMountPatch(volume,seed,entries,limits);
    }));
   }
   return MountAdmission::Check(model->geometry,pose,flags,trace);

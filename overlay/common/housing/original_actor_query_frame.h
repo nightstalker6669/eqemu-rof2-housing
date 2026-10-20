@@ -63,7 +63,7 @@ inline std::optional<Point> ActorFromHeight(const Point& resolved_center_xy,doub
 // This does not prove input-height/extra-height policy, source coverage/filters,
 // mode, region, body clearance, or that the client chose this fallback branch.
 inline bool MatchesHeightPose(const Point& actor,const Frame& f,const HeightRequest& request,const HeightResult& result){
- if(!ValidMode(request.mode)||!result.valid||!result.sweep||!Valid(f)||std::bit_cast<uint32_t>(request.radius)!=std::bit_cast<uint32_t>(f.radius))return false;auto center=QueryCenter(actor,f);if(!center||std::bit_cast<uint32_t>((*center)[0])!=std::bit_cast<uint32_t>(request.input[0])||std::bit_cast<uint32_t>((*center)[1])!=std::bit_cast<uint32_t>(request.input[1]))return false;
+ if(!ValidMode(request.mode)||!result.valid||!result.sweep||!Valid(f)||std::bit_cast<uint32_t>(request.radius)!=std::bit_cast<uint32_t>(f.radius))return false;
  auto expected=ActorFromHeight(request.input,result.height,f,request.mode);return expected&&OriginalSphereSource::Bits(*expected,actor);
 }
 }

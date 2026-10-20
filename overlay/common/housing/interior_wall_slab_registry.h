@@ -3,6 +3,7 @@
 #include "interior_wall_slab_policy.h"
 #include "interior_mounted_region_data.h"
 #include "original_planar_inventory_data.h"
+#include "original_curved_inventory_data.h"
 namespace Housing::InteriorWallSlab {
 // Explicit technical representative content, approved only by review/applying
 // this candidate. Original source geometry; NOT an original Live region catalog.
@@ -51,7 +52,7 @@ inline std::optional<Policy> OrientedReviewed(const InteriorContent::Profile& ba
 // Default enrollment uses only the explicit reviewed original-source ledger.
 // Missing/mismatched source families retain immutable V4; an explicitly supplied
 // invalid inventory fails closed. Triangle count alone never enrolls IDs.
-inline std::optional<Policy> Reviewed(const InteriorContent::Profile&base,const PlanarInventory*inventory=nullptr){
+inline std::optional<Policy> PlanarReviewed(const InteriorContent::Profile&base,const PlanarInventory*inventory=nullptr){
  auto previous=OrientedReviewed(base);const bool automatic=inventory==nullptr;std::optional<PlanarInventory> enrolled;
  if(automatic){enrolled=OriginalPlanarInventory(base.route.zone_id);if(!enrolled)return previous;inventory=&*enrolled;}
  if(!previous||previous->revision!=4||!inventory->reviewed||inventory->zone_id!=base.route.zone_id||inventory->zone_short_name!=base.zone_short_name||inventory->asset_sha256!=base.client_asset_sha256||inventory->map_sha256!=base.collision_map_sha256)return automatic?previous:std::optional<Policy>{};
@@ -60,6 +61,21 @@ inline std::optional<Policy> Reviewed(const InteriorContent::Profile&base,const 
  auto encoded=RegionWire::EncodeBootstrap({*p.source_envelope});w.Word(uint32_t(encoded.size()));w.bytes.insert(w.bytes.end(),encoded.begin(),encoded.end());w.Word(uint32_t(p.source_faces.size()));for(const auto&face:p.source_faces){w.Word(face.axis);for(float f:face.interval)w.Float(f);for(float f:face.rectangle)w.Float(f);for(auto id:face.triangles)w.Word(id);}
  for(const auto&slab:p.slabs){auto bytes=RegionWire::EncodeBootstrap({slab.region});w.Word(uint32_t(bytes.size()));w.bytes.insert(w.bytes.end(),bytes.begin(),bytes.end());w.Word(slab.axis);w.Float(slab.plane);w.Word(uint32_t(slab.side));for(float f:slab.rectangle)w.Float(f);for(auto id:slab.triangles)w.Word(id);}
  if(!AppendPlanarIdentity(w,p))return automatic?previous:std::optional<Policy>{};p.reviewed_sha256=Hash(w.bytes);if(!Prepare(base,p))return automatic?previous:std::optional<Policy>{};return p;
+}
+// Explicit V6 candidate enrollment only: no automatic source metadata or V5
+// digest reinterpretation. Source mode masks must come from reviewed native math.
+inline std::optional<Policy> CurvedReviewed(const InteriorContent::Profile&base,const CurvedInventory&inventory,CurvedMount::Limits limits={}){
+ auto previous=PlanarReviewed(base,&inventory.source);if(!previous||previous->revision!=5)return {};
+ auto p=*previous;p.revision=6;p.prior=std::make_shared<Policy>(*previous);p.curved_mode_masks=inventory.native_mode_masks;p.curved_limits=limits;
+ ContentBinding::Detail::Writer w;w.Text(CurvedMount::PolicyTag);w.Word(p.zone_id);w.Text(p.zone_short_name);w.Text(p.asset_sha256);w.Text(p.map_sha256);w.Text(p.base_manifest_sha256);w.Text(p.base_regions_sha256);w.Text(p.source_face_inventory_sha256);w.Word(uint32_t(p.slabs.size()));
+ auto encoded=RegionWire::EncodeBootstrap({*p.source_envelope});w.Word(uint32_t(encoded.size()));w.bytes.insert(w.bytes.end(),encoded.begin(),encoded.end());w.Word(uint32_t(p.source_faces.size()));for(const auto&face:p.source_faces){w.Word(face.axis);for(float f:face.interval)w.Float(f);for(float f:face.rectangle)w.Float(f);for(auto id:face.triangles)w.Word(id);}
+ for(const auto&slab:p.slabs){auto bytes=RegionWire::EncodeBootstrap({slab.region});w.Word(uint32_t(bytes.size()));w.bytes.insert(w.bytes.end(),bytes.begin(),bytes.end());w.Word(slab.axis);w.Float(slab.plane);w.Word(uint32_t(slab.side));for(float f:slab.rectangle)w.Float(f);for(auto id:slab.triangles)w.Word(id);}
+ if(!AppendPlanarIdentity(w,p))return {};p.reviewed_sha256=Hash(w.bytes);return Prepare(base,p)?std::optional<Policy>{p}:std::nullopt;
+}
+// New Add selects V6 only for this exact hash-bound source/mode family. Explicit
+// legacy inventory calls and stored digests retain V5 and all older semantics.
+inline std::optional<Policy> Reviewed(const InteriorContent::Profile&base,const PlanarInventory*inventory=nullptr){
+ if(inventory)return PlanarReviewed(base,inventory);auto previous=PlanarReviewed(base);auto source=OriginalCurvedInventory(base.route.zone_id);if(!source)return previous;auto next=CurvedReviewed(base,*source);return next?next:previous;
 }
 // Pure native presentation projection; mutation uses locked DB metadata instead.
 inline std::optional<InteriorContent::Input> CachedInput(const InteriorContent::Profile& room,const EQ::ItemData& d){

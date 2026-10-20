@@ -2500,10 +2500,14 @@ index 4f59160..3801d95 100644
  
  /* Update Window Title with relevant information */
 diff --git a/zone/map.cpp b/zone/map.cpp
-index bf6ff68..bb708a0 100644
+index bf6ff68..b5dd0ef 100644
 --- a/zone/map.cpp
 +++ b/zone/map.cpp
-@@ -4,6 +4,7 @@
+@@ -1,9 +1,11 @@
++#include "../common/housing/curved_mount_support.h"
+ #include "../common/global_define.h"
+ #include "../common/misc_functions.h"
+ #include "../common/compression.h"
  
  #include "client.h"
  #include "map.h"
@@ -2511,7 +2515,7 @@ index bf6ff68..bb708a0 100644
  #include "raycast_mesh.h"
  #include "zone.h"
  #include "../common/file.h"
-@@ -262,6 +263,40 @@ bool Map::CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const {
+@@ -262,6 +264,43 @@ bool Map::CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const {
  }
  
  // returns true if a collision happens
@@ -2544,6 +2548,9 @@ index bf6ff68..bb708a0 100644
 + if(!imp->rm->raycastSurface(&start.x,&end.x,&point.x,&normal.x,&distance,seed))return {};
 + auto contact=Housing::PlacementContact::FromMapRay({start.x,start.y,start.z},{end.x,end.y,end.z},{normal.x,normal.y,normal.z},distance);if(!contact||(seed.side!=1&&seed.side!=-1))return {};return Housing::PlanarMount::Trace{*contact,seed};
 +}
++Housing::CurvedMount::Proof Map::SourceCurvedMountPatch(const Housing::OrientedMount::Volume&v,const Housing::PlanarMount::SurfaceSeed&s,const std::vector<Housing::CurvedMount::Entry>&entries,Housing::CurvedMount::Limits limits) const {
++ if(!imp||!imp->rm)return {};return imp->rm->sourceCurvedMountPatch(v,s,entries,limits);
++}
 +std::vector<uint32_t> Map::SourcePlanarMountPatch(const Housing::OrientedMount::Volume&volume,const Housing::PlanarMount::SurfaceSeed&seed,const std::vector<uint32_t>&candidates) const {
 + if(!imp||!imp->rm)return {};return imp->rm->sourcePlanarMountPatch(volume,seed,candidates);
 +}
@@ -2553,19 +2560,21 @@ index bf6ff68..bb708a0 100644
  	if(!imp)
  		return false;
 diff --git a/zone/map.h b/zone/map.h
-index 20fad6e..94a2296 100644
+index 20fad6e..acb7f8d 100644
 --- a/zone/map.h
 +++ b/zone/map.h
-@@ -23,6 +23,8 @@
+@@ -22,7 +22,10 @@
+ #ifndef ZONE_MAP_H
  #define ZONE_MAP_H
  
++#include "../common/housing/curved_mount_contact.h"
  #include "position.h"
 +#include "../common/housing/planar_mount_contact.h"
 +namespace Housing::OrientedMount { struct Volume; }
  #include <stdio.h>
  
  #include "zone_config.h"
-@@ -44,6 +46,20 @@ public:
+@@ -44,6 +47,21 @@ public:
  	bool LineIntersectsZone(glm::vec3 start, glm::vec3 end, float step, glm::vec3 *result) const;
  	bool LineIntersectsZoneNoZLeaps(glm::vec3 start, glm::vec3 end, float step_mag, glm::vec3 *result) const;
  	bool CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const;
@@ -2578,6 +2587,7 @@ index 20fad6e..94a2296 100644
 + bool IntersectsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&,const std::vector<uint32_t>& sources) const;
 +
 + std::optional<Housing::PlanarMount::Trace> TracePlanarMount(const glm::vec3& start,const glm::vec3& end) const;
++ Housing::CurvedMount::Proof SourceCurvedMountPatch(const Housing::OrientedMount::Volume&,const Housing::PlanarMount::SurfaceSeed&,const std::vector<Housing::CurvedMount::Entry>&,Housing::CurvedMount::Limits={}) const;
 + std::vector<uint32_t> SourcePlanarMountPatch(const Housing::OrientedMount::Volume&,const Housing::PlanarMount::SurfaceSeed&,const std::vector<uint32_t>& reviewed_candidates) const;
 + // Inventory metadata only. Callers must explicitly enroll exact hash-bound IDs;
 + // count alone grants no surface, mode, region or collision exemption authority.
@@ -2587,10 +2597,11 @@ index 20fad6e..94a2296 100644
  
  #ifdef USE_MAP_MMFS
 diff --git a/zone/raycast_mesh.cpp b/zone/raycast_mesh.cpp
-index 20c3f6b..8425ab3 100644
+index 20c3f6b..a9366af 100644
 --- a/zone/raycast_mesh.cpp
 +++ b/zone/raycast_mesh.cpp
-@@ -1,3 +1,9 @@
+@@ -1,3 +1,10 @@
++#include "../common/housing/curved_mount_support.h"
 +#include <mutex>
 +#include <tuple>
 +#include <memory>
@@ -2600,7 +2611,7 @@ index 20c3f6b..8425ab3 100644
  #include "raycast_mesh.h"
  #include "../common/memory/ksm.hpp"
  #include "../common/eqemu_logsys.h"
-@@ -644,6 +650,22 @@ public:
+@@ -644,6 +651,22 @@ public:
  		}
  
  
@@ -2623,7 +2634,7 @@ index 20c3f6b..8425ab3 100644
  		virtual void raycast(bool &hit,
  							const RmReal *from,
  							const RmReal *to,
-@@ -737,8 +759,83 @@ public:
+@@ -737,8 +760,90 @@ public:
  
  class MyRaycastMesh : public RaycastMesh, public NodeInterface
  {
@@ -2687,6 +2698,13 @@ index 20c3f6b..8425ab3 100644
 + }
 +
 + RmUint32 sourceTriangleCount() const override {return mTcount;}
++ Housing::CurvedMount::Proof sourceCurvedMountPatch(const Housing::OrientedMount::Volume&volume,const Housing::PlanarMount::SurfaceSeed&seed,const std::vector<Housing::CurvedMount::Entry>&entries,Housing::CurvedMount::Limits limits) const override {
++  try{if(!mRoot||!Housing::OrientedMount::Valid(volume)||!std::isfinite(limits.search_margin)||limits.search_margin<=0||limits.search_margin>8||entries.empty()||entries.size()>limits.source||entries.size()>65536)return {};const auto bounds=Housing::OrientedMount::Bounds(volume);std::vector<Housing::CurvedMount::Source>sources;sources.reserve(entries.size());uint32_t prior=0;bool first=true;
++   for(const auto&e:entries){if((!first&&e.id<=prior)||e.id>=mTcount||!e.side_mask||e.side_mask>3||!e.native_mode_mask||(e.native_mode_mask&~3))return {};first=false;prior=e.id;Housing::CurvedMount::Source source;source.geometry.id=e.id;source.side_mask=e.side_mask;source.native_mode_mask=e.native_mode_mask;for(unsigned j=0;j<3;++j){auto index=mIndices[3*e.id+j];if(index>=mVcount)return {};for(unsigned k=0;k<3;++k)source.geometry.vertices[j][k]=mVertices[3*index+k];}bool local=true;for(unsigned k=0;k<3;++k){float lo=source.geometry.vertices[0][k],hi=lo;for(unsigned j=1;j<3;++j){lo=std::min(lo,source.geometry.vertices[j][k]);hi=std::max(hi,source.geometry.vertices[j][k]);}if(double(hi)<double(bounds.first[k])-limits.search_margin||double(lo)>double(bounds.second[k])+limits.search_margin)local=false;}if(local){if(sources.size()>=limits.component)return {};sources.push_back(source);}}
++   // Bounded uncached candidate: no planar component sharing across curved seeds.
++   return Housing::CurvedMount::Select(sources,seed,Housing::CurvedMount::Mode::Wall,volume,limits);
++  }catch(...){return {};}
++ }
 + std::vector<RmUint32> sourcePlanarMountPatch(const Housing::OrientedMount::Volume&volume,const Housing::PlanarMount::SurfaceSeed&seed,const std::vector<RmUint32>&candidates) const override {
 +  try{if(!mRoot||!Housing::OrientedMount::Valid(volume)||(seed.side!=1&&seed.side!=-1)||seed.triangle_id>=mTcount||candidates.empty()||!std::is_sorted(candidates.begin(),candidates.end())||std::adjacent_find(candidates.begin(),candidates.end())!=candidates.end()||candidates.back()>=mTcount||!std::binary_search(candidates.begin(),candidates.end(),seed.triangle_id))return {};
 +   std::shared_ptr<const MountTopology>prepared;
@@ -2708,13 +2726,14 @@ index 20c3f6b..8425ab3 100644
  	{
  		mRaycastFrame = 0;
 diff --git a/zone/raycast_mesh.h b/zone/raycast_mesh.h
-index 1aaa100..a94f54a 100644
+index 1aaa100..83b3552 100644
 --- a/zone/raycast_mesh.h
 +++ b/zone/raycast_mesh.h
-@@ -30,12 +30,17 @@
+@@ -30,12 +30,18 @@
  //
  // 
  
++#include "../common/housing/curved_mount_contact.h"
 +#include <vector>
 +namespace Housing::OrientedMount { struct Volume; }
 +namespace Housing::PlanarMount { struct SurfaceSeed; }
@@ -2729,7 +2748,7 @@ index 1aaa100..a94f54a 100644
  	virtual bool raycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
  	virtual bool bruteForceRaycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
  
-@@ -44,6 +49,22 @@ public:
+@@ -44,6 +50,23 @@ public:
  	virtual void release(void) = 0;
  protected:
  	virtual ~RaycastMesh(void) { };
@@ -2743,6 +2762,7 @@ index 1aaa100..a94f54a 100644
 + virtual bool overlapsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&,const std::vector<RmUint32>&) const {return true;}
 + // V5 APIs append slots; old point/rectangular/oriented queries keep semantics.
 + virtual bool raycastSurface(const RmReal*,const RmReal*,RmReal*,RmReal*,RmReal*,Housing::PlanarMount::SurfaceSeed&) {return false;}
++ virtual Housing::CurvedMount::Proof sourceCurvedMountPatch(const Housing::OrientedMount::Volume&,const Housing::PlanarMount::SurfaceSeed&,const std::vector<Housing::CurvedMount::Entry>&,Housing::CurvedMount::Limits) const {return {};}
 + virtual std::vector<RmUint32> sourcePlanarMountPatch(const Housing::OrientedMount::Volume&,const Housing::PlanarMount::SurfaceSeed&,const std::vector<RmUint32>&) const {return {};}
 + virtual RmUint32 sourceTriangleCount() const {return 0;}
 +

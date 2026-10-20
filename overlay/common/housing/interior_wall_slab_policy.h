@@ -4,6 +4,7 @@
 #include "mount_admission.h"
 #include "oriented_mount_volume.h"
 #include "planar_mount_patch.h"
+#include "curved_mount_support.h"
 #include <memory>
 namespace Housing::InteriorWallSlab {
 // Separate, explicitly reviewed SERVER content. Not original Live region data.
@@ -17,6 +18,7 @@ struct PlanarInventory {
  std::string zone_short_name,asset_sha256,map_sha256,ledger_sha256;
  std::vector<uint32_t> triangle_ids;std::vector<uint8_t> side_masks;
 };
+struct CurvedInventory {PlanarInventory source;std::vector<uint8_t> native_mode_masks;};
 struct Policy {
  bool reviewed=false;
  uint32_t revision=1; //1 legacy;2 pairs;3 connected patches;4 oriented;5 exact general planar
@@ -27,6 +29,7 @@ struct Policy {
  std::optional<RegionWire::Region> source_envelope;std::vector<Face> source_faces;
  std::string planar_inventory_sha256;uint32_t planar_source_triangle_count=0;
  std::vector<uint32_t> planar_candidates;std::vector<uint8_t> planar_side_masks;
+ std::vector<uint8_t> curved_mode_masks;CurvedMount::Limits curved_limits{};
 };
 using SourceBodyClear=std::function<bool(const PlacementContact::Vector&,const PlacementContact::Vector&,const std::array<uint32_t,2>&)>;
 using SourcePatch=std::function<std::vector<uint32_t>(const PlacementContact::Vector&,const PlacementContact::Vector&,uint32_t,const std::array<uint32_t,2>&,const std::vector<uint32_t>&)>;
@@ -35,12 +38,14 @@ using OrientedPatch=std::function<std::vector<uint32_t>(const OrientedMount::Vol
 using OrientedClear=std::function<bool(const OrientedMount::Volume&,const std::vector<uint32_t>&)>;
 using PlanarTrace=std::function<std::optional<PlanarMount::Trace>(const PlacementContact::Vector&,const PlacementContact::Vector&)>;
 using PlanarPatch=std::function<std::vector<uint32_t>(const OrientedMount::Volume&,const PlanarMount::SurfaceSeed&,const std::vector<uint32_t>&)>;
+using CurvedPatch=std::function<CurvedMount::Proof(const OrientedMount::Volume&,const PlanarMount::SurfaceSeed&,const std::vector<CurvedMount::Entry>&,CurvedMount::Limits)>;
 using BodyClear=std::function<bool(const PlacementContact::Vector&,const PlacementContact::Vector&)>;
 inline std::string Hash(const std::vector<uint8_t>& b){std::array<uint8_t,SHA256_DIGEST_LENGTH>d{};if(!SHA256(b.data(),b.size(),d.data()))throw std::invalid_argument("Wall policy SHA256");static constexpr char hex[]="0123456789abcdef";std::string out;for(auto v:d){out+=hex[v>>4];out+=hex[v&15];}return out;}
 inline bool AppendPlanarIdentity(ContentBinding::Detail::Writer&w,const Policy&p){
- if(p.revision!=5)return true;
+ if(p.revision!=5&&p.revision!=6)return true;
  if(!ContentBinding::Detail::Hash(p.planar_inventory_sha256)||!p.planar_source_triangle_count||p.planar_candidates.empty()||p.planar_candidates.size()>UINT32_MAX||p.planar_side_masks.size()!=p.planar_candidates.size()||!std::is_sorted(p.planar_candidates.begin(),p.planar_candidates.end())||std::adjacent_find(p.planar_candidates.begin(),p.planar_candidates.end())!=p.planar_candidates.end()||p.planar_candidates.back()>=p.planar_source_triangle_count)return false;
- w.Text(p.planar_inventory_sha256);w.Word(p.planar_source_triangle_count);w.Word(uint32_t(p.planar_candidates.size()));for(size_t i=0;i<p.planar_candidates.size();++i){if(!p.planar_side_masks[i]||p.planar_side_masks[i]>3)return false;w.Word(p.planar_candidates[i]);w.Word(p.planar_side_masks[i]);}return true;
+ w.Text(p.planar_inventory_sha256);w.Word(p.planar_source_triangle_count);w.Word(uint32_t(p.planar_candidates.size()));for(size_t i=0;i<p.planar_candidates.size();++i){if(!p.planar_side_masks[i]||p.planar_side_masks[i]>3)return false;w.Word(p.planar_candidates[i]);w.Word(p.planar_side_masks[i]);}
+ if(p.revision==6){if(!std::isfinite(p.curved_limits.search_margin)||p.curved_limits.search_margin<=0||p.curved_limits.search_margin>8||p.curved_mode_masks.size()!=p.planar_candidates.size()||!p.curved_limits.source||p.curved_limits.source>65536||!p.curved_limits.corridors||p.curved_limits.corridors>32||!p.curved_limits.component||p.curved_limits.component>4096||!p.curved_limits.relevant||p.curved_limits.relevant>128||p.planar_candidates.size()>p.curved_limits.source)return false;w.Text(CurvedMount::PolicyTag);w.Word(p.curved_limits.source);w.Word(p.curved_limits.component);w.Word(p.curved_limits.relevant);w.Word(p.curved_limits.corridors);w.Float(p.curved_limits.search_margin);for(auto mask:p.curved_mode_masks){if(!mask||(mask&~3))return false;w.Word(mask);}}return true;
 }
 inline std::pair<PlacementContact::Vector,PlacementContact::Vector> Bounds(const RegionWire::Region& r){
  const auto& m=r.matrix;for(auto i:{1,2,3,4,6,7,8,9,11})if(m[i]!=0)throw std::invalid_argument("Wall slab requires axis box");if(m[15]!=1||m[0]<=0||m[5]<=0||m[10]<=0)throw std::invalid_argument("Wall slab extent");RegionWire::Detail::ValidateMatrix(m);
@@ -51,9 +56,9 @@ inline bool Overlap(const RegionWire::Region& a,const RegionWire::Region& b){aut
 // its triangle witness enter the NEW identity. Existing Build(base) is unchanged.
 inline std::optional<InteriorContent::Profile> Prepare(const InteriorContent::Profile& base,const Policy& policy){
  try{
-  if(policy.revision<1||policy.revision>5||!policy.reviewed||!base.reviewed_room||(base.definition.type!=2&&base.definition.type!=3)||!OriginalInteriors::Matches(base.route.zone_id,base.zone_short_name)||policy.zone_id!=base.route.zone_id||policy.zone_short_name!=base.zone_short_name||policy.asset_sha256!=base.client_asset_sha256||policy.map_sha256!=base.collision_map_sha256||policy.base_manifest_sha256!=base.manifest_sha256||policy.base_regions_sha256!=Hash(InteriorContent::RegionPayload(base))||!ContentBinding::Detail::Hash(policy.reviewed_sha256)||(policy.revision>=2&&!ContentBinding::Detail::Hash(policy.source_face_inventory_sha256))||(policy.revision==1?policy.slabs.empty():!policy.source_envelope||policy.source_faces.empty()))return {};
+  if(policy.revision<1||policy.revision>6||!policy.reviewed||!base.reviewed_room||(base.definition.type!=2&&base.definition.type!=3)||!OriginalInteriors::Matches(base.route.zone_id,base.zone_short_name)||policy.zone_id!=base.route.zone_id||policy.zone_short_name!=base.zone_short_name||policy.asset_sha256!=base.client_asset_sha256||policy.map_sha256!=base.collision_map_sha256||policy.base_manifest_sha256!=base.manifest_sha256||policy.base_regions_sha256!=Hash(InteriorContent::RegionPayload(base))||!ContentBinding::Detail::Hash(policy.reviewed_sha256)||(policy.revision>=2&&!ContentBinding::Detail::Hash(policy.source_face_inventory_sha256))||(policy.revision==1?policy.slabs.empty():!policy.source_envelope||policy.source_faces.empty()))return {};
   auto effective=base;const auto base_regions=InteriorContent::Regions(base);std::set<uint32_t> ids;for(const auto& r:base_regions)ids.insert(r.id);
-  ContentBinding::Detail::Writer w;w.Text(policy.revision==1?"EQEmuReviewedInteriorAxisWallSlabsV1":(policy.revision==5?"EQEmuReviewedPlanarInteriorMountRegionsV5":policy.revision==4?"EQEmuReviewedOrientedInteriorMountRegionsV4":policy.revision==3?"EQEmuReviewedCoplanarInteriorMountRegionsV3":"EQEmuReviewedConnectedInteriorMountRegionsV2"));w.Word(policy.zone_id);w.Text(policy.zone_short_name);w.Text(policy.asset_sha256);w.Text(policy.map_sha256);w.Text(policy.base_manifest_sha256);w.Text(policy.base_regions_sha256);if(policy.revision>=2)w.Text(policy.source_face_inventory_sha256);w.Word(uint32_t(policy.slabs.size()));
+  ContentBinding::Detail::Writer w;w.Text(policy.revision==1?"EQEmuReviewedInteriorAxisWallSlabsV1":(policy.revision==6?CurvedMount::PolicyTag:policy.revision==5?"EQEmuReviewedPlanarInteriorMountRegionsV5":policy.revision==4?"EQEmuReviewedOrientedInteriorMountRegionsV4":policy.revision==3?"EQEmuReviewedCoplanarInteriorMountRegionsV3":"EQEmuReviewedConnectedInteriorMountRegionsV2"));w.Word(policy.zone_id);w.Text(policy.zone_short_name);w.Text(policy.asset_sha256);w.Text(policy.map_sha256);w.Text(policy.base_manifest_sha256);w.Text(policy.base_regions_sha256);if(policy.revision>=2)w.Text(policy.source_face_inventory_sha256);w.Word(uint32_t(policy.slabs.size()));
   if(policy.revision==1){
   for(const auto& slab:policy.slabs){
    if((policy.revision!=1&&policy.revision!=2)||slab.axis>(policy.revision==1?1u:2u)||(slab.side!=-1&&slab.side!=1)||(policy.revision==1&&slab.triangles[0]==slab.triangles[1])||!std::isfinite(slab.plane)||!ids.insert(slab.region.id).second)return {};
@@ -150,12 +155,41 @@ inline PlacementPolicy::Result CheckPlanar(const InteriorContent::Profile&base,c
  if(!clear(*body,patch))return bad;
  for(const auto&region:InteriorContent::Regions(base)){auto corridor=PlanarCorridor(*body,normal,region);if(corridor&&clear(*corridor,patch))return accepted;}return bad;
 }
+// Exact fit for each old authenticated box; rank only for bounded work order.
+// Every accepted corridor still undergoes complete exact full-map collision.
+inline std::vector<OrientedMount::Volume> CurvedCorridors(const OrientedMount::Volume&body,const PlacementContact::Vector&normal,const InteriorContent::Profile&base,uint32_t maximum){
+ std::vector<std::pair<double,OrientedMount::Volume>>nearest;if(!maximum||maximum>32)return {};
+ for(const auto&region:InteriorContent::Regions(base)){auto corridor=PlanarCorridor(body,normal,region);if(!corridor)continue;double score=0;for(unsigned k=0;k<3;++k){const double d=corridor->center[k]-body.center[k];score+=d*d;}if(!std::isfinite(score))continue;auto at=std::upper_bound(nearest.begin(),nearest.end(),score,[](double s,const auto&p){return s<p.first;});nearest.insert(at,{score,*corridor});if(nearest.size()>maximum)nearest.pop_back();}
+ std::vector<OrientedMount::Volume>out;for(auto&entry:nearest)out.push_back(entry.second);return out;
+}
+// V6 is a conservative server-designed graph support proof, not recovered Live
+// curved placement semantics. Only Wall extends here. V5 is attempted verbatim.
+inline PlacementPolicy::Result CheckCurved(const InteriorContent::Profile&base,const Selection&selected,const PlacementPolicy::Context&context,const PlacementPolicy::Transform&pose,PlacementPolicy::Operation operation,const MountFlags::Flags&flags,float default_heading,const PlanarTrace&trace,const PlanarPatch&planar,const CurvedPatch&patcher,const OrientedClear&clear,PlacementPolicy::Result bad){
+ if(!selected.source_policy||selected.source_policy->revision!=6)return bad;const auto&p=*selected.source_policy;
+ if(!p.prior||p.prior->revision!=5)return bad;
+ auto predecessor=selected;predecessor.source_policy=p.prior;predecessor.policy_revision=5;
+ auto old=CheckPlanar(base,predecessor,context,pose,operation,flags,default_heading,trace,planar,clear,bad);if(old)return old;
+ if(!trace||!patcher||!clear||selected.input.npc||selected.input.geometry.mounting_type!=1)return bad;
+ ContentBinding::Detail::Writer identity;if(!AppendPlanarIdentity(identity,p))return bad;
+ auto wall_flags=flags;wall_flags.known=true;wall_flags.disable_free=true;wall_flags.disable_rotation=true;
+ std::optional<PlanarMount::Trace>witness;auto contact_trace=[&](const auto&a,const auto&b)->std::optional<PlacementContact::Contact>{witness=trace(a,b);return witness?std::optional<PlacementContact::Contact>{witness->contact}:std::nullopt;};
+ if(!MountAdmission::Check(selected.input.geometry,pose,wall_flags,contact_trace,default_heading)||!witness)return bad;
+ const auto seed=witness->seed;if(seed.side!=1&&seed.side!=-1)return bad;const auto&normal=witness->contact.normal;if(!PlacementContact::Finite(normal)||std::abs(PlacementContact::Dot(normal,normal)-1)>1e-5f)return bad;
+ auto accepted=InteriorContent::CheckPlacement(selected.input.room,context,selected.input.item,selected.input.geometry,pose,operation);if(!accepted)return accepted;auto body=OrientedBody(selected.input.geometry,pose);if(!body)return bad;
+ std::vector<CurvedMount::Entry>entries;std::vector<uint32_t>eligible;for(size_t i=0;i<p.planar_candidates.size();++i)if((p.curved_mode_masks[i]&1)&&(p.planar_side_masks[i]&(seed.side>0?1u:2u))){entries.push_back({p.planar_candidates[i],p.planar_side_masks[i],p.curved_mode_masks[i]});eligible.push_back(p.planar_candidates[i]);}
+ if(!std::binary_search(eligible.begin(),eligible.end(),seed.triangle_id))return bad;
+ auto proof=patcher(*body,seed,entries,p.curved_limits);if(!proof)return bad;
+ for(const auto*ids:{&proof.support_ids,&proof.collision_exempt_ids})if(ids->empty()||!std::is_sorted(ids->begin(),ids->end())||std::adjacent_find(ids->begin(),ids->end())!=ids->end()||!std::includes(eligible.begin(),eligible.end(),ids->begin(),ids->end()))return bad;
+ if(!std::binary_search(proof.collision_exempt_ids.begin(),proof.collision_exempt_ids.end(),seed.triangle_id)||!clear(*body,proof.collision_exempt_ids))return bad;
+ for(const auto&corridor:CurvedCorridors(*body,normal,base,p.curved_limits.corridors))if(clear(corridor,proof.collision_exempt_ids))return accepted;return bad;
+}
 // The old base path stays exact. Extra slabs require BOTH genuine sphere-wall
 // contact (even when Free is known enabled) and conservative actual-map body
 // clearance. Neither callback grants current source, room, ACL or lease authority.
-inline PlacementPolicy::Result Check(const InteriorContent::Profile& base,const Selection& selected,const PlacementPolicy::Context& context,const PlacementPolicy::Transform& pose,PlacementPolicy::Operation operation,const MountFlags::Flags& flags,const MountAdmission::Trace& trace,const BodyClear& body_clear,float default_heading=0,const SourceBodyClear& source_clear={},const SourcePatch& source_patch={},const SourceListBodyClear& source_list_clear={},const OrientedPatch& oriented_patch={},const OrientedClear& oriented_clear={},const PlanarTrace& planar_trace={},const PlanarPatch& planar_patch={}){
+inline PlacementPolicy::Result Check(const InteriorContent::Profile& base,const Selection& selected,const PlacementPolicy::Context& context,const PlacementPolicy::Transform& pose,PlacementPolicy::Operation operation,const MountFlags::Flags& flags,const MountAdmission::Trace& trace,const BodyClear& body_clear,float default_heading=0,const SourceBodyClear& source_clear={},const SourcePatch& source_patch={},const SourceListBodyClear& source_list_clear={},const OrientedPatch& oriented_patch={},const OrientedClear& oriented_clear={},const PlanarTrace& planar_trace={},const PlanarPatch& planar_patch={},const CurvedPatch& curved_patch={}){
  auto old=InteriorContent::CheckPlacement(base,context,selected.input.item,selected.input.geometry,pose,operation);if(old||!selected.wall_policy)return old;
  auto bad=old;if(old.error!=PlacementPolicy::Error::OutsideRegion&&old.error!=PlacementPolicy::Error::NumericallyAmbiguous)return bad;
+ if(selected.policy_revision==6)return CheckCurved(base,selected,context,pose,operation,flags,default_heading,planar_trace,planar_patch,curved_patch,oriented_clear,bad);
  if(selected.policy_revision==5)return CheckPlanar(base,selected,context,pose,operation,flags,default_heading,planar_trace,planar_patch,oriented_clear,bad);
  if(!trace||!body_clear||(selected.input.geometry.mounting_type!=1&&(selected.input.geometry.mounting_type!=2||selected.policy_revision<2))||selected.input.npc)return bad;
  auto wall_flags=flags;wall_flags.known=true;wall_flags.disable_free=true;wall_flags.disable_rotation=true;

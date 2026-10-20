@@ -20,9 +20,10 @@ inline std::optional<float> WallRadius(const PlacementPolicy::Geometry& g,float 
 //7a2680's exact.001 travel pullback. The commit contains no camera ray.
 // A second actual ray along the trusted face normal proves orthogonal face
 // contact: an oblique axis ray alone can hit a plane beyond its triangle edge.
-// Renderer box centres do not enter this query anchor (5577a5 delayed EBX
-// save/557835 camera-direction receiver); full body geometry is separate.
-// This does not emulate swept query edges/curves.
+// Legacy actor-position anchor, corroborated for the zero-centre painting.
+// Source55869c..6bf actually forms Q=P+rotated/scaled C before557630;
+// centre-aware nonzero-C admission needs a separately versioned successor.
+// This legacy witness does not emulate swept query edges/curves.
 inline bool WallPlane(const PlacementPolicy::Geometry& g,const PlacementPolicy::Transform& p,const PlacementContact::Profile& profile,float tolerance,float default_heading,const Trace& trace){
  const auto radius=WallRadius(g,p.scale,default_heading);if(!radius||!trace||!std::isfinite(tolerance)||tolerance<=0||!PlacementContact::ModeAllowed(profile,PlacementContact::Mode::Wall))return false;
  constexpr float pullback=0.0010000000474974513f;const PlacementContact::Vector centre{p.position[1],p.position[0],p.position[2]};
