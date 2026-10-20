@@ -107,3 +107,6 @@ Deploy matching world, zone, UCS and inventory-recovery binaries linked to the s
 ## Standard guild-hall model door
 
 Optional numbered content migration038 enables the existing `OBJ_GUILD_DOOR` row4 in `guildhall` version0 for RoF2 only. It requires the reviewed model, type and position; it does not create a missing door or expose the duplicate `GUILD_DOOR`. Apply only after reviewing local door content, then reload doors or restart the zone. Other customized masks are left unchanged. Deploy the updated zone hook with it: a housing-bound Standard hall exits through its verified current parent neighborhood, while absent housing bindings retain legacy door handling. The normal basic hall in version1 is outside this hook. No new client asset, opcode, wire struct or schema is required.
+
+
+Original collision geometry: follow [original geometry installation](INSTALL-ORIGINAL-GEOMETRY.md) after applying the overlay. The runtime reads private authenticated resources from `housing-original-meshes` under the server working directory, or `EQEMU_HOUSING_ORIGINAL_ASSETS`. No client assets are included in this repository.

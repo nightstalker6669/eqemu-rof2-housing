@@ -1,3 +1,4 @@
+#include "../common/housing/centered_wall_policy.h"
 #include "housing_plot_marker.h"
 #include "../common/housing/plot_find_wire.h"
 #include "../common/housing/exterior_exit_geometry.h"
@@ -484,6 +485,10 @@ bool KnownChair(const EQ::ItemInstance& item){return FurnitureModel(item)!=nullp
 bool KnownPlacedModel(const EQ::ItemInstance& item){return KnownFurniture(item)||Housing::HousePlacement::Model(item)||Housing::CratePlacement::Model(item);}
 std::optional<double> FurnitureDistance(Client* c,const EQ::ItemInstance& item,const Housing::PlacementPolicy::Transform& pose){
  if(Housing::HousePlacement::Model(item))return Housing::HousePlacement::DistanceToBounds(item,pose,{c->GetY(),c->GetX(),c->GetZ()});
+ // A ceiling attachment can be far above a reachable hanging furnishing.
+ // Reuse the reviewed oriented-body proximity policy already used for houses.
+ // This remains a server interaction limit; ACL/custody checks are independent.
+ if(const auto* model=FurnitureModel(item))return Housing::HousePlacement::DistanceToGeometryBounds(model->geometry,pose,{c->GetY(),c->GetX(),c->GetZ()});
  const auto& p=pose.position;const double distance=std::hypot(double(p[0])-c->GetY(),double(p[1])-c->GetX(),double(p[2])-c->GetZ());
  return std::isfinite(distance)?std::optional<double>(distance):std::nullopt;
 }
@@ -522,7 +527,7 @@ std::optional<Housing::InteriorContent::Profile> FurnitureAdmissionRoom(const Fu
  if(!target.room||!target.room->room_profile)return {};const auto& base=*target.room->room_profile;
  auto input=Housing::InteriorWallSlab::CachedInput(base,*item.GetUnscaledItem());if(!input)return base;
  auto digest=reserved_digest;if(!digest)for(const auto* rows:{&target.room->contents,&target.room->crate_contents})for(const auto& entry:*rows)if(entry.room&&entry.stored.placement&&entry.stored.placement->reservation.native_item_id==native){if(digest)throw std::invalid_argument("Ambiguous wall source tag");digest=entry.room->content_digest;}
- if(!digest)throw std::invalid_argument("Missing trusted wall preview binding");auto policy=Housing::InteriorWallSlab::Reviewed(base);auto selected=Housing::InteriorWallSlab::Select(*input,policy?&*policy:nullptr,digest);if(!selected)throw std::invalid_argument("Wall preview binding/cache mismatch");return selected->input.room;
+ if(!digest)throw std::invalid_argument("Missing trusted wall preview binding");auto policy=Housing::InteriorWallSlab::Reviewed(base);auto selected=Housing::CenteredWall::Select(*input,policy?&*policy:nullptr,digest);if(!selected)throw std::invalid_argument("Wall preview binding/cache mismatch");return selected->input.room;
 }
 bool FurnitureCheckPlacement(const FurnitureTarget& target,const Housing::PlacementPolicy::Context& input_context,const Housing::PlacementPolicy::ItemMetadata& metadata,const Housing::PlacementPolicy::Geometry& geometry,const Housing::PlacementPolicy::Transform& pose,Housing::PlacementPolicy::Operation operation,const EQ::ItemInstance* item=nullptr,uint32_t native=0,const std::optional<std::array<uint8_t,SHA256_DIGEST_LENGTH>>& digest={}){
  auto context=input_context;context.geometry_only=true; // Preview/preflight only; the owning TX supplies contact authority.

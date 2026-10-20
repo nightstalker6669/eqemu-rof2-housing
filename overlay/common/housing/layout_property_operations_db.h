@@ -216,7 +216,7 @@ inline SplitDestination ReviewSplitDestination(Database& db,const LiveItems::Lea
   if(inside.house->interior->catalog_key!=reservation.catalog_key||inside.context.catalog_revision!=reservation.catalog_revision)throw Failure{Error::Conflict};
   metadata=input.value.item;geometry=input.value.geometry;
   PlacementPolicy::Context checked{target,definition.type,inside.room_profile->region.id,access,true};
-  checked.mount_contact_verified=stowed||!geometry.mounting_type||InteriorContent::MountForSelectedInputUnderTransaction(db,fence,lease,source.stored.row,pose,input.value);
+  checked.mount_contact_verified=stowed||!geometry.mounting_type||InteriorContent::MountForSelectedInputUnderTransaction(db,fence,lease,source.stored.row,pose,input.value,LiveItems::MountSubject::NewSource());
   if(!stowed&&!InteriorContent::CheckPlacement(input.value.room,checked,metadata,geometry,pose,PlacementPolicy::Operation::Add))throw Failure{Error::Conflict};
   result.room=LiveItems::InteriorReservation{reservation,inside.house->house_id,inside.house->revision,inside.profile_revision,inside.context.source,identity.value.digest};
  }else{
@@ -224,7 +224,7 @@ inline SplitDestination ReviewSplitDestination(Database& db,const LiveItems::Lea
   else{const Scene::Item* found=nullptr;for(const auto* rows:{&views.yard.items,&views.yard.crate_contents})for(const auto& i:*rows)if(i.stored.custody_id==source.stored.custody_id)found=&i;
    if(!found||!found->metadata||!found->geometry)throw Failure{Error::UnsupportedItem};metadata=*found->metadata;geometry=*found->geometry;}
   PlacementPolicy::Context checked{target,definition.type,views.yard.region.id,access,true};
-  checked.mount_contact_verified=stowed||!geometry.mounting_type||fence.MountSurfaceUnderTransaction(db,lease,source.stored.row,pose,target);
+  checked.mount_contact_verified=stowed||!geometry.mounting_type||fence.MountSurfaceWithSubjectUnderTransaction(db,lease,source.stored.row,pose,target,LiveItems::MountSubject::NewSource());
   if(!stowed&&!PlacementPolicy::CheckAny(checked,metadata,geometry,views.yard.region,views.yard.additional_regions,pose,PlacementPolicy::Operation::Add))throw Failure{Error::Conflict};
   auto catalog=Query(db,"SELECT revision,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key='"+db.Escape(reservation.catalog_key)+"' FOR UPDATE");if(catalog.RowCount()!=1||!catalog.begin()[0]||std::stoull(catalog.begin()[0])!=reservation.catalog_revision)throw Failure{Error::Conflict};
   auto unhex=[](const char* raw){if(!raw)throw Failure{Error::DatabaseFailure};std::string s=raw;CustodyCodec::Bytes out;if(s.size()%2||s.size()>262140)throw Failure{Error::DatabaseFailure};auto n=[](char c)->uint8_t{if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;throw Failure{Error::DatabaseFailure};};for(size_t i=0;i<s.size();i+=2)out.push_back((n(s[i])<<4)|n(s[i+1]));return out;};

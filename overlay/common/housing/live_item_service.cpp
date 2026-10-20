@@ -347,7 +347,7 @@ namespace Housing::LiveItems {
         bool HouseStorageReservation(Database& db,uint32_t id){return HouseStorageInstalled(db)&&Q(db,"SELECT native_item_id FROM housing_house_storage_reservations WHERE native_item_id="+std::to_string(id)+" FOR UPDATE").RowCount()==1;}
         // Caller has already locked the acting lease; current typed operation access
         // is freshly resolved here under the same transaction as the pose/source CAS.
-        uint64_t PlacementCatalog(Database& db,const Reservation& p,const InventoryRow& row,const std::optional<PlacementPolicy::Transform>& pose,bool capacity,InventorySessionFence& fence,AuthenticatedPurchaser actor,PlacementPolicy::Operation operation=PlacementPolicy::Operation::Add,ContentBinding::Identity* bind_new=nullptr,uint64_t expected_current_revision=0,HouseBinding::CustodyContext* houses=nullptr,const Lease* lease=nullptr,HouseBinding::PlacementStage stage=HouseBinding::PlacementStage::Preview,int32_t runtime_serial=0,CrateBinding::CustodyContext* crates=nullptr,const Scene::Snapshot* parent_yard=nullptr,const std::optional<NpcNativeFrame::Frame>& npc_frame={},bool house_storage=false){
+        uint64_t PlacementCatalog(Database& db,const Reservation& p,const InventoryRow& row,const std::optional<PlacementPolicy::Transform>& pose,bool capacity,InventorySessionFence& fence,AuthenticatedPurchaser actor,PlacementPolicy::Operation operation=PlacementPolicy::Operation::Add,ContentBinding::Identity* bind_new=nullptr,uint64_t expected_current_revision=0,HouseBinding::CustodyContext* houses=nullptr,const Lease* lease=nullptr,HouseBinding::PlacementStage stage=HouseBinding::PlacementStage::Preview,int32_t runtime_serial=0,CrateBinding::CustodyContext* crates=nullptr,const Scene::Snapshot* parent_yard=nullptr,const std::optional<NpcNativeFrame::Frame>& npc_frame={},bool house_storage=false,const MountSubject& mount_subject={}){
             if(!p.native_estate_id||!p.estate_id||!Key(p.catalog_key)||!p.catalog_revision)throw Failure{Error::InvalidArgument};
             auto npc_source=NpcItemMetadata::ReadUnderTransaction(db,row.values.item_id);auto npc=npc_source?NpcRuntime::Review(*npc_source):std::nullopt;
             if(npc_source&&!NpcItemMetadata::Ordinary(*npc_source)&&!npc)throw Failure{Error::UnsupportedItem};
@@ -416,7 +416,7 @@ namespace Housing::LiveItems {
             }
             if(p.content_binding||bind_new){auto identity=ContentBinding::Current(db,p.catalog_key,bundle,p.native_estate_id,{uint32_t(std::stoul(m[3])),uint8_t(std::stoul(m[4])),uint16_t(std::stoul(m[5]))},row.values.item_id,house_route?&*house_route:nullptr,crate_profile?&*crate_profile:nullptr);if(p.content_binding&&!ContentBinding::Same(*p.content_binding,identity))throw Failure{Error::Conflict};if(bind_new)*bind_new=identity;}
             if(npc){if(pose)geometry=NpcRuntime::Geometry(*npc,npc_frame,*pose);else if(stage!=HouseBinding::PlacementStage::Preview&&!npc->legacy_fixed_eye&&!npc_frame)throw Failure{Error::UnsupportedItem};}else if(npc_frame)throw Failure{Error::InvalidArgument};
-            if(pose){PlacementPolicy::Context c{p.native_estate_id,definition->type,region->id,access.effective,true};if(geometry.mounting_type){if(stage==HouseBinding::PlacementStage::Read)c.geometry_only=true;else c.mount_contact_verified=lease&&fence.MountSurfaceUnderTransaction(db,*lease,row,*pose,p.native_estate_id);}if(!PlacementPolicy::Check(c,metadata,geometry,*region,*pose,operation))throw Failure{Error::UnsupportedItem};}
+            if(pose){PlacementPolicy::Context c{p.native_estate_id,definition->type,region->id,access.effective,true};if(geometry.mounting_type){if(stage==HouseBinding::PlacementStage::Read)c.geometry_only=true;else c.mount_contact_verified=lease&&fence.MountSurfaceWithSubjectUnderTransaction(db,*lease,row,*pose,p.native_estate_id,stage==HouseBinding::PlacementStage::Move?mount_subject:MountSubject::NewSource(p.native_item_id));}if(!PlacementPolicy::Check(c,metadata,geometry,*region,*pose,operation))throw Failure{Error::UnsupportedItem};}
             auto used=Q(db,"SELECT COUNT(*) FROM housing_live_placed_items p JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id WHERE r.native_estate_id="+std::to_string(p.native_estate_id)+" AND r.state=1"+(CrateMemberScope::Installed(db)?" AND NOT EXISTS (SELECT 1 FROM housing_crate_members packed WHERE packed.custody_id=p.custody_id)":"")+" FOR UPDATE");if((!house&&!crate||house_storage)&&capacity&&(!definition->max_items||std::stoull(used.begin()[0])+(VaultStorage::Installed(db)?VaultStorage::Count(db,p.native_estate_id):0)>=definition->max_items))throw Failure{Error::Conflict};if(npc&&capacity&&!NpcRuntime::Capacity(definition->max_npc_items,NpcRuntime::Count(db,p.native_estate_id)))throw Failure{Error::NpcFull};return std::stoull(cat.begin()[0]);
         }
         void CurrentRemovalContext(Database& db,const Placed& placed,InventorySessionFence& fence){
@@ -1474,8 +1474,8 @@ namespace Housing::LiveItems {
                 if(actor==view.value.contents.end()||!actor->stored.placement||PlacementBytes(*actor->stored.placement)!=PlacementBytes(*current))throw Failure{Error::Conflict};
                 auto input=InteriorContent::ItemInputForStoredUnderTransaction(db,*view.value.room_profile,actor->stored);if(!input)throw Failure{input.error};if(input.value.npc&&!fence.NpcProfileMatchesUnderTransaction(db,lease,*input.value.npc))throw Failure{Error::Conflict};
                 if(input.value.npc)input.value.geometry=NpcRuntime::Geometry(*input.value.npc,r.npc_frame,r.transform);else if(r.npc_frame)throw Failure{Error::InvalidArgument};
-                PlacementPolicy::Context context{current->reservation.native_estate_id,view.value.room_profile->definition.type,view.value.room_profile->region.id,view.value.access.effective,true};if(input.value.geometry.mounting_type)context.mount_contact_verified=InteriorContent::MountForSelectedInputUnderTransaction(db,fence,lease,stored.row,r.transform,input.value);if(!InteriorContent::CheckPlacement(input.value.room,context,input.value.item,input.value.geometry,r.transform,PlacementPolicy::Operation::Move))throw Failure{Error::UnsupportedItem};current_revision=view.value.context.catalog_revision;
-            }else{std::optional<Scene::Snapshot> parent;if(r.parent_yard){auto read=OccupiedParentYard::ReadUnderTransaction(db,lease,*r.parent_yard,fence,room_scene,room_profile,crates);if(!read)throw Failure{read.error};parent=std::move(read.value);}current_revision=PlacementCatalog(db,current->reservation,stored.row,r.transform,false,fence,r.lease.actor,PlacementPolicy::Operation::Move,nullptr,r.expected_catalog_revision,houses,&lease,HouseBinding::PlacementStage::Move,0,crates,parent?&*parent:nullptr,r.npc_frame);}
+                PlacementPolicy::Context context{current->reservation.native_estate_id,view.value.room_profile->definition.type,view.value.room_profile->region.id,view.value.access.effective,true};if(input.value.geometry.mounting_type)context.mount_contact_verified=InteriorContent::MountForSelectedInputUnderTransaction(db,fence,lease,stored.row,r.transform,input.value,MountSubject::ExistingSource(stored.custody_id,current->reservation.native_item_id,current->pose_revision));if(!InteriorContent::CheckPlacement(input.value.room,context,input.value.item,input.value.geometry,r.transform,PlacementPolicy::Operation::Move))throw Failure{Error::UnsupportedItem};current_revision=view.value.context.catalog_revision;
+            }else{std::optional<Scene::Snapshot> parent;if(r.parent_yard){auto read=OccupiedParentYard::ReadUnderTransaction(db,lease,*r.parent_yard,fence,room_scene,room_profile,crates);if(!read)throw Failure{read.error};parent=std::move(read.value);}current_revision=PlacementCatalog(db,current->reservation,stored.row,r.transform,false,fence,r.lease.actor,PlacementPolicy::Operation::Move,nullptr,r.expected_catalog_revision,houses,&lease,HouseBinding::PlacementStage::Move,0,crates,parent?&*parent:nullptr,r.npc_frame,false,MountSubject::ExistingSource(stored.custody_id,current->reservation.native_item_id,current->pose_revision));}
             stored.placement=current;CurrentCrate(db,stored);
             MoveReceipt out;out.room=r.room;out.room_exterior_source=r.room_exterior_source;out.parent_yard=r.parent_yard;out.committed_catalog_revision=current_revision;out.request_key=r.request_key;out.custody_id=r.custody_id;out.before=*current;out.after=*current;out.after.transform=r.transform;out.after.npc_frame=r.npc_frame;out.after.pose_revision++;
             auto changed=Q(db,"UPDATE housing_live_placed_items SET pose_revision="+std::to_string(out.after.pose_revision)+",pose_blob=x'"+Hex(Pose(out.after.transform))+"' WHERE custody_id="+std::to_string(r.custody_id)+" AND native_item_id="+std::to_string(r.native_item_id)+" AND pose_revision="+std::to_string(r.expected_pose_revision));if(changed.RowsAffected()!=1)throw Failure{Error::Conflict};
@@ -1502,6 +1502,31 @@ namespace Housing::LiveItems {
             if(r.content_binding->version!=ContentBinding::NpcClassVersion&&r.content_binding->version!=ContentBinding::GenericNpcClassVersion)return {std::nullopt,Error::None};
             return {std::optional<Reservation>{r},Error::None};
         }catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
+    }
+    Result<bool> Service::NoPendingInteriorPublicationUnderTransaction(Database& db,const Lease& viewer,uint32_t native,uint64_t house,InventorySessionFence& fence){
+        if(!native||native==UINT32_MAX||!house)return {false,Error::InvalidArgument};
+        auto authenticated=AuthenticateUnderTransaction(db,true,viewer,fence);if(!authenticated)return {false,authenticated.error};
+        if(!authenticated.value.pending_key.empty())return {false,Error::PendingApplication};
+        try{
+            // Current locking read (not an old RR read-view): includes foreign
+            // pickup recipients after source scope/custody was already deleted.
+            // Existing room-head locks serialize physical writers; any SQL
+            // deadlock/error refuses the owning transaction, never a partial set.
+            auto subjects=Q(db,"SELECT character_id FROM housing_live_item_leases WHERE pending_key IS NOT NULL ORDER BY character_id LIMIT 1001 FOR UPDATE");
+            if(subjects.RowCount()>1000)throw Failure{Error::PendingApplication};
+            for(auto it=subjects.begin();it!=subjects.end();++it){
+                if(!it[0])throw Failure{Error::DatabaseFailure};const auto creator=std::stoul(it[0]);auto current=Q(db,"SELECT "+lease_columns+" FROM housing_live_item_leases WHERE character_id="+std::to_string(creator)+" FOR UPDATE");if(current.RowCount()!=1)throw Failure{Error::DatabaseFailure};auto subject=LeaseRow(current.begin(),creator);if(subject.pending_key.empty())continue;
+                auto rows=Q(db,"SELECT "+receipt_columns+" FROM housing_live_item_receipts WHERE request_key="+Quote(db,subject.pending_key)+" FOR UPDATE");
+                if(rows.RowCount()!=1)throw Failure{Error::PendingApplication};
+                auto receipt=ReceiptRow(rows.begin(),subject,subject.pending_key);
+                if(!receipt.requires_application)throw Failure{Error::PendingApplication};
+                // House/crate aggregate effects or missing physical provenance
+                // cannot be silently classified as another room's operation.
+                if(receipt.house_effect_required||receipt.house_effect||!receipt.stored.placement)throw Failure{Error::PendingApplication};
+                if(receipt.stored.placement->reservation.native_estate_id==native||(receipt.room&&receipt.room->house_id==house))throw Failure{Error::PendingApplication};
+            }
+            return {true,Error::None};
+        }catch(const Failure& e){return {false,e.error};}catch(...){return {false,Error::PendingApplication};}
     }
     Result<Lease> Service::AuthenticateUnderTransaction(Database& db,bool enabled,const Lease& lease,InventorySessionFence& fence){
         if(!enabled)return {{},Error::Disabled};

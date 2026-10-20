@@ -125,8 +125,9 @@ private:
  bool LayoutSourceMatches(const LiveItems::InventoryRow&,int32_t)const noexcept override;
  bool NpcProfileMatchesUnderTransaction(Database&,const LiveItems::Lease&,const NpcRuntime::Profile&)const noexcept override;
  bool MountSurfaceUnderTransaction(Database&,const LiveItems::Lease&,const LiveItems::InventoryRow&,const PlacementPolicy::Transform&,uint32_t)const noexcept override;
+ bool MountSurfaceWithSubjectUnderTransaction(Database&,const LiveItems::Lease&,const LiveItems::InventoryRow&,const PlacementPolicy::Transform&,uint32_t,const LiveItems::MountSubject&)const noexcept override;
  bool MountInteriorSurfaceUnderTransaction(Database&,const LiveItems::Lease&,const LiveItems::InventoryRow&,const PlacementPolicy::Transform&,uint32_t,const LiveItems::InteriorMountContext&)const noexcept override;
- bool MountSurfaceSelectedUnderTransaction(Database&,const LiveItems::Lease&,const LiveItems::InventoryRow&,const PlacementPolicy::Transform&,uint32_t,const LiveItems::InteriorMountContext*)const noexcept;
+ bool MountSurfaceSelectedUnderTransaction(Database&,const LiveItems::Lease&,const LiveItems::InventoryRow&,const PlacementPolicy::Transform&,uint32_t,const LiveItems::InteriorMountContext*,const LiveItems::MountSubject& = {})const noexcept;
  bool ReturnAllowed(const LiveItems::InventoryRow&)const noexcept override;
  bool PlacementContextMatches(EstateId,uint32_t,uint16_t)const noexcept override;
  bool ParentMatchesUnderTransaction(Database&,const LiveItems::Lease&,LiveItems::InventorySessionFence&,EstateId,uint32_t,uint16_t)const noexcept override;

@@ -13,3 +13,7 @@ credentials.json
 eqemu_config.json
 *.orig
 *.log
+
+# Operator-owned original client geometry
+housing-original-meshes/
+.housing-original-stage-*/

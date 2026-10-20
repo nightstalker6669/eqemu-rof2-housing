@@ -173,7 +173,7 @@ ExteriorExitContext LockedExitGeometry(Database& db,const LiveItems::Lease& leas
  }
  return out;
 }
-InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route source,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,bool egress,bool include_contents,const Housing::InteriorContent::ProfilePolicy* room_policy=nullptr,const Snapshot* attached_parent=nullptr,const CrateBinding::CustodyContext* crates=nullptr,bool remote_anchor=false,uint64_t anchor_custody=0,bool management_view=false,bool strict_placed=false,AttachedRead read=AttachedRead::Storage){
+InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route source,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,bool egress,bool include_contents,const Housing::InteriorContent::ProfilePolicy* room_policy=nullptr,const Snapshot* attached_parent=nullptr,const CrateBinding::CustodyContext* crates=nullptr,bool remote_anchor=false,uint64_t anchor_custody=0,bool management_view=false,bool strict_placed=false,AttachedRead read=AttachedRead::Storage,bool published_collision=false){
  if(read==AttachedRead::TransferConservation&&(!attached_parent||egress||remote_anchor||anchor_custody||management_view||strict_placed))throw Failure{Error::InvalidArgument};
  if(remote_anchor&&(!attached_parent||egress))throw Failure{Error::InvalidArgument};
  if(!source.zone_id||!source.instance_id||source.instance_id>32000||!l.actor.character_id||!l.actor.account_id||!l.epoch||!Key(l.session_key))throw Failure{Error::InvalidArgument};
@@ -254,6 +254,11 @@ InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route sou
    const auto expected=ContentBinding::Current(db,interior.catalog_key,bundle,context.native_plot_id,context.neighborhood,binding.item_template_id,&*reviewed);
    const auto actual=ContentBinding::DecodeIdentity(row[7],row[8]);if(!actual||!ContentBinding::Same(*actual,expected))throw Failure{Error::Conflict};
    if(management_view){out.access.effective.capabilities&=RentState::ManagementCapabilities;return out;}
+   if(published_collision){
+    if(!include_contents||!room_policy||!HouseItemScope::Installed(db))throw Failure{Error::DatabaseFailure};
+    auto publication=LiveItems::Service::NoPendingInteriorPublicationUnderTransaction(db,l,interior.native_estate_id,binding.house_id,fence);
+    if(!publication)throw Failure{publication.error};if(!publication.value)throw Failure{Error::PendingApplication};
+   }
    if(include_contents&&HouseItemScope::Installed(db)){
     if(room_policy){auto current=Housing::InteriorContent::ReadProfileUnderTransaction(db,l,source,fence,policy,*room_policy,attached_parent&&!remote_anchor?std::optional<Housing::InteriorContent::AttachedSelection>{{context.estate_id,binding.house_id,attached_parent->route,crates,read}}:std::nullopt,remote_anchor?std::optional<Housing::InteriorContent::AnchorSelection>{{context.estate_id,binding.house_id}}:std::nullopt);if(!current)throw Failure{current.error};if(!current.value.context.house||current.value.context.house->house_id!=binding.house_id||current.value.context.house->revision!=binding.revision)throw Failure{Error::Conflict};out.profile_revision=current.value.profile_revision;out.room_profile=std::make_shared<const Housing::InteriorContent::Profile>(std::move(current.value.room));}
     const uint64_t content_limit=out.room_profile?out.room_profile->definition.max_items:1000;
@@ -282,7 +287,7 @@ InteriorSnapshot LockedInterior(Database& db,const LiveItems::Lease& l,Route sou
      content.creator_name=Character(db,stored.row.values.character_id);
      Bytes retained_pose;
      if(row[7]){
-      auto pending=Q(db,"SELECT pending_key FROM housing_live_item_leases WHERE character_id="+std::to_string(stored.row.values.character_id)+" FOR UPDATE");if(pending.RowCount()>1)throw Failure{Error::DatabaseFailure};if(pending.RowCount()&&pending.begin()[0])continue;
+      auto pending=Q(db,"SELECT pending_key FROM housing_live_item_leases WHERE character_id="+std::to_string(stored.row.values.character_id)+" FOR UPDATE");if(pending.RowCount()>1)throw Failure{Error::DatabaseFailure};if(pending.RowCount()&&pending.begin()[0]){if(published_collision)throw Failure{Error::PendingApplication};continue;}
       if(!room_policy)throw Failure{Error::UnsupportedItem};
       if(!out.room_profile)throw Failure{Error::UnsupportedItem};
       auto placed=Q(db,"SELECT p.native_item_id,p.pose_revision,HEX(p.pose_blob),r.native_estate_id,r.estate_id,r.catalog_key,r.catalog_revision,r.state,r.custody_id,r.character_id,HEX(r.source_row),r.content_binding_version,r.content_binding_digest,t.house_id,t.source_zone,t.source_version,t.source_instance,t.content_version,HEX(t.content_digest),t.house_revision,t.profile_revision FROM housing_live_placed_items p JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id JOIN housing_interior_placement_reservations t ON t.native_item_id=r.native_item_id WHERE p.custody_id="+std::to_string(stored.custody_id)+" FOR UPDATE");
@@ -346,6 +351,11 @@ LiveItems::Result<InteriorSnapshot> Service::ReadInteriorUnderTransaction(Databa
 LiveItems::Result<InteriorSnapshot> Service::ReadInteriorSceneUnderTransaction(Database& db,const LiveItems::Lease& l,Route source,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,const Housing::InteriorContent::ProfilePolicy& room,const CrateBinding::CustodyContext* crates){
  if(db.GetStatus()!=DBcore::Connected)return {{},Error::DatabaseFailure};
  try{return {LockedInterior(db,l,source,fence,policy,false,true,&room,nullptr,crates),Error::None};}
+ catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
+}
+LiveItems::Result<InteriorSnapshot> Service::ReadPublishedInteriorCollisionUnderTransaction(Database& db,const LiveItems::Lease& l,Route source,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,const Housing::InteriorContent::ProfilePolicy& room,const CrateBinding::CustodyContext* crates){
+ if(db.GetStatus()!=DBcore::Connected)return {{},Error::DatabaseFailure};
+ try{return {LockedInterior(db,l,source,fence,policy,false,true,&room,nullptr,crates,false,0,false,false,AttachedRead::Storage,true),Error::None};}
  catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
 }
 LiveItems::Result<InteriorSnapshot> Service::ReadInterior(const LiveItems::Lease& l,Route source,LiveItems::InventorySessionFence& fence){return ResolveInterior(l,source,fence,false);}
@@ -727,6 +737,17 @@ LiveItems::Result<AnchorDestination> Service::ResolveAnchor(const LiveItems::Lea
   Q(db,"COMMIT");active=false;return {std::move(result),Error::None};
  }catch(const Failure& e){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {{},e.error};}
  catch(...){if(active)db.QueryDatabase(std::string("ROLLBACK"),false);return {{},Error::DatabaseFailure};}
+}
+LiveItems::Result<InteriorSnapshot> Service::ReadPublishedAttachedInteriorCollisionUnderTransaction(Database& db,const LiveItems::Lease& l,uint64_t house,LiveItems::InventorySessionFence& fence,const HouseScenePolicy& policy,const Housing::InteriorContent::ProfilePolicy& room,const CrateBinding::CustodyContext* crates){
+ if(!house||!fence.HeldFor(l.actor,l.epoch,l.session_key))return {{},Error::UnheldFence};
+ try{
+  auto tx=Q(db,"SELECT @@in_transaction");if(tx.RowCount()!=1||!tx.begin()[0]||Number(tx.begin()[0])!=1)return {{},Error::InvalidArgument};
+  auto host=Q(db,"SELECT c.estate_id FROM housing_house_locations l JOIN housing_live_item_custody c ON c.custody_id=l.custody_id WHERE l.house_id="+std::to_string(house)+" AND l.location_kind=2");if(host.RowCount()!=1||!host.begin()[0])return {{},Error::NotFound};
+  auto parent=LockedExterior(db,l,Number(host.begin()[0]),fence,nullptr,&policy,nullptr,crates);const Item* selected=nullptr;
+  for(const auto& item:parent.items)if(item.house&&item.house->house_id==house){if(selected)throw Failure{Error::Conflict};selected=&item;}
+  if(!selected||!selected->house->interior)throw Failure{Error::NotFound};const auto& i=*selected->house->interior;
+  return {LockedInterior(db,l,{i.zone_id,i.zone_version,i.instance_id},fence,policy,false,true,&room,&parent,crates,false,0,false,false,AttachedRead::Storage,true),Error::None};
+ }catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
 }
 LiveItems::Result<Snapshot> Service::ReadSceneUnderTransaction(Database& db,const LiveItems::Lease& l,EstateId estate,LiveItems::InventorySessionFence& fence,const HouseScenePolicy* houses,const CrateBinding::CustodyContext* crates){
  try{return {LockedExterior(db,l,estate,fence,nullptr,houses,nullptr,crates),Error::None};}catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}

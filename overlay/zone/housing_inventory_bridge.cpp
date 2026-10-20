@@ -11,10 +11,13 @@
 #include "../common/housing/return_parcel_db.h"
 #include "../common/housing/return_settlement_db.h"
 #include "housing_house_surface.h"
+#include "housing_height_scene.h"
+#include "../common/housing/centered_wall_policy.h"
 #include "map.h"
 #include "../common/path_manager.h"
 #include "../common/housing/mount_admission.h"
 #include <fstream>
+#include <cstdlib>
 #include <memory>
 #include "../common/housing/estate_retirement_db.h"
 #include "../common/housing/occupied_move_out_db.h"
@@ -172,8 +175,9 @@ bool Bridge::NpcProfileMatchesUnderTransaction(Database& db,const LiveItems::Lea
  try{if(!HeldFor(lease.actor,lease.epoch,lease.session_key))return false;auto tx=db.QueryDatabase(std::string("SELECT @@in_transaction"),false);if(!tx.Success()||tx.RowCount()!=1||!tx.begin()[0]||std::string(tx.begin()[0])!="1")return false;const auto* data=database.GetItem(profile.item_id);auto cached=data?NpcRuntime::Cached(*data):std::nullopt;return cached&&NpcRuntime::Same(*cached,profile);}catch(...){return false;}
 }
 bool Bridge::MountSurfaceUnderTransaction(Database& db,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,uint32_t native)const noexcept{return MountSurfaceSelectedUnderTransaction(db,lease,row,pose,native,nullptr);}
-bool Bridge::MountInteriorSurfaceUnderTransaction(Database& db,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,uint32_t native,const LiveItems::InteriorMountContext& selected)const noexcept{return MountSurfaceSelectedUnderTransaction(db,lease,row,pose,native,&selected);}
-bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,uint32_t native,const LiveItems::InteriorMountContext* selected)const noexcept{
+bool Bridge::MountSurfaceWithSubjectUnderTransaction(Database& db,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,uint32_t native,const LiveItems::MountSubject& subject)const noexcept{return MountSurfaceSelectedUnderTransaction(db,lease,row,pose,native,nullptr,subject);}
+bool Bridge::MountInteriorSurfaceUnderTransaction(Database& db,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,uint32_t native,const LiveItems::InteriorMountContext& selected)const noexcept{return MountSurfaceSelectedUnderTransaction(db,lease,row,pose,native,&selected,selected.subject);}
+bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,uint32_t native,const LiveItems::InteriorMountContext* selected,const LiveItems::MountSubject& subject)const noexcept{
  try{
   if(!zone||!HeldFor(lease.actor,lease.epoch,lease.session_key)||!house_policies_.scene||!house_policies_.room)return false;
   auto tx=db.QueryDatabase(std::string("SELECT @@in_transaction"),false);if(!tx.Success()||tx.RowCount()!=1||!tx.begin()[0]||std::stoul(tx.begin()[0])!=1)return false;
@@ -185,22 +189,59 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
   // source, cached presentations and previously selected house poses confer no
   // surface/ACL authority. Existing scene code locks creator pending state too.
   std::shared_ptr<const Map> map;std::optional<Scene::Snapshot> yard;std::optional<Scene::InteriorSnapshot> room;std::optional<InteriorWallSlab::Selection> wall_selection;
+  bool base_free_allowed=false;
+  const auto base_free=[&](){if(base_free_allowed)LogInfo("Housing effective Free item [{}] subject [{}] original-room bounds accepted",row.values.item_id,subject.native_item_id);return base_free_allowed;};
   auto target=db.QueryDatabase("SELECT house_id FROM housing_house_interiors WHERE native_estate_id="+std::to_string(native)+" FOR UPDATE",false);if(!target.Success()||target.RowCount()>1)return false;
   if(target.RowCount()){
-   const auto house=std::stoull(target.begin()[0]);if(!selected||selected->house_id!=house)return false;auto read=actual.zone_id==712?Scene::Service::ReadCurrentAttachedInteriorUnderTransaction(db,lease,house,const_cast<Bridge&>(*this),*house_policies_.scene,house_policies_.room.get(),house_policies_.crates.get()):Scene::Service::ReadInteriorSceneUnderTransaction(db,lease,actual,const_cast<Bridge&>(*this),*house_policies_.scene,*house_policies_.room,house_policies_.crates.get());
+   const auto house=std::stoull(target.begin()[0]);if(!selected||selected->house_id!=house||!subject.Valid())return false;
+   auto read=actual.zone_id==712?Scene::Service::ReadPublishedAttachedInteriorCollisionUnderTransaction(db,lease,house,const_cast<Bridge&>(*this),*house_policies_.scene,*house_policies_.room,house_policies_.crates.get()):Scene::Service::ReadPublishedInteriorCollisionUnderTransaction(db,lease,actual,const_cast<Bridge&>(*this),*house_policies_.scene,*house_policies_.room,house_policies_.crates.get());
    if(!read||!read.value.house||!read.value.house->interior||read.value.house->house_id!=house||read.value.house->interior->native_estate_id!=native||!read.value.room_profile)return false;
    room=std::move(read.value);
+   // Preserve the mutation's exact stored/new content identity before trying
+   // any member of the mode union. Free must never reinterpret a V7 room as
+   // the original room or rewrite that immutable selected fingerprint.
+   auto exact=InteriorContent::MountSelectionUnderTransaction(db,*room->room_profile,row.values.item_id,*selected);if(!exact)return false;
+   auto base=InteriorContent::ItemInputUnderTransaction(db,*room->room_profile,row.values.item_id);if(!base||base.value.npc||!base.value.item.furniture_only)return false;
+   const auto*runtime=database.GetItem(row.values.item_id);const auto&wire=base.value.native_metadata;
+   if(!runtime||runtime->ID!=row.values.item_id||std::string(runtime->IDFile)!=model->model||
+      runtime->Placeable!=wire.placeable||bool(runtime->HousingIgnoreCollisions)!=wire.ignore_collisions||
+      runtime->HousingPlacementType!=wire.placement_type||runtime->HousingDefinitionID!=wire.definition_id||
+      runtime->HousingMinimumScale!=wire.scale_min||runtime->HousingMaximumScale!=wire.scale_max||
+      runtime->HousingUpkeepID!=wire.upkeep_id||runtime->HousingMaxPerEstate!=wire.max_per_estate||
+      !NpcItemMetadata::Ordinary(*runtime))return false;
+   const bool effective_flags=flags.known?
+    (runtime->HousingPlacementFlagsKnown&&bool(runtime->HousingDisableRotation)==flags.disable_rotation&&bool(runtime->HousingDisableFreePlacement)==flags.disable_free):
+    (!runtime->HousingPlacementFlagsKnown&&!runtime->HousingDisableRotation&&!runtime->HousingDisableFreePlacement);
+   if(!effective_flags)return false;
+   // Current RoF2 item and placed-actor serializers emit these cached bytes.
+   // Unknown SQL columns therefore describe effective outgoing Free0 here,
+   // not recovered historical Live metadata. Base-only containment and the
+   // actual current ACL are required; no selected/expanded V7 regions enter.
+   PlacementPolicy::Context free_context{native,room->room_profile->definition.type,room->room_profile->region.id,room->access.effective,true,false,true};
+   const auto operation=subject.kind==LiveItems::MountSubject::Kind::Move?PlacementPolicy::Operation::Move:PlacementPolicy::Operation::Add;
+   base_free_allowed=!runtime->HousingDisableFreePlacement&&bool(InteriorContent::CheckPlacement(*room->room_profile,free_context,base.value.item,base.value.geometry,pose,operation));
+   if(actual.zone_id!=712){
+    // Try original Normal/Floor/Ceiling first, keeping Free out of this query.
+    // This operational profile is never stored or included in fingerprints.
+    MountFlags::Flags query_flags{true,runtime->HousingDisableRotation!=0,true};
+    const auto height=HeightScene::Admit(client_,db,lease,*room,subject,row,pose,query_flags,const_cast<Bridge&>(*this));
+    LogInfo("Housing original height item [{}] subject [{}] result [{}] stage [{}] queries [{}] narrowphase [{}] operations [{}]",row.values.item_id,subject.native_item_id,unsigned(height.status),height.stage,height.queries,height.narrowphase,height.kernel_steps);
+    if(height)return true;
+    if(height.status==HeightScene::Status::SourceChanged)return false;
+    // Ceiling has no independent Wall mode. A missing/changed source must not
+    // fall back to the predecessor's approximate local map-ray admission.
+    if(model->mounting_type==2)return base_free();
+   }
    // Only the separate reviewed typed region path requires this stronger proof.
    // Base Free/floor/ceiling semantics stay exact. Scene reads below are pure
    // committed geometry validation and never recurse into this surface method.
    if(InteriorWallSlab::Eligible(model->geometry)){
-    auto exact=InteriorContent::MountSelectionUnderTransaction(db,*room->room_profile,row.values.item_id,*selected);if(!exact)return false;
     PlacementPolicy::Context context{native,room->room_profile->definition.type,room->room_profile->region.id,{6,AccessPolicy::KnownCapabilities,true},true,false,true};
-    if(!InteriorContent::CheckPlacement(*room->room_profile,context,exact.value.input.item,exact.value.input.geometry,pose,PlacementPolicy::Operation::Add)){
+    if(exact.value.policy_revision==CenteredWall::Revision||exact.value.policy_revision==CenteredWall::ContactRevision||!InteriorContent::CheckPlacement(*room->room_profile,context,exact.value.input.item,exact.value.input.geometry,pose,PlacementPolicy::Operation::Add)){
      wall_selection=std::move(exact.value);if(!wall_selection||!wall_selection->wall_policy)return false;
     }
    }
-   if(!free_permitted||wall_selection){map=ReviewedMountMap(*room->room_profile);if(!map)return false;}
+   if(model->mounting_type==1){map=ReviewedMountMap(*room->room_profile);if(!map)return false;}
   }else{
    if(selected)return false;
    auto estate=db.QueryDatabase("SELECT ownership_estate_id FROM housing_native_estates WHERE native_id="+std::to_string(native)+" AND active=1 FOR UPDATE",false);if(!estate.Success()||estate.RowCount()!=1||!estate.begin()[0])return false;const auto id=uint32_t(std::stoul(estate.begin()[0]));
@@ -219,7 +260,26 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
   };
   if(wall_selection){
    if(!room||!map)return false;PlacementPolicy::Context context{native,room->room_profile->definition.type,room->room_profile->region.id,{6,AccessPolicy::KnownCapabilities,true},true,true,true};
-   return bool(InteriorWallSlab::Check(*room->room_profile,*wall_selection,context,pose,PlacementPolicy::Operation::Add,flags,trace,[&](const auto& minimum,const auto& maximum){return !map->IntersectsBox({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]});},0,[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangles({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles[0],triangles[1]);},[&](const auto& minimum,const auto& maximum,uint32_t axis,const auto& seed,const auto& candidates){return map->SourceMountPatch({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},axis,seed[0],seed[1],candidates);},[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangleList({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles);},[&](const auto& volume,uint32_t axis,const auto& seed,const auto& candidates){return map->SourceMountPatch(volume,axis,seed[0],seed[1],candidates);},[&](const auto& volume,const auto& triangles){return !map->IntersectsVolumeExceptTriangleList(volume,triangles);},[&](const auto& start,const auto& end){return map->TracePlanarMount({start[0],start[1],start[2]},{end[0],end[1],end[2]});},[&](const auto& volume,const auto& seed,const auto& candidates){
+   if(wall_selection->policy_revision==CenteredWall::Revision||wall_selection->policy_revision==CenteredWall::ContactRevision){
+    const auto*source=SelectedWallCache::Source(row.values.item_id);if(!source)return false;
+    const char*configured=std::getenv("EQEMU_HOUSING_ORIGINAL_ASSETS");const std::string root=configured&&*configured?configured:"housing-original-meshes";
+    std::ifstream input(root+"/"+std::string(source->mesh_sha256)+".mesh",std::ios::binary|std::ios::ate);if(!input)return false;auto length=input.tellg();if(length<=0||length>64*1024*1024)return false;std::vector<uint8_t>bytes(static_cast<size_t>(length));input.seekg(0);if(!input.read(reinterpret_cast<char*>(bytes.data()),bytes.size()))return false;
+    auto cache=SelectedWallCache::Prepared::Read(row.values.item_id,bytes);if(!cache)return false;
+    if(wall_selection->policy_revision==CenteredWall::ContactRevision){
+     const bool wall=bool(CenteredWall::CheckContact(*room->room_profile,*wall_selection,context,pose,PlacementPolicy::Operation::Add,flags,*cache,
+      [&](const auto&start,const auto&end){return map->TracePlanarMount({start[0],start[1],start[2]},{end[0],end[1],end[2]});}
+     ));
+     return wall||base_free();
+    }
+    const bool wall=bool(CenteredWall::Check(*room->room_profile,*wall_selection,context,pose,PlacementPolicy::Operation::Add,flags,*cache,
+     [&](const auto&start,const auto&end){return map->TracePlanarMount({start[0],start[1],start[2]},{end[0],end[1],end[2]});},
+     [&](const auto&volume,const auto&seed,const auto&candidates){if(!wall_selection->source_policy||map->SourceTriangleCount()!=wall_selection->source_policy->planar_source_triangle_count)return std::vector<uint32_t>{};return map->SourcePlanarMountPatch(volume,seed,candidates);},
+     [&](const auto&volume,const auto&triangles){return !map->IntersectsVolumeExceptTriangleList(volume,triangles);},0,
+     [&](const auto&volume,const auto&seed,const auto&entries,const auto&limits){if(!wall_selection->source_policy||map->SourceTriangleCount()!=wall_selection->source_policy->planar_source_triangle_count)return CurvedMount::Proof{};return map->SourceCurvedMountPatch(volume,seed,entries,limits);}
+    ));
+    return wall||base_free();
+   }
+   const bool wall=bool(InteriorWallSlab::Check(*room->room_profile,*wall_selection,context,pose,PlacementPolicy::Operation::Add,flags,trace,[&](const auto& minimum,const auto& maximum){return !map->IntersectsBox({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]});},0,[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangles({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles[0],triangles[1]);},[&](const auto& minimum,const auto& maximum,uint32_t axis,const auto& seed,const auto& candidates){return map->SourceMountPatch({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},axis,seed[0],seed[1],candidates);},[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangleList({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles);},[&](const auto& volume,uint32_t axis,const auto& seed,const auto& candidates){return map->SourceMountPatch(volume,axis,seed[0],seed[1],candidates);},[&](const auto& volume,const auto& triangles){return !map->IntersectsVolumeExceptTriangleList(volume,triangles);},[&](const auto& start,const auto& end){return map->TracePlanarMount({start[0],start[1],start[2]},{end[0],end[1],end[2]});},[&](const auto& volume,const auto& seed,const auto& candidates){
     // The fresh same-TX selection and independently hash-checked map must agree
     // on the complete source index space before a V5 exemption is considered.
     if(!wall_selection->source_policy||map->SourceTriangleCount()!=wall_selection->source_policy->planar_source_triangle_count)return std::vector<uint32_t>{};
@@ -231,7 +291,12 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
     if(!wall_selection->source_policy||map->SourceTriangleCount()!=wall_selection->source_policy->planar_source_triangle_count)return CurvedMount::Proof{};
     return map->SourceCurvedMountPatch(volume,seed,entries,limits);
    }));
+   return wall||base_free();
   }
+  // Interior Floor/Ceiling now require the complete original scene above.
+  // The independent legacy Wall alternative remains available for its saved
+  // predecessor profiles; it cannot silently retry approximate floor rays.
+  if(room){if(model->mounting_type==2)return base_free();auto wall_flags=flags;wall_flags.known=true;wall_flags.disable_rotation=true;wall_flags.disable_free=true;return MountAdmission::Check(model->geometry,pose,wall_flags,trace)||base_free();}
   return MountAdmission::Check(model->geometry,pose,flags,trace);
  }catch(...){return false;}
 }

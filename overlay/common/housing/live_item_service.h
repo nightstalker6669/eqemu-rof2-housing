@@ -81,7 +81,14 @@ template<class T>struct Result {T value{};Error error=Error::None;explicit opera
 // No packet flag/token or DB ingame field establishes this invariant. Epoch0 is
 // used only to bootstrap OpenLease under the world-authorized session fence.
 // Owning TX derives this from its exact selected input/reservation, never wire.
-struct InteriorMountContext {uint64_t house_id=0;std::array<uint8_t,32> content_digest{};};
+struct MountSubject {
+ enum class Kind:uint8_t {Unspecified,Add,Move};Kind kind=Kind::Unspecified;
+ uint64_t custody_id=0;uint32_t native_item_id=0;uint64_t pose_revision=0;
+ static MountSubject NewSource(uint32_t native=0){return {Kind::Add,0,native,0};}
+ static MountSubject ExistingSource(uint64_t custody,uint32_t native,uint64_t revision){return {Kind::Move,custody,native,revision};}
+ bool Valid()const{return native_item_id!=UINT32_MAX&&((kind==Kind::Add&&!custody_id&&!pose_revision)||(kind==Kind::Move&&custody_id&&native_item_id&&pose_revision));}
+};
+struct InteriorMountContext {uint64_t house_id=0;std::array<uint8_t,32> content_digest{};MountSubject subject{};};
 class InventorySessionFence {
 public:
  virtual ~InventorySessionFence()=default;
@@ -96,6 +103,9 @@ public:
  virtual bool PlacementContextMatches(EstateId,uint32_t native_estate_id,uint16_t neighborhood_instance)const noexcept{return false;}
  // Called only by an owning mutation TX after fresh source/ACL/catalog review.
  virtual bool MountSurfaceUnderTransaction(Database&,const Lease&,const InventoryRow&,const PlacementPolicy::Transform&,uint32_t)const noexcept{return false;}
+ // Subject comes only from the owning locked mutation. Legacy implementations
+ // retain their old proof; a new original-source implementation must use it.
+ virtual bool MountSurfaceWithSubjectUnderTransaction(Database& db,const Lease& lease,const InventoryRow& row,const PlacementPolicy::Transform& pose,uint32_t native,const MountSubject& subject)const noexcept{return subject.Valid()&&MountSurfaceUnderTransaction(db,lease,row,pose,native);}
  // Fresh optional NPC source must also match the actual shared item cache used by the native actor encoder.
  virtual bool NpcProfileMatchesUnderTransaction(Database&,const Lease&,const NpcRuntime::Profile&)const noexcept{return false;}
  virtual bool Applied(const Receipt&)const noexcept=0; // m_inv AFTER matches, source removal/return completed under fence
@@ -143,6 +153,9 @@ public:
  // and does not borrow writer-death recovery authority. No route/access grant.
  static Result<std::optional<Reservation>> PendingNpcPlacementUnderTransaction(
   Database&,bool enabled,const Lease& viewer,uint32_t creator,InventorySessionFence&);
+ // Read-only publication barrier; caller owns the room-head locks and TX.
+ // Opaque pending receipts are refusal, never evidence of unrelated sources.
+ static Result<bool> NoPendingInteriorPublicationUnderTransaction(Database&,const Lease&,uint32_t native_interior,uint64_t house_id,InventorySessionFence&);
  static Result<Lease> AuthenticateUnderTransaction(Database&,bool enabled,const Lease&,InventorySessionFence&);
  // Separate checked room preview; never implicit exterior v1/v2 support.
  Result<InteriorReservation> ReserveInteriorPlacement(const InteriorPreviewRequest&,InventorySessionFence&,const Scene::HouseScenePolicy&,const InteriorContent::ProfilePolicy&,const CrateMemberContext* destination=nullptr);

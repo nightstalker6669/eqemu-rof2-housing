@@ -6,6 +6,7 @@
 #include "../database.h"
 #include "mount_flags_db.h"
 #include "interior_wall_slab_registry.h"
+#include "centered_wall_policy.h"
 namespace Housing::InteriorContent {
 // Metadata only. Caller must first resolve a genuine current reviewed room and
 // its real lease/source/ACL in this transaction. No placement rights are granted.
@@ -24,7 +25,7 @@ inline LiveItems::Result<Input> ItemInputUnderTransaction(Database& db,const Pro
   const auto* crate=CrateGeometry::Lookup(trusted_item_id,number(row[4]),std::string(row[0]));
   if((npc_source&&!NpcItemMetadata::Ordinary(*npc_source)&&!npc)||!model&&!crate&&!npc)return {{},Error::UnsupportedItem};
   Input input;input.room=profile;input.npc=npc;input.item={trusted_item_id,npc?npc->model_id:crate?crate->model_id:model->model_id,number(row[1]),bits(row[5]),bits(row[6]),!crate&&!npc,crate?7u:0u};input.geometry=npc?NpcRuntime::Geometry(*npc):crate?crate->geometry:model->geometry;input.model_member_sha256=npc?npc->source_sha256:crate?crate->member_sha256:model->member_sha256;input.geometry_policy_revision=npc?1u:crate?CrateGeometry::GeometryPolicyRevision:model->geometry_policy_revision;input.authenticated_current_house=input.native_metadata_verified=true;
-  auto& native=input.native_metadata;native.placeable=input.item.placement_mask;native.ignore_collisions=number(row[2])!=0;native.placement_type=number(row[3]);native.definition_id=number(row[4]);native.scale_min=input.item.minimum_scale;native.scale_max=input.item.maximum_scale;native.upkeep_id=number(row[7]);auto max=std::stoll(row[8]);if(max<INT32_MIN||max>INT32_MAX)return {{},Error::UnsupportedItem};native.max_per_estate=int32_t(max);if(auto npc=NpcItemMetadata::ReadUnderTransaction(db,trusted_item_id))NpcItemMetadata::ToWire(native,*npc);if(model&&StaticFurniture::Mounted(trusted_item_id)){auto flags=MountFlags::ReadUnderTransaction(db,trusted_item_id);input.mount_flags_known=flags.known;native.disable_rotation=flags.disable_rotation;native.disable_free_placement=flags.disable_free;}if(stored_digest||new_add){auto policy=InteriorWallSlab::Eligible(input.geometry)&&input.item.furniture_only&&!input.npc?InteriorWallSlab::Reviewed(profile):std::nullopt;auto selected=InteriorWallSlab::Select(input,policy?&*policy:nullptr,stored_digest,new_add);if(!selected)return {{},Error::Conflict};input=std::move(selected->input);}return {std::move(input),Error::None};
+  auto& native=input.native_metadata;native.placeable=input.item.placement_mask;native.ignore_collisions=number(row[2])!=0;native.placement_type=number(row[3]);native.definition_id=number(row[4]);native.scale_min=input.item.minimum_scale;native.scale_max=input.item.maximum_scale;native.upkeep_id=number(row[7]);auto max=std::stoll(row[8]);if(max<INT32_MIN||max>INT32_MAX)return {{},Error::UnsupportedItem};native.max_per_estate=int32_t(max);if(auto npc=NpcItemMetadata::ReadUnderTransaction(db,trusted_item_id))NpcItemMetadata::ToWire(native,*npc);if(model&&StaticFurniture::Mounted(trusted_item_id)){auto flags=MountFlags::ReadUnderTransaction(db,trusted_item_id);input.mount_flags_known=flags.known;native.disable_rotation=flags.disable_rotation;native.disable_free_placement=flags.disable_free;}if(stored_digest||new_add){auto policy=InteriorWallSlab::Eligible(input.geometry)&&input.item.furniture_only&&!input.npc?InteriorWallSlab::Reviewed(profile):std::nullopt;auto selected=CenteredWall::Select(input,policy?&*policy:nullptr,stored_digest,new_add);if(!selected)return {{},Error::Conflict};input=std::move(selected->input);}return {std::move(input),Error::None};
  }catch(...){return {{},Error::DatabaseFailure};}
 }
 inline LiveItems::Result<Input> ItemInputForStoredUnderTransaction(Database& db,const Profile& profile,const LiveItems::Stored& source){
@@ -39,15 +40,15 @@ inline LiveItems::Result<InteriorWallSlab::Selection> MountSelectionUnderTransac
  using Error=LiveItems::Error;if(!profile.reviewed_room||!context.house_id||context.house_id!=profile.house_id)return {{},Error::Unauthorized};
  auto input=ItemInputUnderTransaction(db,profile,item_id);if(!input)return {{},input.error};
  auto policy=InteriorWallSlab::Eligible(input.value.geometry)?InteriorWallSlab::Reviewed(profile):std::nullopt;
- auto selected=InteriorWallSlab::Select(input.value,policy?&*policy:nullptr,context.content_digest,false);
+ auto selected=CenteredWall::Select(input.value,policy?&*policy:nullptr,context.content_digest,false);
  if(!selected)return {{},Error::Conflict};return {std::move(*selected),Error::None};
 }
 // Input is already selected by the owning mutation from a locked reservation,
 // durable stored digest, or genuine fresh Add. The adapter re-resolves this
 // exact identity against its independently fresh room/profile; no latest fallback.
-inline bool MountForSelectedInputUnderTransaction(Database& db,LiveItems::InventorySessionFence& fence,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,const Input& input){
+inline bool MountForSelectedInputUnderTransaction(Database& db,LiveItems::InventorySessionFence& fence,const LiveItems::Lease& lease,const LiveItems::InventoryRow& row,const PlacementPolicy::Transform& pose,const Input& input,const LiveItems::MountSubject& subject={}){
  if(!input.room.reviewed_room||!input.room.house_id||input.item.item_id!=row.values.item_id)return false;
- auto identity=Build(input);return identity&&fence.MountInteriorSurfaceUnderTransaction(db,lease,row,pose,input.room.native_estate_id,{input.room.house_id,identity.value.digest});
+ auto identity=Build(input);return identity&&fence.MountInteriorSurfaceUnderTransaction(db,lease,row,pose,input.room.native_estate_id,{input.room.house_id,identity.value.digest,subject});
 }
 
 }

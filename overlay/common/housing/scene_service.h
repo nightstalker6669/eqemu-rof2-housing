@@ -117,6 +117,10 @@ public:
  LiveItems::Result<InteriorSnapshot> ReadAttachedInterior(const LiveItems::Lease&,EstateId,uint64_t house_id,LiveItems::InventorySessionFence&);
  // Resolve the current hosting estate from the placed house, then perform the
  // full attached read. Historical room item custody may retain an old estate.
+ // Complete publication reads for collision authority: same-TX locked realm,
+ // no pending-source omission. Returned contents grant no management rights.
+ static LiveItems::Result<InteriorSnapshot> ReadPublishedInteriorCollisionUnderTransaction(Database&,const LiveItems::Lease&,Route,LiveItems::InventorySessionFence&,const HouseScenePolicy&,const Housing::InteriorContent::ProfilePolicy&,const CrateBinding::CustodyContext* crates=nullptr);
+ static LiveItems::Result<InteriorSnapshot> ReadPublishedAttachedInteriorCollisionUnderTransaction(Database&,const LiveItems::Lease&,uint64_t house_id,LiveItems::InventorySessionFence&,const HouseScenePolicy&,const Housing::InteriorContent::ProfilePolicy&,const CrateBinding::CustodyContext* crates=nullptr);
  static LiveItems::Result<InteriorSnapshot> ReadCurrentAttachedInteriorUnderTransaction(Database&,const LiveItems::Lease&,uint64_t house_id,LiveItems::InventorySessionFence&,const HouseScenePolicy&,const Housing::InteriorContent::ProfilePolicy*,const CrateBinding::CustodyContext* crates=nullptr);
  LiveItems::Result<InteriorSnapshot> ReadCurrentAttachedInterior(const LiveItems::Lease&,uint64_t house_id,LiveItems::InventorySessionFence&);
  // Authorize and install instance membership atomically with current placed
