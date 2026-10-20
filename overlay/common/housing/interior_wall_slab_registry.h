@@ -26,11 +26,22 @@ inline std::optional<Policy> PairReviewed(const InteriorContent::Profile& base){
  for(const auto& slab:p.slabs){auto bytes=RegionWire::EncodeBootstrap({slab.region});w.Word(uint32_t(bytes.size()));w.bytes.insert(w.bytes.end(),bytes.begin(),bytes.end());w.Word(slab.axis);w.Float(slab.plane);w.Word(uint32_t(slab.side));for(auto f:slab.rectangle)w.Float(f);for(auto t:slab.triangles)w.Word(t);}
  p.reviewed_sha256=Hash(w.bytes);if(!Prepare(base,p))return old;return p;
 }
-// New Add adopts V3 only; immutable V2/V1/base tags resolve through prior.
-inline std::optional<Policy> Reviewed(const InteriorContent::Profile& base){
+// Immutable V3 predecessor; V2/V1/base tags resolve through prior.
+inline std::optional<Policy> CoplanarReviewed(const InteriorContent::Profile& base){
  auto previous=PairReviewed(base);if(!previous||previous->revision!=2)return previous;
  auto p=*previous;p.revision=3;p.prior=std::make_shared<Policy>(*previous);
  ContentBinding::Detail::Writer w;w.Text("EQEmuReviewedCoplanarInteriorMountRegionsV3");w.Word(p.zone_id);w.Text(p.zone_short_name);w.Text(p.asset_sha256);w.Text(p.map_sha256);w.Text(p.base_manifest_sha256);w.Text(p.base_regions_sha256);w.Text(p.source_face_inventory_sha256);w.Word(uint32_t(p.slabs.size()));
+ auto encoded=RegionWire::EncodeBootstrap({*p.source_envelope});w.Word(uint32_t(encoded.size()));w.bytes.insert(w.bytes.end(),encoded.begin(),encoded.end());w.Word(uint32_t(p.source_faces.size()));for(const auto& face:p.source_faces){w.Word(face.axis);for(float f:face.interval)w.Float(f);for(float f:face.rectangle)w.Float(f);for(auto t:face.triangles)w.Word(t);}
+
+ for(const auto& slab:p.slabs){auto bytes=RegionWire::EncodeBootstrap({slab.region});w.Word(uint32_t(bytes.size()));w.bytes.insert(w.bytes.end(),bytes.begin(),bytes.end());w.Word(slab.axis);w.Float(slab.plane);w.Word(uint32_t(slab.side));for(auto f:slab.rectangle)w.Float(f);for(auto t:slab.triangles)w.Word(t);}
+ p.reviewed_sha256=Hash(w.bytes);if(!Prepare(base,p))return previous;return p;
+}
+// New Add alone adopts oriented V4. Existing stored V3/V2/V1/base digests
+// keep their exact prior interpretation; there is no automatic content rewrite.
+inline std::optional<Policy> Reviewed(const InteriorContent::Profile& base){
+ auto previous=CoplanarReviewed(base);if(!previous||previous->revision!=3)return previous;
+ auto p=*previous;p.revision=4;p.prior=std::make_shared<Policy>(*previous);
+ ContentBinding::Detail::Writer w;w.Text("EQEmuReviewedOrientedInteriorMountRegionsV4");w.Word(p.zone_id);w.Text(p.zone_short_name);w.Text(p.asset_sha256);w.Text(p.map_sha256);w.Text(p.base_manifest_sha256);w.Text(p.base_regions_sha256);w.Text(p.source_face_inventory_sha256);w.Word(uint32_t(p.slabs.size()));
  auto encoded=RegionWire::EncodeBootstrap({*p.source_envelope});w.Word(uint32_t(encoded.size()));w.bytes.insert(w.bytes.end(),encoded.begin(),encoded.end());w.Word(uint32_t(p.source_faces.size()));for(const auto& face:p.source_faces){w.Word(face.axis);for(float f:face.interval)w.Float(f);for(float f:face.rectangle)w.Float(f);for(auto t:face.triangles)w.Word(t);}
 
  for(const auto& slab:p.slabs){auto bytes=RegionWire::EncodeBootstrap({slab.region});w.Word(uint32_t(bytes.size()));w.bytes.insert(w.bytes.end(),bytes.begin(),bytes.end());w.Word(slab.axis);w.Float(slab.plane);w.Word(uint32_t(slab.side));for(auto f:slab.rectangle)w.Float(f);for(auto t:slab.triangles)w.Word(t);}

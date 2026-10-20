@@ -2500,10 +2500,18 @@ index 4f59160..3801d95 100644
  
  /* Update Window Title with relevant information */
 diff --git a/zone/map.cpp b/zone/map.cpp
-index bf6ff68..5757c1a 100644
+index bf6ff68..257f537 100644
 --- a/zone/map.cpp
 +++ b/zone/map.cpp
-@@ -262,6 +262,23 @@ bool Map::CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const {
+@@ -4,6 +4,7 @@
+ 
+ #include "client.h"
+ #include "map.h"
++#include "../common/housing/oriented_mount_volume.h"
+ #include "raycast_mesh.h"
+ #include "zone.h"
+ #include "../common/file.h"
+@@ -262,6 +263,30 @@ bool Map::CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const {
  }
  
  // returns true if a collision happens
@@ -2524,14 +2532,29 @@ index bf6ff68..5757c1a 100644
 + if(!imp||!imp->rm)return true;return imp->rm->overlapsBoxExceptTriangleList(&minimum.x,&maximum.x,sources);
 +}
 +
++std::vector<uint32_t> Map::SourceMountPatch(const Housing::OrientedMount::Volume&volume,uint32_t axis,uint32_t a,uint32_t b,const std::vector<uint32_t>&candidates) const {
++ if(!imp||!imp->rm)return {};return imp->rm->sourceMountPatch(volume,axis,a,b,candidates);
++}
++bool Map::IntersectsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&volume,const std::vector<uint32_t>&sources) const {
++ if(!imp||!imp->rm)return true;return imp->rm->overlapsVolumeExceptTriangleList(volume,sources);
++}
++
  bool Map::DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, float &distance) const {
  	if(!imp)
  		return false;
 diff --git a/zone/map.h b/zone/map.h
-index 20fad6e..5c3e782 100644
+index 20fad6e..032abe8 100644
 --- a/zone/map.h
 +++ b/zone/map.h
-@@ -44,6 +44,12 @@ public:
+@@ -23,6 +23,7 @@
+ #define ZONE_MAP_H
+ 
+ #include "position.h"
++namespace Housing::OrientedMount { struct Volume; }
+ #include <stdio.h>
+ 
+ #include "zone_config.h"
+@@ -44,6 +45,14 @@ public:
  	bool LineIntersectsZone(glm::vec3 start, glm::vec3 end, float step, glm::vec3 *result) const;
  	bool LineIntersectsZoneNoZLeaps(glm::vec3 start, glm::vec3 end, float step_mag, glm::vec3 *result) const;
  	bool CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const;
@@ -2540,12 +2563,14 @@ index 20fad6e..5c3e782 100644
 +	bool IntersectsBoxExceptTriangles(const glm::vec3& minimum,const glm::vec3& maximum,uint32_t source_a,uint32_t source_b) const;
 + std::vector<uint32_t> SourceMountPatch(const glm::vec3& minimum,const glm::vec3& maximum,uint32_t axis,uint32_t source_a,uint32_t source_b,const std::vector<uint32_t>& candidates) const;
 + bool IntersectsBoxExceptTriangleList(const glm::vec3& minimum,const glm::vec3& maximum,const std::vector<uint32_t>& sources) const;
++ std::vector<uint32_t> SourceMountPatch(const Housing::OrientedMount::Volume&,uint32_t axis,uint32_t source_a,uint32_t source_b,const std::vector<uint32_t>& candidates) const;
++ bool IntersectsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&,const std::vector<uint32_t>& sources) const;
 +
  	bool DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, float &distance) const;
  
  #ifdef USE_MAP_MMFS
 diff --git a/zone/raycast_mesh.cpp b/zone/raycast_mesh.cpp
-index 20c3f6b..e484df3 100644
+index 20c3f6b..589df38 100644
 --- a/zone/raycast_mesh.cpp
 +++ b/zone/raycast_mesh.cpp
 @@ -1,3 +1,8 @@
@@ -2557,7 +2582,7 @@ index 20c3f6b..e484df3 100644
  #include "raycast_mesh.h"
  #include "../common/memory/ksm.hpp"
  #include "../common/eqemu_logsys.h"
-@@ -644,6 +649,14 @@ public:
+@@ -644,6 +649,22 @@ public:
  		}
  
  
@@ -2569,10 +2594,18 @@ index 20c3f6b..e484df3 100644
 +  return (mLeft&&mLeft->overlapsBox(box,vertices,vcount,indices,tcount,leaf,ignore_a,ignore_b,source_list))||(mRight&&mRight->overlapsBox(box,vertices,vcount,indices,tcount,leaf,ignore_a,ignore_b,source_list));
 + }
 +
++ bool overlapsVolume(const Housing::OrientedMount::Volume&volume,const Housing::ExteriorExit::Box&box,const RmReal *vertices,RmUint32 vcount,const RmUint32 *indices,RmUint32 tcount,const TriVector&leaf,const std::vector<RmUint32>&sources) const {
++  for(unsigned i=0;i<3;++i)if(mBounds.mMax[i]<box.minimum[i]||mBounds.mMin[i]>box.maximum[i])return false;
++  if(mLeafTriangleIndex!=TRI_EOF){if(mLeafTriangleIndex>=leaf.size())return true;auto count=leaf[mLeafTriangleIndex];if(count>leaf.size()-mLeafTriangleIndex-1)return true;
++   for(RmUint32 j=0;j<count;++j){auto tri=leaf[mLeafTriangleIndex+1+j];if(tri>=tcount)return true;if(std::binary_search(sources.begin(),sources.end(),tri))continue;std::array<std::array<float,3>,3>points;for(unsigned k=0;k<3;++k){auto index=indices[3*tri+k];if(index>=vcount)return true;for(unsigned i=0;i<3;++i)points[k][i]=vertices[3*index+i];}if(Housing::OrientedMount::TriangleOverlap(volume,points))return true;}return false;
++  }
++  return (mLeft&&mLeft->overlapsVolume(volume,box,vertices,vcount,indices,tcount,leaf,sources))||(mRight&&mRight->overlapsVolume(volume,box,vertices,vcount,indices,tcount,leaf,sources));
++ }
++
  		virtual void raycast(bool &hit,
  							const RmReal *from,
  							const RmReal *to,
-@@ -737,8 +750,48 @@ public:
+@@ -737,8 +758,60 @@ public:
  
  class MyRaycastMesh : public RaycastMesh, public NodeInterface
  {
@@ -2595,10 +2628,8 @@ index 20c3f6b..e484df3 100644
 +  return !mRoot||mRoot->overlapsBox(box,mVertices,mVcount,mIndices,mTcount,mLeafTriangles,source_a,source_b);
 + }
 +
-+ std::vector<RmUint32> sourceMountPatch(const RmReal *minimum,const RmReal *maximum,RmUint32 axis,RmUint32 a,RmUint32 b,const std::vector<RmUint32>& candidates) const override {
++ std::shared_ptr<const MountTopology> mountTopology(RmUint32 axis,RmUint32 a,RmUint32 b,const std::vector<RmUint32>&candidates) const {
 +  if(!mRoot||axis>2||candidates.empty()||!std::is_sorted(candidates.begin(),candidates.end())||std::adjacent_find(candidates.begin(),candidates.end())!=candidates.end())return {};
-+  try{
-+   for(unsigned k=0;k<3;++k)if(!std::isfinite(minimum[k])||!std::isfinite(maximum[k])||minimum[k]>=maximum[k])return {};
 +   MountKey key{axis,a,b,candidates};std::shared_ptr<const MountTopology> prepared;
 +   {std::lock_guard<std::mutex> lock(mMountMutex);auto found=mMountTopology.find(key);
 +    if(found!=mMountTopology.end())prepared=found->second;
@@ -2608,6 +2639,13 @@ index 20c3f6b..e484df3 100644
 +     prepared=entry;mMountTopology.emplace(std::move(key),std::move(entry));
 +    }
 +   }
++  return prepared;
++ }
++ std::vector<RmUint32> sourceMountPatch(const RmReal *minimum,const RmReal *maximum,RmUint32 axis,RmUint32 a,RmUint32 b,const std::vector<RmUint32>& candidates) const override {
++  if(!mRoot||axis>2||candidates.empty()||!std::is_sorted(candidates.begin(),candidates.end())||std::adjacent_find(candidates.begin(),candidates.end())!=candidates.end())return {};
++  try{
++   for(unsigned k=0;k<3;++k)if(!std::isfinite(minimum[k])||!std::isfinite(maximum[k])||minimum[k]>=maximum[k])return {};
++   auto prepared=mountTopology(axis,a,b,candidates);
 +   if(!prepared||prepared->ids.empty())return {};std::vector<const Housing::MountSurfacePatch::Triangle*> patch;for(const auto&t:prepared->triangles)patch.push_back(&t);
 +   return Housing::MountSurfacePatch::Covered(patch,axis,{minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]})?prepared->ids:std::vector<RmUint32>{};
 +  }catch(...){return {};}
@@ -2618,18 +2656,26 @@ index 20c3f6b..e484df3 100644
 +  return !mRoot||mRoot->overlapsBox(box,mVertices,mVcount,mIndices,mTcount,mLeafTriangles,TRI_EOF,TRI_EOF,&sources);
 + }
 +
++ std::vector<RmUint32> sourceMountPatch(const Housing::OrientedMount::Volume&volume,RmUint32 axis,RmUint32 a,RmUint32 b,const std::vector<RmUint32>&candidates) const override {
++  try{if(!Housing::OrientedMount::Valid(volume))return {};auto prepared=mountTopology(axis,a,b,candidates);if(!prepared||prepared->ids.empty())return {};std::vector<const Housing::MountSurfacePatch::Triangle*>patch;for(const auto&t:prepared->triangles)patch.push_back(&t);return Housing::MountSurfacePatch::Covered(patch,axis,volume)?prepared->ids:std::vector<RmUint32>{};}catch(...){return {};}
++ }
++ bool overlapsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&volume,const std::vector<RmUint32>&sources) const override {
++  try{if(!mRoot||!Housing::OrientedMount::Valid(volume)||sources.empty()||!std::is_sorted(sources.begin(),sources.end())||std::adjacent_find(sources.begin(),sources.end())!=sources.end()||sources.back()>=mTcount)return true;auto bounds=Housing::OrientedMount::Bounds(volume);Housing::ExteriorExit::Box box;for(unsigned k=0;k<3;++k){box.minimum[k]=bounds.first[k];box.maximum[k]=bounds.second[k];}return mRoot->overlapsVolume(volume,box,mVertices,mVcount,mIndices,mTcount,mLeafTriangles,sources);}catch(...){return true;}
++ }
++
  	MyRaycastMesh(RmUint32 vcount,const RmReal *vertices,RmUint32 tcount,const RmUint32 *indices,RmUint32 maxDepth,RmUint32 minLeafSize,RmReal minAxisSize)
  	{
  		mRaycastFrame = 0;
 diff --git a/zone/raycast_mesh.h b/zone/raycast_mesh.h
-index 1aaa100..d5b5151 100644
+index 1aaa100..627eb13 100644
 --- a/zone/raycast_mesh.h
 +++ b/zone/raycast_mesh.h
-@@ -30,12 +30,15 @@
+@@ -30,12 +30,16 @@
  //
  // 
  
 +#include <vector>
++namespace Housing::OrientedMount { struct Volume; }
 +
  typedef float RmReal;
  typedef unsigned int RmUint32;
@@ -2641,7 +2687,7 @@ index 1aaa100..d5b5151 100644
  	virtual bool raycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
  	virtual bool bruteForceRaycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
  
-@@ -44,6 +47,14 @@ public:
+@@ -44,6 +48,17 @@ public:
  	virtual void release(void) = 0;
  protected:
  	virtual ~RaycastMesh(void) { };
@@ -2651,6 +2697,9 @@ index 1aaa100..d5b5151 100644
 +	virtual bool overlapsBoxExceptTriangles(const RmReal *minimum,const RmReal *maximum,RmUint32 source_a,RmUint32 source_b) const {return overlapsBox(minimum,maximum);}
 + virtual std::vector<RmUint32> sourceMountPatch(const RmReal*,const RmReal*,RmUint32,RmUint32,RmUint32,const std::vector<RmUint32>&) const {return {};}
 + virtual bool overlapsBoxExceptTriangleList(const RmReal *minimum,const RmReal *maximum,const std::vector<RmUint32>&) const {return overlapsBox(minimum,maximum);}
++ virtual std::vector<RmUint32> sourceMountPatch(const Housing::OrientedMount::Volume&,RmUint32,RmUint32,RmUint32,const std::vector<RmUint32>&) const {return {};}
++ virtual bool overlapsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&,const std::vector<RmUint32>&) const {return true;}
++
 +
 +
  };

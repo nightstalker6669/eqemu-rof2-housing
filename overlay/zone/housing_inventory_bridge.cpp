@@ -15,6 +15,7 @@
 #include "../common/path_manager.h"
 #include "../common/housing/mount_admission.h"
 #include <fstream>
+#include <memory>
 #include "../common/housing/estate_retirement_db.h"
 #include "../common/housing/occupied_move_out_db.h"
 #include "../common/patches/rof2.h"
@@ -140,18 +141,30 @@ namespace Housing::InventoryBridge {
     }
 namespace {
 std::string MountFileHash(const std::string& path){std::ifstream file(path,std::ios::binary);if(!file)return {};SHA256_CTX ctx;SHA256_Init(&ctx);char block[65536];while(file){file.read(block,sizeof(block));auto n=file.gcount();if(n>0)SHA256_Update(&ctx,block,size_t(n));}if(!file.eof())return {};unsigned char bytes[32];SHA256_Final(bytes,&ctx);std::string out;const char* h="0123456789abcdef";for(auto v:bytes){out+=h[v>>4];out+=h[v&15];}return out;}
-const Map* ReviewedMountMap(const InteriorContent::Profile& p){
+std::shared_ptr<const Map> ReviewedMountMap(const InteriorContent::Profile& p){
 #ifdef USE_MAP_MMFS
  // An unbound MMF cache is not authority for the requested .map digest.
- return nullptr;
+ return {};
 #else
- if(!p.reviewed_room||!OriginalInteriors::Matches(p.route.zone_id,p.zone_short_name)||!ContentBinding::Detail::Hash(p.collision_map_sha256))return nullptr;
- static std::map<std::pair<std::string,std::string>,std::unique_ptr<Map>> maps;
- const auto key=std::make_pair(p.zone_short_name,p.collision_map_sha256);auto old=maps.find(key);if(old!=maps.end())return old->second.get();if(maps.size()>=8)return nullptr;
+ if(!p.reviewed_room||!OriginalInteriors::Matches(p.route.zone_id,p.zone_short_name)||!ContentBinding::Detail::Hash(p.collision_map_sha256))return {};
+ // One retained revision per original registered family, not one permanent
+ // entry per hash. Matches above bounds the keys to OriginalInteriors::Known,
+ // including every enrolled family; there is no arbitrary eight-map ceiling.
+ struct Entry {std::string hash;std::shared_ptr<const Map> map;};
+ static std::mutex mutex;static std::map<uint32_t,Entry> maps;
+ std::lock_guard<std::mutex> lock(mutex);auto old=maps.find(p.route.zone_id);
+ if(old!=maps.end()){
+  if(old->second.hash==p.collision_map_sha256)return old->second.map;
+  // A synchronous mount operation holds its own shared owner. Never replace
+  // an in-use revision or accumulate stale revisions behind active readers.
+  if(old->second.map.use_count()!=1)return {};
+ }
  const auto path=PathManager::Instance()->GetMapsPath()+"/base/"+p.zone_short_name+".map";
- if(MountFileHash(path)!=p.collision_map_sha256)return nullptr;
- auto result=std::make_unique<Map>();if(!result->Load(path)||MountFileHash(path)!=p.collision_map_sha256)return nullptr;
- return maps.emplace(key,std::move(result)).first->second.get();
+ if(MountFileHash(path)!=p.collision_map_sha256)return {};
+ auto result=std::make_shared<Map>();if(!result->Load(path)||MountFileHash(path)!=p.collision_map_sha256)return {};
+ Entry replacement{p.collision_map_sha256,std::move(result)};
+ if(old!=maps.end()){old->second=std::move(replacement);return old->second.map;}
+ return maps.emplace(p.route.zone_id,std::move(replacement)).first->second.map;
 #endif
 }
 }
@@ -171,7 +184,7 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
   // Resolve the actual current realm again on this SAME connection/TX. Packet
   // source, cached presentations and previously selected house poses confer no
   // surface/ACL authority. Existing scene code locks creator pending state too.
-  const Map* map=nullptr;std::optional<Scene::Snapshot> yard;std::optional<Scene::InteriorSnapshot> room;std::optional<InteriorWallSlab::Selection> wall_selection;
+  std::shared_ptr<const Map> map;std::optional<Scene::Snapshot> yard;std::optional<Scene::InteriorSnapshot> room;std::optional<InteriorWallSlab::Selection> wall_selection;
   auto target=db.QueryDatabase("SELECT house_id FROM housing_house_interiors WHERE native_estate_id="+std::to_string(native)+" FOR UPDATE",false);if(!target.Success()||target.RowCount()>1)return false;
   if(target.RowCount()){
    const auto house=std::stoull(target.begin()[0]);if(!selected||selected->house_id!=house)return false;auto read=actual.zone_id==712?Scene::Service::ReadCurrentAttachedInteriorUnderTransaction(db,lease,house,const_cast<Bridge&>(*this),*house_policies_.scene,house_policies_.room.get(),house_policies_.crates.get()):Scene::Service::ReadInteriorSceneUnderTransaction(db,lease,actual,const_cast<Bridge&>(*this),*house_policies_.scene,*house_policies_.room,house_policies_.crates.get());
@@ -206,7 +219,7 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
   };
   if(wall_selection){
    if(!room||!map)return false;PlacementPolicy::Context context{native,room->room_profile->definition.type,room->room_profile->region.id,{6,AccessPolicy::KnownCapabilities,true},true,true,true};
-   return bool(InteriorWallSlab::Check(*room->room_profile,*wall_selection,context,pose,PlacementPolicy::Operation::Add,flags,trace,[&](const auto& minimum,const auto& maximum){return !map->IntersectsBox({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]});},0,[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangles({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles[0],triangles[1]);},[&](const auto& minimum,const auto& maximum,uint32_t axis,const auto& seed,const auto& candidates){return map->SourceMountPatch({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},axis,seed[0],seed[1],candidates);},[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangleList({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles);}));
+   return bool(InteriorWallSlab::Check(*room->room_profile,*wall_selection,context,pose,PlacementPolicy::Operation::Add,flags,trace,[&](const auto& minimum,const auto& maximum){return !map->IntersectsBox({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]});},0,[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangles({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles[0],triangles[1]);},[&](const auto& minimum,const auto& maximum,uint32_t axis,const auto& seed,const auto& candidates){return map->SourceMountPatch({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},axis,seed[0],seed[1],candidates);},[&](const auto& minimum,const auto& maximum,const auto& triangles){return !map->IntersectsBoxExceptTriangleList({minimum[0],minimum[1],minimum[2]},{maximum[0],maximum[1],maximum[2]},triangles);},[&](const auto& volume,uint32_t axis,const auto& seed,const auto& candidates){return map->SourceMountPatch(volume,axis,seed[0],seed[1],candidates);},[&](const auto& volume,const auto& triangles){return !map->IntersectsVolumeExceptTriangleList(volume,triangles);}));
   }
   return MountAdmission::Check(model->geometry,pose,flags,trace);
  }catch(...){return false;}

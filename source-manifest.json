@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 11037,
-      "sha256": "956fe02e9cca721e1e88d6c17cc3cb7bc741c91b63448ba14a9b7a21e3a4b0a3"
+      "bytes": 11276,
+      "sha256": "7471012d423f4ce93f24df75075b264e7eec50d655ffaddbe5c3034a34d63aa1"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -76,8 +76,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 8906,
-      "sha256": "45af03817ed2e67974ec669af7b28bb8a132d51008ca77b1a88fc282cc8f76b1"
+      "bytes": 9256,
+      "sha256": "0b6995c869f9d3965480814eb480911053f4680a836f2a9d2d5117a04a6dfc61"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -88,6 +88,11 @@
       "path": "docs/OVERDUE-INACTIVITY-2026-10-18.md",
       "bytes": 5238,
       "sha256": "cff62fd8914dfdf6d6eb13cee325a0b848ef89ded681e6b482c9bf85f30f61d1"
+    },
+    {
+      "path": "docs/PLACEMENT-FIDELITY-2026-10-20.md",
+      "bytes": 4678,
+      "sha256": "d1148df4bc3f72ffe4e89459b65ed54cc215219c3b616b7f2f80494783091086"
     },
     {
       "path": "docs/RETIREMENT-RETURNS.md",
@@ -101,8 +106,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 18284,
-      "sha256": "072ab126734b97239a409bf2b34414e2b5e7eff4e474ee33e3f01d010cbcfd5a"
+      "bytes": 19107,
+      "sha256": "a9e462891991a711ab49652ecf77162de7c467a8c18b9e0a0d219b38c77d4ec1"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
@@ -576,13 +581,13 @@
     },
     {
       "path": "overlay/common/housing/interior_wall_slab_policy.h",
-      "bytes": 15809,
-      "sha256": "8e2937cb9638b8b8ac8c7da1bf8687399b3f57c4e58ceb86505d8e1bd452a136"
+      "bytes": 19200,
+      "sha256": "b8a8638751dfcb8ffd8a9ad025b3543c4a8d023912ef2eeff6d6fa17deedb933"
     },
     {
       "path": "overlay/common/housing/interior_wall_slab_registry.h",
-      "bytes": 6833,
-      "sha256": "c68e29de84dc453b2f13a5c7fb43437f27c9c7615e93896f998da12af1dbcdad"
+      "bytes": 8303,
+      "sha256": "0c045f2dfae8e6be5182a209cb48252d7b7741c22c397b1265349eb0dde9c1d1"
     },
     {
       "path": "overlay/common/housing/inventory_handoff_auth.h",
@@ -801,8 +806,8 @@
     },
     {
       "path": "overlay/common/housing/mount_surface_patch.h",
-      "bytes": 8931,
-      "sha256": "3dc2bb05b7d889fbc995a39dd5a94d1aa017ebde4deb7c4f9554c0977ad346e0"
+      "bytes": 11062,
+      "sha256": "b9027d9e603f39ca04423f9ec5e579e287e06a7d46650a57920fa6d415115829"
     },
     {
       "path": "overlay/common/housing/native_access_service.cpp",
@@ -933,6 +938,11 @@
       "path": "overlay/common/housing/offline_room_content_db.h",
       "bytes": 3610,
       "sha256": "53b7f3c6281e69b5f9ca58da424005505f99907616f290508ac5492f6381a866"
+    },
+    {
+      "path": "overlay/common/housing/oriented_mount_volume.h",
+      "bytes": 5201,
+      "sha256": "4611159aea169e8bbcd8357871e48f9735e53d268009a9c10d468bcd14e4a0cc"
     },
     {
       "path": "overlay/common/housing/ownership_transfer_service.cpp",
@@ -1681,8 +1691,8 @@
     },
     {
       "path": "overlay/zone/housing_inventory_bridge.cpp",
-      "bytes": 132378,
-      "sha256": "3a59b1758797f3c7ed27c433a8e7378a9f1029319983969bfe84e755af9a3361"
+      "bytes": 133302,
+      "sha256": "6c9f65c5c039876af0cda3e7954d205a0e4e9574022a23486c2604e78172cd7d"
     },
     {
       "path": "overlay/zone/housing_inventory_bridge.h",
@@ -1731,8 +1741,8 @@
     },
     {
       "path": "patches/eqemu-housing.patch",
-      "bytes": 139824,
-      "sha256": "5898d2167743469922d826599ce648c305d2e68287ce2fff008b6c26ea0a1a39"
+      "bytes": 144138,
+      "sha256": "1e48ecb6b20f622077a544cadb9f06c5059596e3b5bf4c2a70909c703a6e9783"
     },
     {
       "path": "patches/rof2-housing-finance-width.patch",

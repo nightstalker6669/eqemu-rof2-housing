@@ -1,6 +1,7 @@
 #ifndef EQEMU_HOUSING_MOUNT_SURFACE_PATCH_H
 #define EQEMU_HOUSING_MOUNT_SURFACE_PATCH_H
 #include <boost/multiprecision/cpp_int.hpp>
+#include "oriented_mount_volume.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -68,6 +69,24 @@ inline bool Covered(const std::vector<const Triangle*>& triangles,unsigned axis,
  }
  return false;
 }
+// V4 oriented footprint: exact convex projection including trusted error and
+// sweep generators; old rectangular V3 Covered/Select APIs remain unchanged.
+inline bool Covered(const std::vector<const Triangle*>& triangles,unsigned axis,const OrientedMount::Volume&volume){
+ try{auto footprint=OrientedMount::Project(volume,axis);if(footprint.empty())return false;unsigned tangent[2],n=0;for(unsigned i=0;i<3;++i)if(i!=axis)tangent[n++]=i;
+  const auto area=[](const Polygon&p){Rational sum=0;for(size_t j=0;j<p.size();++j){const auto&a=p[j];const auto&b=p[(j+1)%p.size()];sum+=a[0]*b[1]-a[1]*b[0];}return sum<0?Rational(-sum):sum;};
+  const Rational footprint_area=area(footprint);Rational source_area=0;std::vector<std::array<Point2,3>>relevant;
+  for(const auto*triangle:triangles){if(!triangle)return false;std::array<Point2,3>points;for(unsigned j=0;j<3;++j)points[j]={Exact(triangle->vertices[j][tangent[0]]),Exact(triangle->vertices[j][tangent[1]])};const Rational cross=Side(points[0],points[1],points[2]);if(cross==0)continue;if(cross<0)std::swap(points[1],points[2]);
+   Polygon clipped(points.begin(),points.end());for(size_t edge=0;edge<footprint.size()&&!clipped.empty();++edge)clipped=Clip(clipped,footprint[edge],footprint[(edge+1)%footprint.size()],true);const Rational covered_area=area(clipped);if(covered_area==0)continue;source_area+=covered_area;relevant.push_back(points);
+  }
+  // An exact necessary bound only: overlaps may count twice here. Actual union
+  // subtraction below still proves every positive-area footprint piece covered.
+  if(source_area<footprint_area)return false;
+  std::vector<Polygon> remainder{footprint};for(const auto&points:relevant){
+   std::vector<Polygon>next;for(auto polygon:remainder){for(unsigned edge=0;edge<3&&!polygon.empty();++edge){auto outside=Clip(polygon,points[edge],points[(edge+1)%3],false);if(outside.size()>=3&&Area(outside))next.push_back(std::move(outside));polygon=Clip(polygon,points[edge],points[(edge+1)%3],true);}}remainder=std::move(next);if(remainder.empty())return true;
+  }return false;
+ }catch(...){return false;}
+}
+
 inline bool OrientedAxisFace(const Triangle&t,unsigned axis,int sign){
  std::array<Rational,3>a,b,n;for(unsigned k=0;k<3;++k){a[k]=Exact(t.vertices[1][k])-Exact(t.vertices[0][k]);b[k]=Exact(t.vertices[2][k])-Exact(t.vertices[0][k]);}
  n={a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]};
