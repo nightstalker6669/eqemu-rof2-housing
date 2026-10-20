@@ -1970,7 +1970,7 @@ index d5e8f3e..555c3e5 100644
  	PlayerProfile_Struct m_pp;
  	ExtendedProfile_Struct m_epp;
 diff --git a/zone/client_packet.cpp b/zone/client_packet.cpp
-index a059bef..90782f7 100644
+index a059bef..d8aa33f 100644
 --- a/zone/client_packet.cpp
 +++ b/zone/client_packet.cpp
 @@ -43,6 +43,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -2124,11 +2124,12 @@ index a059bef..90782f7 100644
  	database.LoadCharacterBandolier(cid, &m_pp); /* Load Character Bandolier */
  	database.LoadCharacterBindPoint(cid, &m_pp); /* Load Character Bind */
  	database.LoadCharacterMaterialColor(cid, &m_pp); /* Load Character Material */
-@@ -4705,7 +4791,34 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
+@@ -4705,7 +4791,35 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
  		);
  	}
  
 +	if (Housing::HouseRuntime::HandleVerifiedGuildLobbyDoor(*this,currentdoor->GetDoorID(),within_distance)) return;
++	if (HandleHousingInteriorDoor(currentdoor->GetDoorID(),within_distance)) return;
 +
 +	// Original type160 housing markers send ordinary ClickDoor. Open the
 +	// native neighborhood list in inspect mode; selection sends796c and the
@@ -2159,7 +2160,7 @@ index a059bef..90782f7 100644
  	if (within_distance) {
  		int quest_return = 0;
  		if (parse->PlayerHasQuestSub(EVENT_CLICK_DOOR)) {
-@@ -6470,8 +6583,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
+@@ -6470,8 +6584,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
  	return;
  }
  
@@ -2171,7 +2172,7 @@ index a059bef..90782f7 100644
  	if (app->size != sizeof(FindPersonRequest_Struct))
  		printf("Error in FindPersonRequest_Struct. Expected size of: %zu, but got: %i\n", sizeof(FindPersonRequest_Struct), app->size);
  	else {
-@@ -17072,8 +17188,8 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
+@@ -17072,8 +17189,8 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
  
  	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
  	if (guild) {
@@ -2182,7 +2183,7 @@ index a059bef..90782f7 100644
  		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
  
  		if (inst->IsStackable()) {
-@@ -17130,8 +17246,8 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
+@@ -17130,8 +17247,8 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
  	auto favor = quantity * RuleI(Guild, TributePlatConversionRate);
  	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
  	if (guild) {
@@ -2194,10 +2195,10 @@ index a059bef..90782f7 100644
  
  		TakePlatinum(quantity, false);
 diff --git a/zone/client_packet.h b/zone/client_packet.h
-index 0840f5e..eaf2bbb 100644
+index 0840f5e..13a4f50 100644
 --- a/zone/client_packet.h
 +++ b/zone/client_packet.h
-@@ -1,4 +1,32 @@
+@@ -1,4 +1,34 @@
  	/* Connecting OpCode Handlers */
 +	void Handle_OP_RealEstateNeighborhood(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateTrophyOpen(const EQApplicationPacket *app);
@@ -2206,6 +2207,8 @@ index 0840f5e..eaf2bbb 100644
 +	void Handle_OP_RealEstateAnchorConfirm(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateGo(const EQApplicationPacket *app);
 +	bool HandleHousingHouseGo(const EQApplicationPacket *app);
++	bool TryHousingHouseExit(bool allow_absent = false);
++	bool HandleHousingInteriorDoor(uint8_t door_id, bool within_distance);
 +	void Handle_OP_RealEstatePurchase(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateInspect(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstatePlacementBegin(const EQApplicationPacket *app);

@@ -29,6 +29,7 @@
 #include "../common/housing/house_scene_presentation.h"
 #include "../common/housing/house_placement_preview.h"
 #include "entity.h"
+#include "doors.h"
 #include <openssl/rand.h>
 #include <map>
 #include <cstring>
@@ -1239,10 +1240,7 @@ void Client::SendHousingPlacedScene(){
  }catch(const std::exception&){LogError("Native current furniture scene unavailable");if(m_housing_placement_session){try{auto& session=*m_housing_placement_session;while(!session.sent_worlds.empty())FurniturePurgeScene(this,session,session.sent_worlds.begin()->first);}catch(const std::exception&){LogError("Native denied furniture scene purge failed");}}}
 }
 
-bool Client::HandleHousingHouseGo(const EQApplicationPacket* app){
- auto* c=this;
- if(app->GetOpcode()==OP_RealEstateExit){
-  if(!Housing::InteractionWire::DecodeHouseExit(app->pBuffer,app->size))return true;
+bool Client::TryHousingHouseExit(bool allow_absent){
   if(!RuleB(Housing,EnablePlayerHousing)||ClientVersion()!=EQ::versions::ClientVersion::RoF2||!Connected()||!ClientDataLoaded()||!HasInventorySessionReservation())return true;
   try{
    auto* bridge=GetHousingInventoryBridge();if(!bridge)return true;
@@ -1263,12 +1261,34 @@ bool Client::HandleHousingHouseGo(const EQApplicationPacket* app){
     if(session.move&&!session.move->completed)session.move.reset();
    }
    auto result=bridge->ExitHouse();
-   if(!result){Message(Chat::Red,"This house's exit route is unavailable.");return true;}
+   if(!result){if(allow_absent&&result.error==Housing::LiveItems::Error::NotFound)return false;Message(Chat::Red,"This house's exit route is unavailable.");return true;}
    const auto& exit=result.value;
    LogInfo("Native house exit resolved actor [{}] house [{}] interior [{}] destination zone [{}] instance [{}]",CharacterID(),exit.house_id,exit.native_house_id,exit.destination.zone_id,exit.destination.instance_id);
    MovePC(exit.destination.zone_id,exit.destination.instance_id,exit.spawn[0],exit.spawn[1],exit.spawn[2],exit.spawn[3]);
   }catch(...){LogError("Native house exit unavailable");}
   return true;
+}
+
+bool Client::HandleHousingInteriorDoor(uint8_t door_id,bool within_distance){
+ if(!RuleB(Housing,EnablePlayerHousing)||ClientVersion()!=EQ::versions::ClientVersion::RoF2||!zone||zone->GetZoneID()!=345||zone->GetInstanceVersion()!=0||!zone->GetInstanceID())return false;
+ auto* door=entity_list.FindDoor(door_id);
+ // Original-client observation binds this model door, not every guild-hall
+ // switch or every door using legacy Lobby destinations.
+ if(!door||door_id!=4||std::string(door->GetDoorName())!="OBJ_GUILD_DOOR"||door->GetOpenType()!=58||!(door->GetClientVersionMask()&ClientVersionBit()))return false;
+ if(!Connected()||!ClientDataLoaded()||!HasInventorySessionReservation())return true;
+ if(!within_distance)return true;
+ // ExitHouse proves the current physical interior and parent independently.
+ // It deliberately permits safe egress after Enter is revoked. Only a genuine
+ // absent housing identity falls back to the ordinary basic-hall door path.
+ LogInfo("Native Standard guild hall model-door request actor [{}] door [{}]",CharacterID(),door_id);
+ return TryHousingHouseExit(true);
+}
+
+bool Client::HandleHousingHouseGo(const EQApplicationPacket* app){
+ auto* c=this;
+ if(app->GetOpcode()==OP_RealEstateExit){
+  if(!Housing::InteractionWire::DecodeHouseExit(app->pBuffer,app->size))return true;
+  return TryHousingHouseExit();
  }
  auto request=Housing::InteractionWire::DecodeHouseGo(app->pBuffer,app->size);if(!request)return false;
  if(!NativeFurniture(c)||!c->ClientDataLoaded()||!c->HasInventorySessionReservation())return true;

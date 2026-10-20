@@ -1,6 +1,6 @@
 # Guild access and Lobby routing
 
-The existing production implementation keeps neighborhood guild halls and the ordinary basic Guild Hall separate. This follow-up documents their operator-facing behavior and representative original-client acceptance. No new opcode, struct, schema or production code change was needed for the checked paths.
+The existing production implementation keeps neighborhood guild halls and the ordinary basic Guild Hall separate. This document covers their operator-facing behavior and representative original-client acceptance. The October20 follow-up adds the Standard model-door adapter and an optional content update; it introduces no opcode, wire struct or schema.
 
 ## Guild Lobby left door
 
@@ -34,6 +34,15 @@ Current server authority checks confirmed the native masks for every named group
 
 ## Leaving and remaining limits
 
-The original client's `/leaverealestate` command returned the Lobby-entered hall occupant to the hall's actual current neighborhood plot. It resolves current ownership, placement and safe ground instead of relying on the last local entrance. Clicking/walking the Standard interior's model door was not established as successful egress in this follow-up.
+The original client's `/leaverealestate` command returned the Lobby-entered hall occupant to the hall's actual current neighborhood plot. It resolves current ownership, placement and safe ground instead of relying on the last local entrance. The October20 follow-up also establishes a real model-door click exit, described below; a walk-through trigger is not claimed.
 
 Direct Shed storage of a furnished house remains unsupported by the current adapter/service and is refused without changing custody. The supported Pack → Unpack to Shed → Load Yard path remains available; this follow-up did not bypass the direct-house storage restriction. The later [Shed follow-up](DIRECT-HOUSE-SHED-2026-10-19.md) implements a creator-only, unoccupied direct-storage profile. The later [interior Access follow-up](INTERIOR-ACCESS-2026-10-19.md) adds inherited ACL editing and a representative native Trustee placement/movement/pickup and revoked Add check, with explicit scope. Additional hall profiles and other native permission-operation sessions remain separate acceptance work. This is representative emulator behavior, not a complete May2013 Live equivalence claim.
+
+
+## Standard model-door follow-up, October20
+
+The existing version0 `OBJ_GUILD_DOOR` row4 was hidden because its client-version mask was zero. Optional content migration038 enables only RoF2 on that reviewed row, with exact name/type/position guards. The duplicate `GUILD_DOOR` remains hidden; version1 basic-hall door content is unchanged.
+
+The ordinary native door-click handler now recognizes that observed door only inside a RoF2 `guildhall`345/version0 dynamic instance and enforces server-measured range. It delegates to the same authenticated `ExitHouse` route used by `/leaverealestate`, which resolves the current physical interior and actual parent plot/neighborhood. It does not use a guessed custom menu action or the legacy door's fixed Lobby destination. A missing housing identity falls back to legacy handling; stale, ambiguous or failed housing authority does not. Pending-placement cancellation and inventory fencing remain enforced. Egress deliberately does not require a currently granted Enter capability.
+
+Real clicks on the visible Standard door returned both the owner and an unguilded visitor from the permanent furnished hall to its current Sunrise Hills neighborhood. The visitor entered with a named grant, then exited after that grant was revoked while public Enter was disabled. Those temporary permissions were restored afterward. The normal basic hall is excluded by the version guard, and its door rows were unchanged. This does not establish another interior model, a walk-through trigger, or complete historical Live routing.

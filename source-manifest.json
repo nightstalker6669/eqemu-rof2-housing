@@ -1,7 +1,7 @@
 {
   "upstream": "https://github.com/EQEmu/EQEmu",
   "base_commit": "8175ae61874cbf20d7b05102821f6f8a4f4d1c39",
-  "publication_date": "2026-10-19",
+  "publication_date": "2026-10-20",
   "scope": "Housing production source, SQL, protocol and integration documentation; no suites, fixtures, logs, private runtime configuration or client assets.",
   "files": [
     {
@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 10762,
-      "sha256": "a1db38d77da21bd1141b0d50e9e6259b664e197bc115f16036890b3a5b6beb82"
+      "bytes": 11037,
+      "sha256": "956fe02e9cca721e1e88d6c17cc3cb7bc741c91b63448ba14a9b7a21e3a4b0a3"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -56,8 +56,8 @@
     },
     {
       "path": "docs/GUILD-ACCESS-ROUTING-2026-10-19.md",
-      "bytes": 4877,
-      "sha256": "ca94c58cc61d7a8993f791d83b475f6dd433f2404d006e5b3b1aeff63cc72355"
+      "bytes": 6501,
+      "sha256": "15afb9885f32e3f54b56eb42abe72bb0a2e44a17a92d5bec39b8f2ffe922ad33"
     },
     {
       "path": "docs/INDIVIDUAL-VAULT-CRATE-2026-10-19.md",
@@ -66,8 +66,8 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 10115,
-      "sha256": "cbc821545b827de5f81e4a741b3a60020a541eca7bbc14974b48fda20a8f8904"
+      "bytes": 10828,
+      "sha256": "084ea970eb436fa5547bccaa5a44152ea618671b08347e5b0953b505e2045cf2"
     },
     {
       "path": "docs/INTERIOR-ACCESS-2026-10-19.md",
@@ -76,8 +76,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 8605,
-      "sha256": "b8d88c1463afacc0ac3f82d04ed23727d8f497f3ad9cac4b19f6c065ebf0c3aa"
+      "bytes": 8906,
+      "sha256": "45af03817ed2e67974ec669af7b28bb8a132d51008ca77b1a88fc282cc8f76b1"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -101,8 +101,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 17262,
-      "sha256": "505ea18da09fc85eeb09f7b78947f63d9c1b3733e23acad4c42d6786a7105734"
+      "bytes": 18284,
+      "sha256": "072ab126734b97239a409bf2b34414e2b5e7eff4e474ee33e3f01d010cbcfd5a"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
@@ -1400,6 +1400,11 @@
       "sha256": "3f2e0ae1c2e6dfa5dd05233044e7b7861a0e9dd3cb212353df7976265670e3c9"
     },
     {
+      "path": "overlay/utils/sql/housing/038_standard_guild_hall_door.sql",
+      "bytes": 711,
+      "sha256": "854a21b8841952455f6d22c0a28e40b928dca25d864e5fca6d401596264e143b"
+    },
+    {
       "path": "overlay/utils/sql/optional/2026_10_16_housing_native_guild_plot_purchase.sql",
       "bytes": 389,
       "sha256": "c1eebc6f333ac413bd14fc24044e09b87664de5645cf28ba5a9b817c8be070df"
@@ -1546,8 +1551,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 212563,
-      "sha256": "fb4ac98fc9f85a167756739f681884d58a4bb80ae69168c944f6bb1664d101a3"
+      "bytes": 213855,
+      "sha256": "3ffdee9c31b55d05959137e0b63bc289232c2ac4cf79aee5f62cdcbebead3005"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",
@@ -1726,8 +1731,8 @@
     },
     {
       "path": "patches/eqemu-housing.patch",
-      "bytes": 139613,
-      "sha256": "bf173a14fe36f7ea726e8449ecdbae484f1ff26ef0b094dbef51e7385e6d67e0"
+      "bytes": 139824,
+      "sha256": "5898d2167743469922d826599ce648c305d2e68287ce2fff008b6c26ea0a1a39"
     },
     {
       "path": "patches/rof2-housing-finance-width.patch",
@@ -1743,6 +1748,11 @@
       "path": "protocol/OPCODES.md",
       "bytes": 3228,
       "sha256": "bc218bce22f471fc41a8b087f9bad26d8f226e14ca4ccb70be9b47ff5d8d3b6c"
+    },
+    {
+      "path": "protocol/PROTOCOL-BOUNDARIES.md",
+      "bytes": 2603,
+      "sha256": "dba03d1c530a80d37054b62aee917cd8240a3e808b17bcbeaced48b149b7d8ac"
     },
     {
       "path": "protocol/STRUCTS.md",

@@ -6,6 +6,8 @@ The reference documents67 opcode numbers;54 have active mapping entries and13 do
 
 Unresolved operations include membership deltas0x0c13/0x76c6, access invalidation0x3968, text submission0x3c8b, custom interaction0x51e3, menu action19/0x64a3 and action5/0x7ad1. Several other recovered but inactive messages are cache/item update variants with working snapshot alternatives; an inactive opcode is not automatically an independent missing gameplay feature.
 
+The [protocol boundary audit](../protocol/PROTOCOL-BOUNDARIES.md) separates optional deltas from missing original-server operation data. In particular, item-owned membership is a distinct cache; its mapped `0x3e00` replacement currently has no zone producer, while My Items uses direct mode5 search.
+
 0x58c7 is now mapped as OP_RealEstateItemInspect. Project names and implemented effects are not proof that all original operation semantics or response variants are recovered. Original incoming full emitted extents remain unknown for several consumer-covered layouts, including transfer consent and some result messages. The two one-DWORD result senders are explicit emulator profiles.
 
 Internal ServerOP_Housing messages are emulator coordination, not recovered Live client opcodes. This is an identified documented catalogue, not proof that no further message exists.

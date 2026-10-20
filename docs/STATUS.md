@@ -109,3 +109,10 @@ Migration036 and the typed list-only vault-member path now support mixed physica
 Creator-owned placed moving crates now support individual Inventory retrieval and Crate/Shed/Closet transfers through the existing native messages, with partial-stack custody and durable recovery witnesses. The original client completed a personal-yard stack cycle using whole storage, partial direct retrieval, reverse partial inventory storage and a partial Shed transfer followed by Crate return. All17 items were conserved. The build,23 focused private assertions and34 mixed-house/vault regression assertions passed. No new opcode, native packet struct or migration was introduced. Interior/guild/delegated variants and carried-crate editing remain separately unaccepted. See [implementation and scope](INDIVIDUAL-VAULT-CRATE-2026-10-19.md).
 
 Current retirement update: native parcel overflow, reviewed NPC returns and interior crate extraction are implemented. The fresh original-client timer/parcel/claim/reload workflow passed; see [retirement and returns](RETIREMENT-RETURNS.md) for the exact evidence and limits.
+
+
+## Standard model-door exit and protocol boundaries, October20
+
+The existing Standard hall model door is now visible to RoF2 through optional guarded content migration038. Its normal door click uses the authenticated current-parent housing exit route. Original-client owner and revoked-Enter unguilded visitor clicks both reached the hall's actual neighborhood. The temporary visitor grant/public-access change was restored. Basic version1 hall handling and the Lobby left-door own-hall/fallback contract are unchanged; no repeat of the previous Pack/fallback workflow is claimed. See [routing implementation](GUILD-ACCESS-ROUTING-2026-10-19.md).
+
+The retained matching-build protocol evidence was reviewed without adding guessed mappings, custom actions or wire structs. Optional membership/cache variants and messages missing original server operation data remain explicit in [protocol boundaries](../protocol/PROTOCOL-BOUNDARIES.md). This follow-up does not close every housing opcode or claim full Live equivalence.
