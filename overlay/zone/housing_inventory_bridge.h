@@ -67,6 +67,8 @@ public:
  // retain barrier through COMMIT resolution, application and existing typed ACK.
  struct MoveOutResult {LiveItems::Receipt receipt;std::unique_ptr<EQApplicationPacket> inventory_packet;int32_t runtime_serial=0;bool refunded=false;};
  LiveItems::Result<MoveOutResult> MoveOutOccupied(const std::string& key,EstateId,uint32_t native_plot_id,bool enabled=false);
+ struct ParcelClaimResult {std::unique_ptr<EQApplicationPacket> inventory_packet;};
+ LiveItems::Result<ParcelClaimResult> ClaimHousingParcel(uint32_t parcel_id,uint32_t native_slot,uint32_t item_id);
  LiveItems::Result<uint32_t> RetireEmptyPlot(const std::string& key,EstateId,uint32_t native_plot_id);
  LiveItems::Result<uint64_t> SelectUpkeep(const std::string& key,EstateId,uint32_t native_plot_id,uint32_t component_id);
  LiveItems::Result<std::vector<LiveItems::Stored>> ReadPlaced(EstateId);

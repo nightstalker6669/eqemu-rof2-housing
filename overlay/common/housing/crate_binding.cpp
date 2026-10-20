@@ -122,7 +122,7 @@ LiveItems::Result<uint32_t> ValidateMembersUnderTransaction(Database& db,const A
    }
    auto scoped=HouseItemScope::Locked(db,N(row[0]));
    if(row[3]){
-    if(!furniture||house||!N(row[3])||(a.inventory_character_id?bool(scoped):(!scoped||scoped->house_id!=N(row[3]))))Bad(Error::Conflict);
+    if(!furniture||house||!N(row[3])||((a.inventory_character_id||a.parcel_id)?bool(scoped):(!scoped||scoped->house_id!=N(row[3]))))Bad(Error::Conflict);
     auto room=Q(db,"SELECT i.native_estate_id,t.house_id,t.content_version,HEX(t.content_digest),r.content_binding_version,r.content_binding_digest,t.source_zone,t.source_version,t.source_instance,i.zone_id,i.zone_version,i.instance_id FROM housing_house_interiors i JOIN housing_interior_placement_reservations t ON t.house_id=i.house_id JOIN housing_live_placement_reservations r ON r.native_item_id=t.native_item_id WHERE i.house_id="+std::to_string(N(row[3]))+" AND t.native_item_id="+std::to_string(N(row[10]))+" FOR UPDATE");
     if(room.RowCount()!=1)Bad(Error::Conflict);auto rr=room.begin();for(size_t j=0;j<12;++j)if(j!=4&&j!=5&&!rr[j])Bad(Error::Conflict);
     if(N(rr[0])!=b.parent_native_estate_id||N(rr[1])!=N(row[3])||N(rr[2])!=InteriorContent::Version||Unhex(rr[3]).size()!=32||rr[4]||rr[5]||N(rr[6])!=N(rr[9])||N(rr[7])!=N(rr[10])||N(rr[8])!=N(rr[11]))Bad(Error::Conflict);
@@ -309,25 +309,26 @@ LiveItems::Result<Binding> RebindPlacedUnderTransaction(Database& db,const LiveI
 std::vector<uint8_t> EncodeAllocation(const Allocation& a){
  const auto& b=a.binding;
  auto key=[](const std::string& s){return !s.empty()&&s.size()<=96&&s.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:_-.")==std::string::npos;};
- const bool carried=a.inventory_character_id!=0;
+ const bool carried=a.inventory_character_id!=0,queued=a.parcel_id!=0;
  const bool slot=a.inventory_slot_id==33||(a.inventory_slot_id>=23&&a.inventory_slot_id<=32);
- if((carried?(!slot||b.custody_id!=0):(!b.custody_id||a.inventory_slot_id))||!b.crate_id||!b.revision||!b.catalog_revision||!b.native_estate_id||b.native_estate_id==UINT32_MAX||!b.parent_native_estate_id||b.parent_native_estate_id==UINT32_MAX||b.native_estate_id==b.parent_native_estate_id||!b.estate_id||!a.created_by_character_id||!key(b.catalog_key)||!key(a.creation_request_key)||CrateGeometry::TemplateDefinition(b.item_template_id)!=b.definition_id||!b.definition_id||std::all_of(a.content_manifest_sha256.begin(),a.content_manifest_sha256.end(),[](auto v){return v==0;}))throw std::invalid_argument("Invalid crate allocation outcome");
+ if((queued?(carried||a.inventory_slot_id||b.custody_id):(carried?(!slot||b.custody_id!=0):(!b.custody_id||a.inventory_slot_id)))||!b.crate_id||!b.revision||!b.catalog_revision||!b.native_estate_id||b.native_estate_id==UINT32_MAX||!b.parent_native_estate_id||b.parent_native_estate_id==UINT32_MAX||b.native_estate_id==b.parent_native_estate_id||!b.estate_id||!a.created_by_character_id||!key(b.catalog_key)||!key(a.creation_request_key)||CrateGeometry::TemplateDefinition(b.item_template_id)!=b.definition_id||!b.definition_id||std::all_of(a.content_manifest_sha256.begin(),a.content_manifest_sha256.end(),[](auto v){return v==0;}))throw std::invalid_argument("Invalid crate allocation outcome");
  std::vector<uint8_t> out;auto word=[&](uint64_t n,size_t width){for(size_t i=0;i<width;++i)out.push_back(uint8_t(n>>(8*i)));};
- word(carried?2:1,4);for(auto n:{b.crate_id,b.revision,b.custody_id,b.catalog_revision})word(n,8);
+ word(queued?3:(carried?2:1),4);for(auto n:{b.crate_id,b.revision,b.custody_id,b.catalog_revision})word(n,8);
  for(auto n:{b.item_template_id,b.native_estate_id,b.parent_native_estate_id,b.definition_id,b.estate_id,a.created_by_character_id})word(n,4);
  for(const auto& text:{b.catalog_key,a.creation_request_key}){word(text.size(),1);out.insert(out.end(),text.begin(),text.end());}
- word(a.packed,1);out.insert(out.end(),a.content_manifest_sha256.begin(),a.content_manifest_sha256.end());if(carried){word(a.inventory_character_id,4);word(a.inventory_slot_id,4);}return out;
+ word(a.packed,1);out.insert(out.end(),a.content_manifest_sha256.begin(),a.content_manifest_sha256.end());if(carried){word(a.inventory_character_id,4);word(a.inventory_slot_id,4);}if(queued)word(a.parcel_id,4);return out;
 }
 LiveItems::Result<Allocation> DecodeAllocation(const std::vector<uint8_t>& bytes){
  try{
   size_t at=0;auto word=[&](size_t width){if(width>bytes.size()-at)throw std::invalid_argument("Truncated crate outcome");uint64_t n=0;for(size_t i=0;i<width;++i)n|=uint64_t(bytes[at++])<<(8*i);return n;};
-  const auto version=word(4);if(version!=1&&version!=2)return {{},Error::DatabaseFailure};Allocation a;auto& b=a.binding;
+  const auto version=word(4);if(version!=1&&version!=2&&version!=3)return {{},Error::DatabaseFailure};Allocation a;auto& b=a.binding;
   for(auto* n:{&b.crate_id,&b.revision,&b.custody_id,&b.catalog_revision})*n=word(8);
   for(auto* n:{&b.item_template_id,&b.native_estate_id,&b.parent_native_estate_id,&b.definition_id,&b.estate_id,&a.created_by_character_id})*n=uint32_t(word(4));
   for(auto* text:{&b.catalog_key,&a.creation_request_key}){const auto size=word(1);if(size>bytes.size()-at)throw std::invalid_argument("Truncated crate key");text->assign(bytes.begin()+at,bytes.begin()+at+size);at+=size;}
   const auto packed=word(1);if(packed>1)return {{},Error::DatabaseFailure};a.packed=packed;
   for(auto& byte:a.content_manifest_sha256)byte=uint8_t(word(1));
   if(version==2){a.inventory_character_id=uint32_t(word(4));a.inventory_slot_id=uint32_t(word(4));}
+  if(version==3)a.parcel_id=uint32_t(word(4));
   if(at!=bytes.size()||EncodeAllocation(a)!=bytes)return {{},Error::DatabaseFailure};return {a,Error::None};
  }catch(...){return {{},Error::DatabaseFailure};}
 }

@@ -22,6 +22,7 @@ struct Allocation {
  std::string creation_request_key;
  bool packed=false;
  uint32_t inventory_character_id=0,inventory_slot_id=0; // Nonzero character only when carried; custody_id then0.
+ uint32_t parcel_id=0; // Durable housing parcel; no inventory slot or custody root.
 };
 struct PlacementFacts {
  const LiveItems::Request& parent;

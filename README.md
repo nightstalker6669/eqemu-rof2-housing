@@ -63,7 +63,7 @@ Read [INSTALL.md](docs/INSTALL.md) before building or applying schemas. This sna
 
 ## What is not finished
 
-Remaining work includes parcel overflow and unsupported custody classes, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, the wider delegated/interior acceptance matrix, authentic trophy catalogue values and further original-client acceptance. Personal vault-aware Move Out, reviewed multi-owner offline returns and furnished same-plot recovery have the distinct evidence described below; same-plot ownership re-acquisition was administrative. All plots now have approximate prices, while original currency ordering and full Live economics remain unresolved.
+Remaining work includes unsupported custody classes, complete floor/ceiling placement fidelity, additional guild-hall variants/capacities, the wider delegated/interior acceptance matrix, authentic trophy catalogue values and further original-client acceptance. Personal vault-aware Move Out, reviewed multi-owner offline returns and furnished same-plot recovery have the distinct evidence described below; same-plot ownership re-acquisition was administrative. All plots now have approximate prices, while original currency ordering and full Live economics remain unresolved.
 
 The local test purchase policy used one copper and no upkeep. **Those are explicitly experimental settings, not recovered Live prices or rules.** No personal database, local credentials, or unfinished draft patches are published here.
 
@@ -92,4 +92,6 @@ Optional all-recipient atomic returns, direct rightful-owner delivery and sealed
 
 Plot pricing: all personal and guild plots receive positive purchase and daily upkeep defaults, including custom addresses. Known Sunrise street tiers are preserved; see [plot pricing configuration](overlay/common/housing/plot_pricing_defaults.md) for rates, fallbacks and safe economic-only catalogue upgrades. These are approximate emulator defaults.
 
-Existing moving crates with typed nonplaceable members are now included in the supported personal/guild offline return transaction. See [property retirement and returns](docs/RETIREMENT-RETURNS.md) for ownership, refund, rollback and remaining overflow limits.
+Personal/guild retirement now supports typed existing crates, reviewed NPC furniture, interior crate extraction and optional native parcel overflow. Exact item metadata and crate identity survive authenticated parcel claim. See [property retirement and returns](docs/RETIREMENT-RETURNS.md) for ownership, refund, recovery, native evidence and remaining historical limits.
+
+The retirement parcel workflow has fresh native acceptance: world-timer retirement, exact escrow refund, parcel display/retrieval of a vault stack and generated nonempty crate, followed by normal typed crate reload. Current scope and remaining limits are recorded in [retirement and returns](docs/RETIREMENT-RETURNS.md).

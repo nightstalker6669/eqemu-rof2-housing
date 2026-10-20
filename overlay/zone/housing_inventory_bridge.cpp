@@ -8,6 +8,8 @@
 #include "../common/housing/layout_inventory_coordinator_db.h"
 #include "../common/housing/layout_mixed_coordinator_db.h"
 #include "housing_inventory_bridge.h"
+#include "../common/housing/return_parcel_db.h"
+#include "../common/housing/return_settlement_db.h"
 #include "housing_house_surface.h"
 #include "map.h"
 #include "../common/path_manager.h"
@@ -972,6 +974,78 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
         if(result.value.requires_application)for(;;){try{auto items=Fresh();if(items&&items->AcknowledgeApplied(lease_,key,*this))break;}catch(...){}Wait();}
         if(refund&&refund->requires_application)for(;;){try{auto coin=FreshCoin(house_policies_.scene.get());if(coin&&coin->AcknowledgeApplied(*request.refund,*this))break;}catch(...){}Wait();}
         lease_.pending_key.clear();MoveOutResult output{std::move(result.value),std::move(inventory_packet),staged_serial,bool(refund)};trophy_sources_changed_=true;Leave();return {std::move(output),Error::None};
+    }
+    LiveItems::Result<Bridge::ParcelClaimResult> Bridge::ClaimHousingParcel(uint32_t parcel_id,uint32_t native_slot,uint32_t item_id){
+        using Error=LiveItems::Error;
+        if(client_.ClientVersion()!=EQ::versions::ClientVersion::RoF2)return {{},Error::UnsupportedItem};
+        if(!Enter())return {{},Error::UnheldFence};
+        auto connect=[]()->std::unique_ptr<Database>{const auto* c=EQEmuConfig::get();if(!c)return {};auto db=std::make_unique<Database>();if(!db->Connect(c->DatabaseHost,c->DatabaseUsername,c->DatabasePassword,c->DatabaseDB,c->DatabasePort,"housing-parcel-claim"))return {};return db;};
+        auto query=[](Database& db,const std::string& sql){auto r=db.QueryDatabase(sql,false);if(!r.Success())throw std::runtime_error("Housing parcel query failed");return r;};
+        bool attempted=false,committed=false;uint32_t destination=0;
+        const auto key=session_key_+":parcel:"+std::to_string(parcel_id);
+        std::unique_ptr<Database> db;std::unique_ptr<EQ::ItemInstance> staged;ParcelClaimResult output;
+        std::optional<ReturnParcels::Record> claimed;
+        LiveItems::InventoryRow expected_row;std::vector<uint8_t> expected_allocation;
+        auto reject=[&](Error error)->LiveItems::Result<ParcelClaimResult>{if(attempted||committed)FreezeInvariantFailure();if(db)db->QueryDatabase(std::string("ROLLBACK"),false);Leave();return {{},error};};
+        try{
+            if(!Open())return reject(Error::StaleLease);
+            db=connect();if(!db)return reject(Error::DatabaseFailure);
+            query(*db,"START TRANSACTION");
+            auto authenticated=LiveItems::Service::AuthenticateUnderTransaction(*db,true,lease_,*this);
+            if(!authenticated)return reject(authenticated.error);
+            if(!authenticated.value.pending_key.empty())return reject(Error::PendingApplication);
+            const auto record=ReturnParcels::Lookup(*db,parcel_id,actor_.character_id,actor_.account_id);
+            if(!record||record->claimed||record->native_slot!=native_slot||record->row.values.item_id!=item_id)return reject(Error::Conflict);
+            if(!ReturnSettlement::VerifyUnderTransaction(*db,record->estate_id,record->owner_kind,record->estate_owner_id))return reject(Error::Conflict);
+            auto rebuilt=Reconstruct(database,record->row);if(!rebuilt)return reject(rebuilt.error);staged=std::move(rebuilt.value.item);
+            if(record->allocation){const auto& b=record->allocation->binding;
+                if(!staged->SetHousingCrateID(b.crate_id)||!staged->SetHousingEstateID(b.native_estate_id))return reject(Error::UnsupportedItem);
+            }
+            // Claim only an empty ordinary saved slot; no stacking/cursor or
+            // generic parcel duplicate-deletion policy can consume this item.
+            for(uint32_t slot=23;slot<=30;++slot){auto row=record->row;row.values.character_id=actor_.character_id;row.values.slot_id=slot;if(ReturnAllowed(row)){destination=slot;break;}}
+            if(!destination)return reject(Error::Conflict);
+            if(!RoF2::SerializeHousingItem(*staged,int16_t(destination)))return reject(Error::UnsupportedItem);
+            const auto serialized=staged->Serialize(int16_t(destination));
+            output.inventory_packet=std::make_unique<EQApplicationPacket>(OP_ItemPacket,serialized.size()+sizeof(ItemPacket_Struct));
+            auto* payload=reinterpret_cast<ItemPacket_Struct*>(output.inventory_packet->pBuffer);payload->PacketType=ItemPacketTrade;
+            std::memcpy(payload->SerializedItem,serialized.data(),serialized.size());
+            expected_row=record->row;expected_row.values.character_id=actor_.character_id;expected_row.values.slot_id=destination;
+            claimed=ReturnParcels::ClaimUnderTransaction(*db,*record,destination,lease_,key);
+            if(!claimed->claimed||claimed->parcel_id!=parcel_id||claimed->owner!=actor_.character_id||claimed->account!=actor_.account_id||
+                CustodyCodec::Encode(claimed->row)!=CustodyCodec::Encode(expected_row)||bool(claimed->allocation)!=bool(record->allocation))return reject(Error::Conflict);
+            if(claimed->allocation)expected_allocation=CrateBinding::EncodeAllocation(*claimed->allocation);
+            // Everything needed by the native packet and memory projection is
+            // staged before COMMIT; no ordinary inventory save follows it.
+            attempted=true;
+            query(*db,"COMMIT");committed=true;
+        }catch(...){if(!attempted)return reject(Error::DatabaseFailure);}
+        db.reset();
+        if(!committed){
+            for(;;){try{db=connect();if(db){
+                query(*db,"START TRANSACTION");
+                auto resolved=ReturnParcels::ResolveClaim(*db,parcel_id,actor_.character_id,actor_.account_id,key,destination);
+                query(*db,"ROLLBACK");
+                if(!resolved){attempted=false;return reject(Error::DatabaseFailure);}
+                claimed=std::move(resolved);committed=true;break;
+            }}catch(...){}db.reset();Wait();}
+        }
+        try{
+            if(!claimed||!claimed->claimed||!staged||!output.inventory_packet||
+                claimed->parcel_id!=parcel_id||claimed->owner!=actor_.character_id||claimed->account!=actor_.account_id||
+                claimed->row.values.character_id!=actor_.character_id||claimed->row.values.slot_id!=destination||
+                CustodyCodec::Encode(claimed->row)!=CustodyCodec::Encode(expected_row)||
+                !Matches(claimed->row,*staged)||!ReturnAllowed(claimed->row))FreezeInvariantFailure();
+            if(claimed->allocation){const auto& a=*claimed->allocation;
+                if(CrateBinding::EncodeAllocation(a)!=expected_allocation||a.inventory_character_id!=actor_.character_id||a.inventory_slot_id!=destination||a.binding.custody_id||
+                    staged->GetHousingCrateID()!=a.binding.crate_id||staged->GetHousingEstateID()!=a.binding.native_estate_id)FreezeInvariantFailure();
+            }else if(staged->GetHousingCrateID()||staged->GetHousingHouseID())FreezeInvariantFailure();
+            auto* exact=staged.get();const auto serial=exact->GetSerialNumber();
+            if(client_.GetInv().PushItem(int16_t(destination),exact)!=int16_t(destination))FreezeInvariantFailure();
+            staged.release();
+            if(client_.GetInv().GetItem(int16_t(destination))!=exact||exact->GetSerialNumber()!=serial||!Matches(claimed->row,*exact))FreezeInvariantFailure();
+        }catch(...){FreezeInvariantFailure();}
+        Leave();return {std::move(output),Error::None};
     }
     LiveItems::Result<uint32_t> Bridge::RetireEmptyPlot(const std::string& key,EstateId estate,uint32_t native){
         if(!Enter())return {{},LiveItems::Error::UnheldFence};

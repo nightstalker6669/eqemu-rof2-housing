@@ -96,3 +96,9 @@ Without036 legacy non-vault behavior remains available; vault packing refuses ra
 ### Individual vault-item crate transfers
 
 The [individual-control follow-up](INDIVIDUAL-VAULT-CRATE-2026-10-19.md) uses the same036 table; no further migration or client patch is needed. Deploy matching world, zone and inventory-recovery CLI binaries rebuilt against the same common library. Internal vault contexts and recovery decoding now carry typed container witnesses. Legacy bindings without those witnesses retain their original bytes.
+
+## Native retirement parcel overflow
+
+Apply numbered migration037 after036 and the optional offline-direct-return, return-settlement and mixed-return-batch schemas. Stop housing writers for the change. Native parcel/inventory/custody tables must use InnoDB. The migration adds durable sidecars, a distinct queued crate location, and an overflow flag defaulting to0; it does not enroll existing properties. Enable overflow only in an exact current estate/catalogue batch review. Capacity exhaustion defers the complete property.
+
+Deploy matching world, zone, UCS and inventory-recovery binaries linked to the same rebuilt common library. The tracked integration patch now includes `zone/parcels.cpp`; applying only new overlay headers omits the native retrieval adapter. A queued typed parcel must never use generic template-only retrieval. Keep sidecars and their claim tombstones; they outlive native parcel deletion. Review [retirement/returns](RETIREMENT-RETURNS.md) and [batch contracts](../overlay/common/housing/offline_return_batches.md) before activation.

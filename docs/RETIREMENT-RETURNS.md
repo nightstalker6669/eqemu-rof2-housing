@@ -1,41 +1,29 @@
 # Property retirement and returns
 
-Supported mixed-owner retirement returns personal or guild-property belongings
-to their original owners and refunds unused copper escrow to the reviewed
-property recipient. The original purchase price is retained. Furniture can
-span several generated moving crates within reviewed limits. Supported vault
-items return directly to saved inventory. Existing empty moving crates return
-with their original identity. Plot ownership is released only after the complete
-item and financial disposition has been sealed in the same transaction.
+Supported personal and guild-property retirement disposes of the entire reviewed property in one transaction. Belongings return to their original owners, unused copper escrow returns to the reviewed property recipient, and the purchase price remains spent. Ownership is released only after every source and the financial result have been sealed.
 
-An existing exterior crate may now contain typed nonplaceable items. The source
-capture traverses both physical and nonplaceable memberships; both are validated
-before detachment. The complete return preserves stack quantities and canonical
-metadata, without inventing placement records for nonplaceables. A direct
-return cannot consume custody while typed membership remains attached.
+Furniture and houses can span several generated moving crates within reviewed limits. Existing exterior and interior crates are validated against physical and typed nonplaceable membership, emptied, and returned with their original identity. An interior crate returns separately before its enclosing house is packed, respecting the existing prohibition against packing a house containing a placed moving crate. Same-owner room contents keep their permanent interior and scope; foreign-owned room objects return to their own creators.
 
-The settlement verifier now accepts an explicit personal or guild owner kind
-and identity. Guild dissolution continues to use its restricted guild entry
-point. Existing receipt and manifest formats are retained. No opcode, packet
-structure, mapping or additional schema was introduced by this follow-up;
-typed nonplaceable members require the existing migration036.
+Recognized NPC furniture now participates using current model metadata, content/geometry binding and exact native frame validation. Legacy fixed-eye NPCs may legitimately have no frame. Yard NPCs and foreign room NPCs return directly; same-owner room NPCs retain their frame inside the returned house. Independent original room files, assets and persisted profile equality are required. Unknown models or stale frames are refused.
 
-The follow-up has isolated service/database coverage for personal and guild
-retirement with an existing typed crate, nonplaceable stack, two contributors,
-multiple generated furniture bins, exact refund and plot release. Full-recipient
-inventory, a changed membership witness and a late settlement-write failure
-preserved the whole property. Guild settlement verification and guarded
-dissolution preserved returned items and an unrelated guild. These checks do
-not establish a fresh native retirement playthrough or complete Live equivalence.
+## Parcel overflow
 
-Retirement reviews remain opt-in and bound to the current ownership generation
-and catalogue. This publication contains no activation seeds. Interior crate
-roots, unsupported augmented/evolving/NPC custody and parcel overflow remain
-outside this supported path. Insufficient recipient inventory defers the entire
-property; no item is discarded and ownership is not released early.
+Optional migration037 adds native parcel overflow to exact batch reviews through `allow_parcel_overflow=1`. Existing policies remain inventory-only by default. Direct items and existing or generated moving crates can overflow to parcels. Native capacity honors `Parcel:ParcelMaxItems`; a full parcel box defers the whole retirement. Nothing is discarded or released early.
 
-See [batch configuration and requirements](../overlay/common/housing/offline_return_batches.md),
-[earlier mixed-return native evidence](MIXED-RETURNS-2026-10-18.md), and
-[vault-aware Move Out](VAULT-MOVE-OUT-2026-10-19.md).
+A durable sidecar preserves the exact canonical item row, NULL flags, custom/ornament data, source witness, original recipient and typed crate identity. Queued crates use location3 and allocation version3, without fabricated inventory slots or custody roots. Existing placed/carried allocation encodings and earlier settlement routes remain unchanged.
 
-Matching world, zone, UCS and inventory-recovery binaries were deployed together. Loaded process hashes and original ownership, wallet, item, house, crate and catalogue conservation were checked. Existing retirement reviews were not activated or changed.
+The native parcel list displays the exact reconstructed item. Claim authenticates recipient, durable parcel ID, native slot/template, current inventory lease and the original retirement seal. The normal inventory barrier stays held while an exact item and packet are staged, SQL inserts the canonical saved row, crate identity becomes carried, the native parcel is deleted, and an immutable claim postimage is written. Claimed sidecars remain tombstones; retries cannot fall through to template-only retrieval or duplicate-item deletion. No second inventory save is performed after commit.
+
+Uncertain commit is resolved on a fresh connection under a stable sidecar lock before rollback can be assumed. A postcommit memory invariant failure uses the existing fail-stop mechanism. Certified process-death recovery and normal inventory admission load the committed result; the claim journal does not falsely certify a separate live-memory acknowledgement. Generated GUID0 is preserved until the normal exact admission handoff.
+
+## Evidence and boundaries
+
+The fresh original-client workflow passed on a disposable personal property: the real world timer retired it with supported inventory slots filled, refunded17 copper and queued a17-count vault stack plus a generated nonempty crate. Both appeared in the native parcel window and were retrieved. Normal logout/login then preserved the typed crate, its original chair member and valid settlement proof, including the normal GUID0 admission handoff. Temporary fillers, simulated age, activation reviews, bonus stack and test refund were cleaned up; original housing and wallet contents were conserved. The generated crate remains available for review. No new placement/unpack playthrough for this follow-up or native NPC/item-variant matrix is claimed.
+
+Private actual-database checks covered personal/guild mixed owners, canonical quantities and metadata, original typed crates, multiple nonempty generated bins, empty/populated interior crates, NPC/frame retention, exact escrow refund and plot release. Full inventory/parcel capacity, stale sources/frames, wrong recipient/lease, occupied claim slots and late settlement/claim failures preserved the transaction. Replay/tombstones and fresh-connection outcome resolution passed. Existing recovery was exercised with synthetic supervisor certificates; no real process-death acceptance is claimed.
+
+The original server received matching world, zone, UCS and inventory-recovery binaries plus the additive schema. Loaded process hashes were checked. Existing properties, wallets and belongings were conserved before the separately identified disposable native workflow. No global retirement activation is included.
+
+Augments, evolving items and filled bags remain refused at supported custody ingress. Missing historical Live inactivity/refund rules, alternate currencies, later partial-stack lineage and destroyed typed-container proofs are separate unresolved work. These results establish the configured supported retirement path, not every historical Live rule or every item variant.
+
+See [batch configuration](../overlay/common/housing/offline_return_batches.md), [earlier mixed returns](MIXED-RETURNS-2026-10-18.md), and [vault-aware Move Out](VAULT-MOVE-OUT-2026-10-19.md). No fixtures, tests, private logs, credentials or game assets are included.
