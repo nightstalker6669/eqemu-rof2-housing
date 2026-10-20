@@ -7,13 +7,15 @@ Snapshot: October 19, 2026. This is an experimental source publication. Housing 
 | Neighborhoods / ownership | Catalogs, regions, instancing, ownership and access services; native marker/inspection/purchase success | Complete original neighborhood content/economics and remote navigation matrix |
 | Personal house | Native merchant purchase, placement/persistence/interior entry; native furnished same-plot Swap Houses with contents moved to replacement storage | All house variants/capacities are not independently client-accepted |
 | Furniture | Scene/custody/geometry/storage; representative native wall cycle and closet-stored floor chair listing/placement/pickup; valid room survives optional yard-read refusal | Full floor/ceiling, curved/rotated and nonzero-centre behavior |
-| Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Native whole/partial Inventory and Shed/Crate quantity transfers passed for an owned placed personal-yard crate; remaining guild/interior matrix open |
+| Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Native whole/partial Inventory and Shed/Crate quantity transfers passed for an owned placed personal-yard crate; Standard guild-hall interior whole/partial cycle and Trustee creator-restriction refusals also passed; other variants remain open |
 | Crates / houses | Stable identities and recovery; native furnished house-in-crate plot transfer, recipient unpack and retained interior entry | Additional guild/foreign/automatic-vault returns; native repurchase/economics for same-plot recovery |
-| Layouts | Native decoder and transactional mixed-source application/recovery | Complete original-client load-layout acceptance |
+| Layouts | Native decoder and transactional mixed-source application/recovery; native personal Inventory/Shed/Crate load and furnished retained-crate guild-room load | Other source classes, rotations and cross-room combinations remain unaccepted |
 | Guild housing | Guild ownership/ACL/current-membership checks, permanent interiors, source-bound routes and Guild Lobby left-door contract | Additional hall profiles/capacities and remaining native permission-operation matrix |
 | Trophies / anchors | Native messages, placement/source validation, benefits/billing/activation and transport machinery | Authentic benefit/cost/item classifications and full native gameplay acceptance |
 | Economy / lifecycle | Purchase, escrow/upkeep selection, retirement, durable receipts and recovery | Original paid wallet ordering/cadence/refunds/eviction/inactivity/guild dissolution |
 | Inventory safety | Session/writer fencing, raw-row preservation, atomic transactions, durable operation receipts, recovery/reconciliation | This is experimental software; fixture coverage is not a guarantee for arbitrary databases |
+
+The October19 layout/crate follow-up also fixes exterior scene reads after a furnished interior crate is picked up. Carried room members retain room provenance and are hidden only after full carried-container validation.
 
 ## Representative native results
 

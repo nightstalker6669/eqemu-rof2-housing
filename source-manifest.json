@@ -61,8 +61,8 @@
     },
     {
       "path": "docs/INDIVIDUAL-VAULT-CRATE-2026-10-19.md",
-      "bytes": 4122,
-      "sha256": "1400ef263cc7fe0f13e3f6b0963664be060cc938adb8f1f3da0b24808d1620ae"
+      "bytes": 5694,
+      "sha256": "f86fbc64f413ec33ac931eb3b22be25d37c02de198b9348478ea6f6551c7e3ab"
     },
     {
       "path": "docs/INSTALL.md",
@@ -76,8 +76,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 7706,
-      "sha256": "f6c10a5edd36be9574a17881c3298a6b37c7165cc04d59cf997cd582e6fb3b51"
+      "bytes": 8605,
+      "sha256": "b8d88c1463afacc0ac3f82d04ed23727d8f497f3ad9cac4b19f6c065ebf0c3aa"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -101,8 +101,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 16829,
-      "sha256": "85f1e122e78db996fd39e61488183dd8aefdfb7010e4a575f794a5eaca922edc"
+      "bytes": 17262,
+      "sha256": "505ea18da09fc85eeb09f7b78947f63d9c1b3733e23acad4c42d6786a7105734"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
@@ -1051,8 +1051,8 @@
     },
     {
       "path": "overlay/common/housing/scene_service.cpp",
-      "bytes": 98776,
-      "sha256": "2a81702d6f367c7898a4be6d98bdcd90d1caf4297671ac8a88613212d87658f6"
+      "bytes": 100807,
+      "sha256": "81a361d610d92bd41964235ceb4293bc404a2d1fae8a4058fb2fb979c2103222"
     },
     {
       "path": "overlay/common/housing/scene_service.h",
