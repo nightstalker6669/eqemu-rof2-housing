@@ -35,7 +35,7 @@ A representative personal Load Yard consumed three real sources together: an inv
 
 - Full constrained floor/ceiling collision-query semantics are not complete.
 - Original query behavior includes sphere sweep, finite faces/edges/vertices, model-centre/extents transformations and numeric quirks. A guessed global tolerance is not a recovered solution.
-- Representative wall placement passed. The oriented V4 extension now preserves rotated model bodies and finite footprints instead of their larger axis boxes; source-map checks cover personal, Standard and large-hall families. Curved/oblique supports and nonzero-centre native Floor/Ceiling query frames remain unresolved. See [oriented placement scope](PLACEMENT-FIDELITY-2026-10-20.md).
+- Representative wall placement passed. V4 preserves oriented model bodies and finite footprints; V5 adds explicit source-bound oblique planar components and exact full inward corridors. Locally planar facets of curved meshes are supported only when the complete footprint fits; spanning a noncoplanar bend remains unsupported. The original sphere/frame/renderer-box/filter libraries are recovered, but complete live Floor/Ceiling source collection and transient query-input integration remain unfinished. See [planar mounting and recovered-library scope](PLANAR-MOUNTING-2026-10-20.md) and the prior [oriented placement scope](PLACEMENT-FIDELITY-2026-10-20.md).
 - Connected coplanar surface support is integrated and server-tested; the new beyond-pair boundary still needs a native acceptance witness.
 
 ## Content and economics

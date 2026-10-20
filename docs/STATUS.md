@@ -1,12 +1,12 @@
 # Status at publication
 
-Snapshot: October 19, 2026. This is an experimental source publication. Housing remains incomplete; representative original-client acceptance is distinguished from implementation and static protocol recovery.
+Snapshot: October 20, 2026. This is an experimental source publication. Housing remains incomplete; representative original-client acceptance is distinguished from implementation and static protocol recovery.
 
 | Area | Implementation / evidence | Remaining limit |
 |---|---|---|
 | Neighborhoods / ownership | Catalogs, regions, instancing, ownership and access services; native marker/inspection/purchase success | Complete original neighborhood content/economics and remote navigation matrix |
 | Personal house | Native merchant purchase, placement/persistence/interior entry; native furnished same-plot Swap Houses with contents moved to replacement storage | All house variants/capacities are not independently client-accepted |
-| Furniture | Scene/custody/geometry/storage; representative native wall cycle and closet-stored floor chair listing/placement/pickup; valid room survives optional yard-read refusal | Full floor/ceiling, curved/rotated and nonzero-centre behavior |
+| Furniture | Scene/custody/geometry/storage; representative native wall and closet-floor cycles; V4 oriented bodies and V5 finite oblique components with exact inward sweeps | Full native Floor/Ceiling runtime source/frame integration and placement spanning noncoplanar curved bends remain open; recovered math libraries are separate from live admission |
 | Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Native whole/partial Inventory and Shed/Crate quantity transfers passed for an owned placed personal-yard crate; Standard guild-hall interior whole/partial cycle and Trustee creator-restriction refusals also passed; other variants remain open |
 | Crates / houses | Stable identities and recovery; native furnished house-in-crate plot transfer, recipient unpack and retained interior entry | Additional guild/foreign/automatic-vault returns; native repurchase/economics for same-plot recovery |
 | Layouts | Native decoder and transactional mixed-source application/recovery; native personal Inventory/Shed/Crate load and furnished retained-crate guild-room load | Other source classes, rotations and cross-room combinations remain unaccepted |

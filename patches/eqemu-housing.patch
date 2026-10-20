@@ -2500,7 +2500,7 @@ index 4f59160..3801d95 100644
  
  /* Update Window Title with relevant information */
 diff --git a/zone/map.cpp b/zone/map.cpp
-index bf6ff68..257f537 100644
+index bf6ff68..bb708a0 100644
 --- a/zone/map.cpp
 +++ b/zone/map.cpp
 @@ -4,6 +4,7 @@
@@ -2511,7 +2511,7 @@ index bf6ff68..257f537 100644
  #include "raycast_mesh.h"
  #include "zone.h"
  #include "../common/file.h"
-@@ -262,6 +263,30 @@ bool Map::CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const {
+@@ -262,6 +263,40 @@ bool Map::CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const {
  }
  
  // returns true if a collision happens
@@ -2539,22 +2539,33 @@ index bf6ff68..257f537 100644
 + if(!imp||!imp->rm)return true;return imp->rm->overlapsVolumeExceptTriangleList(volume,sources);
 +}
 +
++std::optional<Housing::PlanarMount::Trace> Map::TracePlanarMount(const glm::vec3&start,const glm::vec3&end) const {
++ if(!imp||!imp->rm)return {};glm::vec3 normal,point;float distance;Housing::PlanarMount::SurfaceSeed seed;
++ if(!imp->rm->raycastSurface(&start.x,&end.x,&point.x,&normal.x,&distance,seed))return {};
++ auto contact=Housing::PlacementContact::FromMapRay({start.x,start.y,start.z},{end.x,end.y,end.z},{normal.x,normal.y,normal.z},distance);if(!contact||(seed.side!=1&&seed.side!=-1))return {};return Housing::PlanarMount::Trace{*contact,seed};
++}
++std::vector<uint32_t> Map::SourcePlanarMountPatch(const Housing::OrientedMount::Volume&volume,const Housing::PlanarMount::SurfaceSeed&seed,const std::vector<uint32_t>&candidates) const {
++ if(!imp||!imp->rm)return {};return imp->rm->sourcePlanarMountPatch(volume,seed,candidates);
++}
++uint32_t Map::SourceTriangleCount() const {return imp&&imp->rm?imp->rm->sourceTriangleCount():0;}
++
  bool Map::DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, float &distance) const {
  	if(!imp)
  		return false;
 diff --git a/zone/map.h b/zone/map.h
-index 20fad6e..032abe8 100644
+index 20fad6e..94a2296 100644
 --- a/zone/map.h
 +++ b/zone/map.h
-@@ -23,6 +23,7 @@
+@@ -23,6 +23,8 @@
  #define ZONE_MAP_H
  
  #include "position.h"
++#include "../common/housing/planar_mount_contact.h"
 +namespace Housing::OrientedMount { struct Volume; }
  #include <stdio.h>
  
  #include "zone_config.h"
-@@ -44,6 +45,14 @@ public:
+@@ -44,6 +46,20 @@ public:
  	bool LineIntersectsZone(glm::vec3 start, glm::vec3 end, float step, glm::vec3 *result) const;
  	bool LineIntersectsZoneNoZLeaps(glm::vec3 start, glm::vec3 end, float step_mag, glm::vec3 *result) const;
  	bool CheckLoS(glm::vec3 myloc, glm::vec3 oloc) const;
@@ -2566,23 +2577,30 @@ index 20fad6e..032abe8 100644
 + std::vector<uint32_t> SourceMountPatch(const Housing::OrientedMount::Volume&,uint32_t axis,uint32_t source_a,uint32_t source_b,const std::vector<uint32_t>& candidates) const;
 + bool IntersectsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&,const std::vector<uint32_t>& sources) const;
 +
++ std::optional<Housing::PlanarMount::Trace> TracePlanarMount(const glm::vec3& start,const glm::vec3& end) const;
++ std::vector<uint32_t> SourcePlanarMountPatch(const Housing::OrientedMount::Volume&,const Housing::PlanarMount::SurfaceSeed&,const std::vector<uint32_t>& reviewed_candidates) const;
++ // Inventory metadata only. Callers must explicitly enroll exact hash-bound IDs;
++ // count alone grants no surface, mode, region or collision exemption authority.
++ uint32_t SourceTriangleCount() const;
++
  	bool DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, float &distance) const;
  
  #ifdef USE_MAP_MMFS
 diff --git a/zone/raycast_mesh.cpp b/zone/raycast_mesh.cpp
-index 20c3f6b..589df38 100644
+index 20c3f6b..8425ab3 100644
 --- a/zone/raycast_mesh.cpp
 +++ b/zone/raycast_mesh.cpp
-@@ -1,3 +1,8 @@
+@@ -1,3 +1,9 @@
 +#include <mutex>
 +#include <tuple>
 +#include <memory>
 +#include "../common/housing/mount_surface_patch.h"
++#include "../common/housing/planar_mount_patch.h"
 +#include "../common/housing/exterior_exit_geometry.h"
  #include "raycast_mesh.h"
  #include "../common/memory/ksm.hpp"
  #include "../common/eqemu_logsys.h"
-@@ -644,6 +649,22 @@ public:
+@@ -644,6 +650,22 @@ public:
  		}
  
  
@@ -2605,7 +2623,7 @@ index 20c3f6b..589df38 100644
  		virtual void raycast(bool &hit,
  							const RmReal *from,
  							const RmReal *to,
-@@ -737,8 +758,60 @@ public:
+@@ -737,8 +759,83 @@ public:
  
  class MyRaycastMesh : public RaycastMesh, public NodeInterface
  {
@@ -2615,6 +2633,11 @@ index 20c3f6b..589df38 100644
 + using MountKey=std::tuple<RmUint32,RmUint32,RmUint32,std::vector<RmUint32>>;
 + mutable std::mutex mMountMutex;
 + mutable std::map<MountKey,std::shared_ptr<const MountTopology>> mMountTopology;
++ // Store one whitelist per inventory and share each immutable component across
++ // all its seeds. A many-triangle wall must not duplicate the whole whitelist
++ // and its topology once per clicked triangle. Pose coverage remains uncached.
++ using PlanarSeeds=std::map<RmUint32,std::shared_ptr<const MountTopology>>;
++ mutable std::map<std::vector<RmUint32>,PlanarSeeds> mPlanarTopology;
  public:
  
 + bool overlapsBox(const RmReal *minimum,const RmReal *maximum) const override {
@@ -2663,19 +2686,38 @@ index 20c3f6b..589df38 100644
 +  try{if(!mRoot||!Housing::OrientedMount::Valid(volume)||sources.empty()||!std::is_sorted(sources.begin(),sources.end())||std::adjacent_find(sources.begin(),sources.end())!=sources.end()||sources.back()>=mTcount)return true;auto bounds=Housing::OrientedMount::Bounds(volume);Housing::ExteriorExit::Box box;for(unsigned k=0;k<3;++k){box.minimum[k]=bounds.first[k];box.maximum[k]=bounds.second[k];}return mRoot->overlapsVolume(volume,box,mVertices,mVcount,mIndices,mTcount,mLeafTriangles,sources);}catch(...){return true;}
 + }
 +
++ RmUint32 sourceTriangleCount() const override {return mTcount;}
++ std::vector<RmUint32> sourcePlanarMountPatch(const Housing::OrientedMount::Volume&volume,const Housing::PlanarMount::SurfaceSeed&seed,const std::vector<RmUint32>&candidates) const override {
++  try{if(!mRoot||!Housing::OrientedMount::Valid(volume)||(seed.side!=1&&seed.side!=-1)||seed.triangle_id>=mTcount||candidates.empty()||!std::is_sorted(candidates.begin(),candidates.end())||std::adjacent_find(candidates.begin(),candidates.end())!=candidates.end()||candidates.back()>=mTcount||!std::binary_search(candidates.begin(),candidates.end(),seed.triangle_id))return {};
++   std::shared_ptr<const MountTopology>prepared;
++   {std::lock_guard<std::mutex>lock(mMountMutex);auto&seeds=mPlanarTopology[candidates];auto prior=seeds.find(seed.triangle_id);if(prior!=seeds.end())prepared=prior->second;else{
++    std::vector<Housing::MountSurfacePatch::Triangle>source;source.reserve(candidates.size());for(auto id:candidates){Housing::MountSurfacePatch::Triangle triangle;triangle.id=id;for(unsigned j=0;j<3;++j){const auto index=mIndices[3*id+j];if(index>=mVcount)return {};for(unsigned k=0;k<3;++k)triangle.vertices[j][k]=mVertices[3*index+k];}source.push_back(triangle);}
++    auto entry=std::make_shared<MountTopology>();entry->ids=Housing::PlanarMount::Connected(source,seed.triangle_id);for(const auto&triangle:source)if(std::binary_search(entry->ids.begin(),entry->ids.end(),triangle.id))entry->triangles.push_back(triangle);prepared=entry;for(auto id:entry->ids)seeds.emplace(id,entry);
++   }}
++   return prepared&&!prepared->ids.empty()&&Housing::PlanarMount::Covered(prepared->triangles,prepared->ids,seed.triangle_id,volume)?prepared->ids:std::vector<RmUint32>{};
++  }catch(...){return {};}
++ }
++ bool raycastSurface(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance,Housing::PlanarMount::SurfaceSeed&seed) override {
++  seed={};try{if(!mRoot)return false;for(unsigned k=0;k<3;++k)if(!std::isfinite(from[k])||!std::isfinite(to[k]))return false;RmReal dir[3];for(unsigned k=0;k<3;++k)dir[k]=to[k]-from[k];RmReal distance=sqrtf(dir[0]*dir[0]+dir[1]*dir[1]+dir[2]*dir[2]);if(!std::isfinite(distance)||distance<.0000000001f)return false;const RmReal inverse=1.f/distance;for(auto&v:dir)v*=inverse;mRaycastFrame++;RmUint32 nearest=TRI_EOF;bool hit=false;
++   mRoot->raycast(hit,from,to,dir,hitLocation,hitNormal,hitDistance,mVertices,mIndices,distance,this,mRaycastTriangles,mRaycastFrame,mLeafTriangles,nearest);if(!hit||nearest>=mTcount)return false;
++   Housing::MountSurfacePatch::Triangle triangle;triangle.id=nearest;for(unsigned j=0;j<3;++j){const auto index=mIndices[3*nearest+j];if(index>=mVcount)return false;for(unsigned k=0;k<3;++k)triangle.vertices[j][k]=mVertices[3*index+k];}const auto frame=Housing::PlanarMount::Basis(triangle);Housing::PlanarMount::Vector origin;for(unsigned k=0;k<3;++k)origin[k]=Housing::OrientedMount::Exact(double(from[k]));const auto facing=Housing::OrientedMount::Dot(frame.normal,Housing::PlanarMount::Minus(origin,frame.origin));if(facing==0)return false;seed={nearest,facing>0?1:-1};return true;
++  }catch(...){seed={};return false;}
++ }
++
  	MyRaycastMesh(RmUint32 vcount,const RmReal *vertices,RmUint32 tcount,const RmUint32 *indices,RmUint32 maxDepth,RmUint32 minLeafSize,RmReal minAxisSize)
  	{
  		mRaycastFrame = 0;
 diff --git a/zone/raycast_mesh.h b/zone/raycast_mesh.h
-index 1aaa100..627eb13 100644
+index 1aaa100..a94f54a 100644
 --- a/zone/raycast_mesh.h
 +++ b/zone/raycast_mesh.h
-@@ -30,12 +30,16 @@
+@@ -30,12 +30,17 @@
  //
  // 
  
 +#include <vector>
 +namespace Housing::OrientedMount { struct Volume; }
++namespace Housing::PlanarMount { struct SurfaceSeed; }
 +
  typedef float RmReal;
  typedef unsigned int RmUint32;
@@ -2687,7 +2729,7 @@ index 1aaa100..627eb13 100644
  	virtual bool raycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
  	virtual bool bruteForceRaycast(const RmReal *from,const RmReal *to,RmReal *hitLocation,RmReal *hitNormal,RmReal *hitDistance) = 0;
  
-@@ -44,6 +48,17 @@ public:
+@@ -44,6 +49,22 @@ public:
  	virtual void release(void) = 0;
  protected:
  	virtual ~RaycastMesh(void) { };
@@ -2699,6 +2741,11 @@ index 1aaa100..627eb13 100644
 + virtual bool overlapsBoxExceptTriangleList(const RmReal *minimum,const RmReal *maximum,const std::vector<RmUint32>&) const {return overlapsBox(minimum,maximum);}
 + virtual std::vector<RmUint32> sourceMountPatch(const Housing::OrientedMount::Volume&,RmUint32,RmUint32,RmUint32,const std::vector<RmUint32>&) const {return {};}
 + virtual bool overlapsVolumeExceptTriangleList(const Housing::OrientedMount::Volume&,const std::vector<RmUint32>&) const {return true;}
++ // V5 APIs append slots; old point/rectangular/oriented queries keep semantics.
++ virtual bool raycastSurface(const RmReal*,const RmReal*,RmReal*,RmReal*,RmReal*,Housing::PlanarMount::SurfaceSeed&) {return false;}
++ virtual std::vector<RmUint32> sourcePlanarMountPatch(const Housing::OrientedMount::Volume&,const Housing::PlanarMount::SurfaceSeed&,const std::vector<RmUint32>&) const {return {};}
++ virtual RmUint32 sourceTriangleCount() const {return 0;}
++
 +
 +
 +
