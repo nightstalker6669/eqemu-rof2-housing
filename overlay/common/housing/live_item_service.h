@@ -191,6 +191,9 @@ public:
   const InventoryRow&,int32_t runtime_serial,InventorySessionFence&);
  // Structural custody snapshot only; no access or delivery authority. Caller owns TX.
  static Result<Stored> InspectCustodyUnderTransaction(Database&,uint64_t custody_id);
+ // Structural conservation only; contained origins require their owning graph
+ // reader. This overload grants no access, visibility or mutation authority.
+ static Result<Stored> InspectCustodyUnderTransaction(Database&,uint64_t custody_id,bool allow_contained);
  static std::string SchemaDescriptor();
  // Read-only proof for the allocator inside the CURRENT parent Store tx. Uses
  // the real request codec, held lease, untouched memory source and placed

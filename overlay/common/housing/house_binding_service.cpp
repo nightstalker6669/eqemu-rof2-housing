@@ -1,4 +1,5 @@
 #include "house_binding_service.h"
+#include "house_relocation_preflight.h"
 #include "rent_state_db.h"
 #include "house_inventory_transition.h"
 #include "custody_codec.h"
@@ -486,6 +487,8 @@ Prepared TransactionHelpers::PrepareReturn(const Lease& lease, const std::string
         || !Same(out.before_.location, Location{Location::Kind::Custody, 0, 0, custody})) Reject(Error::Conflict);
     Authorize({AuthorizationPhase::ReturnBeforeInsert, lease, key, out.before_, source,
         custody, estate, destination_slot, 0, std::nullopt});
+    const auto quiet=HouseRelocationPreflight::UnderTransaction(db_,out.before_,lease,fence_);
+    if(quiet!=LiveItems::Error::None)Reject(quiet==LiveItems::Error::PendingApplication?Error::PendingApplication:quiet==LiveItems::Error::DatabaseFailure?Error::DatabaseFailure:Error::Conflict);
     return out;
 }
 Effect TransactionHelpers::FinishStore(const Prepared& prepared, uint64_t custody, const std::optional<Interior>& first, const InteriorRoutePolicy* policy) {

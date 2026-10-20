@@ -4,6 +4,7 @@
 #include "offline_direct_return_db.h"
 #include "return_settlement_db.h"
 #include "crate_vault_members_db.h"
+#include "house_relocation_preflight.h"
 #include <map>
 namespace Housing::OfflineReturnBatch {
 using Status=InactivityRetirement::Status;
@@ -73,6 +74,28 @@ inline Bin Create(Database& db,const Authority& a,uint32_t recipient,uint32_t or
  One(db,"INSERT INTO housing_crate_estates(crate_id,native_estate_id,parent_native_estate_id,ownership_estate_id,definition_id,catalog_key,catalog_revision) VALUES("+Id(crate)+","+Id(node.LastInsertedID())+","+Id(a.native)+","+Id(a.estate)+",174,"+Quote(db,a.catalog)+","+Id(a.revision)+")");
  if(parcel)out.allocation=ReturnParcels::ReadCrateUnderTransaction(db,parcel);else{auto read=CrateBinding::ReadCarriedUnderTransaction(db,out.row);Require(bool(read),Status::Deferred);out.allocation=read.value;}Require(bool(CrateBinding::ReadDefinitionUnderTransaction(db,out.allocation)),Status::Deferred);return out;
 }
+// A carried house keeps its permanent interior alive after whole Return. Its
+// old yard parent is history, not an unaccounted currently placed house. Admit
+// only an exact creator-owned inventoried token and a complete quiescent room.
+inline bool DetachedCarriedRoom(Database& db,uint32_t native,uint32_t parent){
+ try{
+ auto rows=Q(db,"SELECT h.house_id,h.revision,h.item_template_id,h.created_by_character_id,h.pending_request_key,l.location_kind,l.character_id,l.slot_id,l.custody_id,i.definition_id,i.zone_id,i.instance_id,i.zone_version,i.catalog_key,i.catalog_revision,n.parent_native_id,n.active,n.definition_id,n.catalog_key FROM housing_house_interiors i JOIN housing_house_instances h USING(house_id) JOIN housing_house_locations l USING(house_id) JOIN housing_native_estates n ON n.native_id=i.native_estate_id WHERE i.native_estate_id="+Id(native)+" FOR UPDATE");
+ if(rows.RowCount()!=1)return false;auto r=rows.begin();for(unsigned i=0;i<19;++i)if(i!=4&&i!=8&&!r[i])return false;
+ const auto owner=N(r[3]),slot=N(r[7]);if(!N(r[0])||!N(r[1])||r[4]||N(r[5])!=1||N(r[6])!=owner||r[8]||slot<23||slot>33||N(r[15])!=parent||N(r[16])!=1||N(r[17])!=N(r[9])||std::string(r[18])!=r[13]||!N(r[14])||!N(r[11])||N(r[11])>32000)return false;
+ auto actor=Q(db,"SELECT c.account_id,c.deleted_at,a.id FROM character_data c JOIN account a ON a.id=c.account_id WHERE c.id="+Id(owner)+" FOR UPDATE");if(actor.RowCount()!=1||!actor.begin()[0]||actor.begin()[1]||!actor.begin()[2]||N(actor.begin()[0])!=N(actor.begin()[2]))return false;
+ if(Q(db,"SELECT character_id FROM housing_inventory_sessions WHERE character_id="+Id(owner)+" AND active=1 LIMIT 1 FOR UPDATE").RowCount()||Q(db,"SELECT character_id FROM housing_live_item_leases WHERE character_id="+Id(owner)+" AND (active=1 OR pending_key IS NOT NULL) LIMIT 1 FOR UPDATE").RowCount()||CoinPending::Inspect(db,uint32_t(owner),true)!=CoinPending::State::Clear||HouseInventory::InspectPending(db,uint32_t(owner),true)!=HouseInventory::PendingState::Clear)return false;
+ auto inv=Q(db,"SELECT "+std::string(InventoryRowDB::Columns)+" FROM inventory WHERE character_id="+Id(owner)+" AND slot_id="+Id(slot)+" FOR UPDATE");if(inv.RowCount()!=1)return false;auto item=InventoryRowDB::Decode(inv.begin());
+ if(!CustodyCodec::Valid(item)||item.values.character_id!=owner||item.values.slot_id!=slot||item.values.item_id!=N(r[2])||item.values.augment_one||item.values.augment_two||item.values.augment_three||item.values.augment_four||item.values.augment_five||item.values.augment_six)return false;
+ auto meta=Q(db,"SELECT idfile,itemclass,bagslots,stackable,UNK227,evoitem FROM items WHERE id="+Id(N(r[2]))+" FOR UPDATE");if(meta.RowCount()!=1||!meta.begin()[0]||N(meta.begin()[1])||N(meta.begin()[2])||N(meta.begin()[3])||N(meta.begin()[4])!=N(r[9])||N(meta.begin()[5])||!HouseGeometry::Lookup(uint32_t(N(r[2])),meta.begin()[0])||!HouseTemplates::Type(uint32_t(N(r[2]))))return false;
+ Empty(db,"SELECT id FROM items_evolving_details WHERE item_id="+Id(N(r[2])));Empty(db,"SELECT id FROM character_evolving_items WHERE character_id="+Id(owner)+" AND item_id="+Id(N(r[2]))+" AND deleted_at IS NULL");
+ auto instance=Q(db,"SELECT zone,version,never_expires FROM instance_list WHERE id="+Id(N(r[11]))+" FOR UPDATE");if(instance.RowCount()!=1||N(instance.begin()[0])!=N(r[10])||N(instance.begin()[1])!=N(r[12])||N(instance.begin()[2])!=1)return false;
+ auto catalog=Q(db,"SELECT revision,client_build,origin,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key="+Quote(db,r[13])+" FOR UPDATE");if(catalog.RowCount()!=1||N(catalog.begin()[0])!=N(r[14])||N(catalog.begin()[1])!=20130510||(N(catalog.begin()[2])!=1&&N(catalog.begin()[2])!=2))return false;
+ auto bundle=Catalog::DecodePayloads(UpkeepSelection::Detail::Unhex(catalog.begin()[3]),UpkeepSelection::Detail::Unhex(catalog.begin()[4]));auto def=std::find_if(bundle.definitions.begin(),bundle.definitions.end(),[&](const auto& d){return d.id==N(r[9]);});if(def==bundle.definitions.end()||(def->type!=2&&def->type!=3)||def->zone_id!=N(r[10]))return false;
+ HouseBinding::Binding binding;binding.house_id=N(r[0]);binding.revision=N(r[1]);binding.item_template_id=N(r[2]);binding.location={HouseBinding::Location::Kind::Inventory,uint32_t(owner),uint32_t(slot),0};binding.interior=HouseBinding::Interior{native,uint32_t(N(r[9])),uint32_t(N(r[10])),uint16_t(N(r[11])),uint8_t(N(r[12])),r[13],N(r[14])};
+ return HouseRelocationPreflight::OfflineStructuralUnderTransaction(db,binding)==LiveItems::Error::None;
+ }catch(...){return false;}
+}
+
 struct Unit {uint64_t custody=0,house=0;uint32_t owner=0;LiveItems::Stored stored;bool original_stowed=false;};
 inline void Pack(Database& db,const Authority& a,const Unit& unit,Bin& bin){
  const auto& b=bin.allocation.binding;Require(unit.owner==bin.allocation.created_by_character_id&&bin.count<a.capacity&&(!unit.house||!bin.house));const auto& s=unit.stored;Require(s.placement&&s.estate_id==a.estate&&s.placement->reservation.native_estate_id==a.native&&s.placement->reservation.estate_id==a.estate&&s.placement->reservation.catalog_key==a.catalog&&s.placement->reservation.catalog_revision==a.revision,Status::Deferred);
@@ -125,7 +148,7 @@ inline Status RetireBatch(Database& db,uint32_t estate,uint32_t now,bool guild){
   }
   for(const auto& bin:bins){CrateBinding::Allocation final;if(bin.allocation.parcel_id)final=ReturnParcels::ReadCrateUnderTransaction(db,bin.allocation.parcel_id);else{auto read=CrateBinding::ReadCarriedUnderTransaction(db,bin.row);Require(bool(read),Status::Deferred);final=read.value;}Require(CrateBinding::EncodeAllocation(final)==CrateBinding::EncodeAllocation(bin.allocation),Status::Deferred);auto count=CrateBinding::ValidateMembersUnderTransaction(db,final);Require(count&&count.value==bin.count,Status::Deferred);OfflinePropertyDelivery::Detail::Cargo(db,bin.allocation.binding.crate_id,bin.allocation.created_by_character_id);}
   // No unaccounted active child may survive outside a delivered retained hall.
-  auto children=Q(db,"SELECT native_id FROM housing_native_estates WHERE parent_native_id="+Id(a.native)+" AND active=1 FOR UPDATE");for(auto c=children.begin();c!=children.end();++c){auto host=Q(db,"SELECT house_id FROM housing_house_interiors WHERE native_estate_id="+Id(N(c[0]))+" FOR UPDATE");Require(host.RowCount()==1&&house_owners.count(N(host.begin()[0])),Status::Deferred);}
+  auto children=Q(db,"SELECT native_id FROM housing_native_estates WHERE parent_native_id="+Id(a.native)+" AND active=1 FOR UPDATE");for(auto c=children.begin();c!=children.end();++c){auto host=Q(db,"SELECT house_id FROM housing_house_interiors WHERE native_estate_id="+Id(N(c[0]))+" FOR UPDATE");Require(host.RowCount()==1&&(house_owners.count(N(host.begin()[0]))||DetachedCarriedRoom(db,uint32_t(N(c[0])),a.native)),Status::Deferred);}
   auto before=OfflinePropertyDelivery::Detail::Currency(db,a.refunder),after=before;Require(captured.escrow_copper<=uint64_t(INT32_MAX)-before[3],Status::Deferred);after[3]+=uint32_t(captured.escrow_copper);
   if(captured.escrow_copper){One(db,"UPDATE character_currency SET copper="+Id(after[3])+" WHERE id="+Id(a.refunder)+" AND copper="+Id(before[3]));One(db,"UPDATE housing_escrow_balances SET copper=0 WHERE estate_id="+Id(estate)+" AND copper="+Id(captured.escrow_copper));}
   One(db,"INSERT INTO housing_offline_return_finance(estate_id,recipient_character_id,recipient_account_id,refund_copper,currency_before,currency_after,review_reference) VALUES("+Id(estate)+","+Id(a.refunder)+","+Id(a.account)+","+Id(captured.escrow_copper)+",x'"+Hex(OfflinePropertyDelivery::Detail::CurrencyBytes(before))+"',x'"+Hex(OfflinePropertyDelivery::Detail::CurrencyBytes(after))+"',"+Quote(db,a.review)+")");

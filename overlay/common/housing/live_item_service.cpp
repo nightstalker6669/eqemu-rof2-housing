@@ -1327,10 +1327,13 @@ namespace Housing::LiveItems {
         });
     }
     Result<Stored> Service::InspectCustodyUnderTransaction(Database& db,uint64_t id){
+        return InspectCustodyUnderTransaction(db,id,false);
+    }
+    Result<Stored> Service::InspectCustodyUnderTransaction(Database& db,uint64_t id,bool allow_contained){
         try{
             auto tx=Q(db,"SELECT @@in_transaction");if(!id||tx.RowCount()!=1||std::string(tx.begin()[0])!="1")return {{},Error::InvalidArgument};
             auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(id)+" FOR UPDATE");if(rows.RowCount()!=1)return {{},Error::NotFound};
-            auto item=StoredRow(rows.begin(),id);PlacementTables(db);item.placement=CurrentPose(db,id);
+            auto item=StoredRow(rows.begin(),id);PlacementTables(db);item.placement=CurrentPose(db,id,allow_contained);
             auto state=ItemStorage::Locked(db,id);item.stowed=state.stowed;item.storage_revision=state.revision;
             return {std::move(item),Error::None};
         }catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}

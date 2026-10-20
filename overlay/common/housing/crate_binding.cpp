@@ -11,6 +11,7 @@
 #include "static_furniture_registry.h"
 #include "house_geometry_registry.h"
 #include "house_binding_service.h"
+#include "house_relocation_preflight.h"
 #include "../database.h"
 #include <algorithm>
 #include <limits>
@@ -156,6 +157,7 @@ static std::optional<ContentBinding::HouseRoute> RelocateContainedHouse(Database
  if(h[3]||house.revision==UINT64_MAX||house.item_template_id!=source.values.item_id||house.interior->catalog_key!=carried.binding.catalog_key||house.interior->catalog_revision!=carried.binding.catalog_revision||N(h[11])!=carried.binding.parent_native_estate_id)Bad(Error::Conflict);
  auto access=LoadCurrentEstateAccessUnderTransaction(db,request.estate_id,target.native_estate_id,request.lease.actor);if(!access||!access.value.effective.Allows(AccessPolicy::Capability::AddHouse))Bad(Error::Unauthorized);
  auto route=policy->ReviewCrateRelocationUnderTransaction(db,fence,house,request,source);if(!route||!policy->Routes())Bad(Error::Unauthorized);
+ const auto quiet=HouseRelocationPreflight::UnderTransaction(db,house,request.lease,fence);if(quiet!=LiveItems::Error::None)Bad(quiet);
  auto child=std::find_if(bundle.definitions.begin(),bundle.definitions.end(),[&](const auto& d){return d.id==house.interior->definition_id;});
  const bool catalog_move=house.interior->catalog_key!=target.catalog_key||house.interior->catalog_revision!=target.catalog_revision;
  if(catalog_move){
