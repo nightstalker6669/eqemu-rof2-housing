@@ -2457,7 +2457,7 @@ index aa2d9fd..920c077 100644
  		PutField(last_tribute);
  		SlideStructString(note_buf, ci->public_note);
 diff --git a/zone/inventory.cpp b/zone/inventory.cpp
-index 1c2b62c..25b70c2 100644
+index 1c2b62c..e347b4b 100644
 --- a/zone/inventory.cpp
 +++ b/zone/inventory.cpp
 @@ -28,6 +28,7 @@
@@ -2484,6 +2484,40 @@ index 1c2b62c..25b70c2 100644
  
  	uint32 src_slot_check = move_in->from_slot;
  	uint32 dst_slot_check = move_in->to_slot;
+@@ -2018,6 +2028,7 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
+ 	}
+ 
+ 	bool all_to_stack = false;
++	bool fresh_partial_split = false;
+ 	// Step 5: Swap (or stack) items
+ 	if (move_in->number_in_stack > 0) {
+ 		// Determine if charged items can stack
+@@ -2071,6 +2082,7 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
+ 				LogInventory("Split stack of [{}] ([{}]) from slot [{}] to [{}] with stack size [{}]. Src keeps [{}]", src_inst->GetItem()->Name, src_inst->GetItem()->ID, src_slot_id, dst_slot_id, move_in->number_in_stack, src_inst->GetCharges());
+ 				EQ::ItemInstance* inst = database.CreateItem(src_inst->GetItem(), move_in->number_in_stack);
+ 				m_inv.PutItem(dst_slot_id, *inst);
++				fresh_partial_split = true;
+ 				safe_delete(inst);
+ 			}
+ 		}
+@@ -2230,6 +2242,17 @@ bool Client::SwapItem(MoveItem_Struct* move_in) {
+ 		database.SaveInventory(character_id, m_inv.GetItem(dst_slot_id), dst_slot_id);
+ 	}
+ 
++	// The RoF2 client predicts a split locally, but cannot predict the new
++	// server serial used by housing source GUIDs. Refresh the saved destination
++	// in place; Limbo would publish a new cursor acquisition instead.
++	if (fresh_partial_split && ClientVersion() == EQ::versions::ClientVersion::RoF2) {
++		auto* split = m_inv.GetItem(dst_slot_id);
++		const auto* data = split ? split->GetUnscaledItem() : nullptr;
++		if (data && data->Placeable) {
++			SendItemPacket(dst_slot_id, split, ItemPacketTrade);
++		}
++	}
++
+ 	// Step 8: Re-calc stats
+ 	CalcBonuses();
+ 	ApplyWeaponsStance();
 diff --git a/zone/main.cpp b/zone/main.cpp
 index 4f59160..3801d95 100644
 --- a/zone/main.cpp

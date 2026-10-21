@@ -8,6 +8,8 @@
 #include "client.h"
 #include "doors.h"
 #include "zone.h"
+#include "zonedb.h"
+#include "../common/housing/known_original_interior_zones.h"
 #include "../common/eqemu_config.h"
 #include "../common/rulesys.h"
 #include "../common/housing/house_placement_model.h"
@@ -18,11 +20,25 @@
 #include <sstream>
 #include <filesystem>
 extern Zone* zone;
+extern ZoneDatabase content_db;
 namespace Housing::HouseRuntime {
 namespace {
 std::mutex selection_mutex;
 std::vector<std::shared_ptr<const PersonalTestSelection>> registered_selections;
 std::optional<Scene::LobbyRequest> verified_lobby_door;
+// Admission must not reach upstream zoning with absent destination metadata.
+// This runs before the service grants instance membership; it changes no route,
+// placement or inventory state. A cold restart is required after cache repair.
+bool EntryDestinationAvailable(const HouseBinding::Interior& destination){
+ try{
+  const auto* cached=ZoneStore::Instance()->GetZone(destination.zone_id,destination.zone_version);
+  if(!cached||cached->long_name.empty()||!OriginalInteriors::Matches(destination.zone_id,cached->short_name))return false;
+  auto rows=content_db.QueryDatabase("SELECT short_name,long_name FROM zone WHERE zoneidnumber="+std::to_string(destination.zone_id)+" AND version="+std::to_string(destination.zone_version));
+  if(!rows.Success()||rows.RowCount()!=1)return false;
+  auto row=rows.begin();
+  return row[0]&&row[1]&&*row[1]&&cached->short_name==row[0];
+ }catch(...){return false;}
+}
 const HouseGeometry::Record* SelectedModel(const PersonalTestSelection& s){
  const auto* item=HouseTemplates::Lookup(s.item_template_id);
  return item?HouseGeometry::Lookup(item->item,item->model):nullptr;
@@ -119,7 +135,7 @@ public:
  }
  std::optional<ContentBinding::HouseRoute> ReviewedLobbyRouteUnderTransaction(Database& db,LiveItems::InventorySessionFence& f,const LiveItems::Lease& l,const LiveItems::Stored& stored,const HouseBinding::Binding& binding,const EstateWire::Definition& definition,const Scene::LobbyRequest& request,uint32_t guild)const override{
   const auto* s=ContentFor(content_,binding.item_template_id);
-  if(!s||!guild||!LobbySourceUnderTransaction(db,f,l,request,guild)||definition.type!=2||!binding.interior||!stored.placement||stored.stowed||binding.location.kind!=HouseBinding::Location::Kind::Custody||binding.location.custody_id!=stored.custody_id||stored.row.values.item_id!=binding.item_template_id||!stored.row.values.character_id||!s->content->VerifiedHouse(stored.row)||!s->content->VerifiedDestination(*binding.interior,definition,binding.item_template_id))return {};
+  if(!s||!guild||!LobbySourceUnderTransaction(db,f,l,request,guild)||definition.type!=2||!binding.interior||!EntryDestinationAvailable(*binding.interior)||!stored.placement||stored.stowed||binding.location.kind!=HouseBinding::Location::Kind::Custody||binding.location.custody_id!=stored.custody_id||stored.row.values.item_id!=binding.item_template_id||!stored.row.values.character_id||!s->content->VerifiedHouse(stored.row)||!s->content->VerifiedDestination(*binding.interior,definition,binding.item_template_id))return {};
   const auto& r=stored.placement->reservation;// Fresh own-guild/plot/placed-house/ACL graph authority belongs to the
   // dedicated locked service. The configured entry supplies immutable content,
   // never an obsolete fixture guild, estate, plot or catalog ownership grant.
@@ -154,7 +170,7 @@ public:
   if(!item.house||!parent.access.Allows(AccessPolicy::Capability::Enter)||!Physical(parent.route)||!item.stored.placement||item.stored.placement->reservation.native_estate_id!=parent.native_plot_id)return {};const auto* s=ContentFor(content_,item.house->item_template_id);if(!s)return {};const auto* route=s->content->Route(s->item_template_id);EstateWire::Definition d;d.id=route->definition_id;d.type=HouseTemplates::Type(s->item_template_id);d.zone_id=route->zone_id;return ReviewedRouteUnderTransaction(db,f,l,item.stored,*item.house,d);
  }
  std::optional<ContentBinding::HouseRoute> ReviewedEntryUnderTransaction(Database& db,LiveItems::InventorySessionFence& f,const LiveItems::Lease& l,const Scene::Snapshot& scene,const Scene::Item& item)const override{
-  if(!scene.access.Allows(AccessPolicy::Capability::Enter)||!Physical(scene.route)||!item.house||!item.stored.placement)return {};const auto* s=ContentFor(content_,item.house->item_template_id);if(!s)return {};const auto* model=SelectedModel(*s);const auto* route=s->content->Route(s->item_template_id);if(!model)return {};auto distance=HousePlacement::DistanceToGeometryBounds(model->geometry,item.stored.placement->transform,{client_.GetY(),client_.GetX(),client_.GetZ()});if(!distance||*distance>20)return {};EstateWire::Definition d;d.id=route->definition_id;d.type=HouseTemplates::Type(s->item_template_id);d.zone_id=route->zone_id;return ReviewedRouteUnderTransaction(db,f,l,item.stored,*item.house,d);
+  if(!scene.access.Allows(AccessPolicy::Capability::Enter)||!Physical(scene.route)||!item.house||!item.house->interior||!item.stored.placement||!EntryDestinationAvailable(*item.house->interior))return {};const auto* s=ContentFor(content_,item.house->item_template_id);if(!s)return {};const auto* model=SelectedModel(*s);const auto* route=s->content->Route(s->item_template_id);if(!model)return {};auto distance=HousePlacement::DistanceToGeometryBounds(model->geometry,item.stored.placement->transform,{client_.GetY(),client_.GetX(),client_.GetZ()});if(!distance||*distance>20)return {};EstateWire::Definition d;d.id=route->definition_id;d.type=HouseTemplates::Type(s->item_template_id);d.zone_id=route->zone_id;return ReviewedRouteUnderTransaction(db,f,l,item.stored,*item.house,d);
  }
 };
 class RoomPolicy final:public InteriorContent::ProfilePolicy {
@@ -218,6 +234,8 @@ bool LoadPersonalTestAtSafeStartup(){
  std::vector<PersonalTestSelection> entries;if(personal)entries.push_back(std::move(*personal));if(guild)entries.push_back(std::move(*guild));
  if(!ContentLoader::ReadRegistry(".house-personal-content-registry-test.json",entries))return false;
  if(!ContentLoader::ReadRegistry(".house-guild-content-registry-test.json",entries,true))return false;
+ if(!ContentLoader::ReadRegistry("housing-personal-content-registry.json",entries))return false;
+ if(!ContentLoader::ReadRegistry("housing-guild-content-registry.json",entries,true))return false;
  if(entries.empty())return !CrateRuntime::ReloadPolicy();
  return ConfigureSelections(std::move(entries));
 }

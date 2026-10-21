@@ -1,0 +1,96 @@
+{
+  "item_id": 77407,
+  "model": "IT23651",
+  "collision_model": "COL_IT23651",
+  "source": {
+    "archive": "IT23651.eqg",
+    "archive_sha256": "bbe70920caa9ae1074c23ebe1f78a164f5c2e2ecb023631c14d7ec7d8e2feccf",
+    "member": "col_it23651.mod",
+    "member_sha256": "510d4039054f02436f841bcab388e474910c6c54fbe71bd0f034577bb00d33d7",
+    "member_size": 58072
+  },
+  "lod": {
+    "archive": "IT23651.eqg",
+    "archive_sha256": "bbe70920caa9ae1074c23ebe1f78a164f5c2e2ecb023631c14d7ec7d8e2feccf",
+    "member": "it23651.lod",
+    "member_sha256": "5ea9335a048d6b931a00f03bff4ec1857a13da8ab682204126ead473b052929f",
+    "member_size": 45
+  },
+  "lod_text": "EQLOD\r\nLOD,IT23651,2250.00\r\nCOL,COL_IT23651\r\n",
+  "ordered_positions_sha256": "e06cc1735c48539300c2303e97486e78823672d8a8656af3cac98555ff9ea27b",
+  "ordered_indices_sha256": "978ab6d9981ce6b8ff83c6a462a16d466682b7f380d076426e8d7a4b412912b3",
+  "geometry": {
+    "format": "EQGM",
+    "version": 3,
+    "vertices": 726,
+    "triangles": 1305,
+    "vertex_offset": 28,
+    "vertex_stride": 44,
+    "local_mesh_min": [
+      -46.358760833740234,
+      -66.5517578125,
+      -2.3951568603515625
+    ],
+    "local_mesh_max": [
+      47.23772048950195,
+      42.142974853515625,
+      135.69065856933594
+    ],
+    "center": [
+      0.4394798278808594,
+      -12.204391479492188,
+      66.64775085449219
+    ],
+    "extents": [
+      46.798240661621094,
+      54.34736633300781,
+      69.04290771484375
+    ],
+    "triangle_flags": {
+      "65536": 1265,
+      "131072": 8,
+      "262144": 32
+    },
+    "referenced_vertices": 726,
+    "native_triangle_box_candidate": {
+      "min": [
+        -46.358760833740234,
+        -66.5517578125,
+        -2.3951568603515625
+      ],
+      "max": [
+        47.23772048950195,
+        42.142974853515625,
+        135.69065856933594
+      ],
+      "center": [
+        0.4394798278808594,
+        -12.204391479492188,
+        66.64775085449219
+      ],
+      "extents": [
+        46.798240661621094,
+        54.34736633300781,
+        69.04290771484375
+      ],
+      "degenerate_triangles": 0,
+      "referenced_vertices": 726,
+      "scope": "Native100c5270 ordinary static/non-special-name triangle box; LOD and actor scale factors require independent validation"
+    },
+    "parsed_bytes": 58072
+  },
+  "arithmetic_envelope": 3.0517578125e-05,
+  "selection": "Original EQLOD collision entry replaces CSimpleModelLODed model+68; GetCollisionBox delegates model+68. Neighborhood preloads this archive. Static recovery; native preview acceptance remains separate.",
+  "renderer_evidence": [
+    "protocol/renderer-LOD-resource-binding.asm",
+    "protocol/renderer-LOD-model-construction.asm",
+    "protocol/renderer-lod-model-box-getter.asm"
+  ],
+  "neighborhood_assets_sha256": "e184d50ea86b20015fcbed9f949493763e4caa9c82b9be1a424e1cabd7fa96e2",
+  "collision_filename_closure": [
+    {
+      "archive": "IT23651.eqg",
+      "member": "col_it23651.mod"
+    }
+  ]
+}

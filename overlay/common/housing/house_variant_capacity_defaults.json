@@ -1,0 +1,1320 @@
+{
+  "format": "housing-house-capacity-defaults-v1",
+  "policy_revision": 1,
+  "classification": "Configurable emulator capacity policy; researched limits and unknown historical values remain separately recorded in house_variant_capacities.json.",
+  "operator_instructions": "Edit effective_fields, keep their field_sources accurate, and increment policy_revision. Regenerate fresh content. Existing rooms require a separately reviewed append-only capacity policy; never overwrite their immutable base profile.",
+  "counting_policy": "Placed ordinary furniture, NPC items and non-estate vault entries share max_items. A placed child crate consumes one parent item slot; crate contents use the child estate budget. Existing property-wide crate restrictions remain authoritative.",
+  "child_definition_provenance": "Definition174 is an exact existing emulator technical record, not a recovered original Live definition. Other recognized crate IDs175..184 have no approved complete capacity record here.",
+  "child_definitions": [
+    {
+      "id": 174,
+      "area_id": 0,
+      "purchase_scheme": 0,
+      "upkeep_scheme": 0,
+      "max_items": 100,
+      "max_non_estate_items": 100,
+      "max_children": 0,
+      "zone_id": 0,
+      "dynamic_zone_id": 0,
+      "type": 7,
+      "group_id": 0,
+      "address": "",
+      "icon": 0,
+      "max_npc_items": 0,
+      "switch_coordinates": [
+        0,
+        0,
+        0
+      ],
+      "switch_heading": 0,
+      "children": []
+    }
+  ],
+  "definitions": [
+    {
+      "definition_id": 5,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 7,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 8,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 9,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 10,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 11,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 12,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 13,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 14,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 15,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 16,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 17,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 18,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 19,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 20,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 21,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 22,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 23,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 24,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 25,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 26,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 27,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 28,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 29,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 300,
+        "max_non_estate_items": 300,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 class-wide item total; original author transcription independently retained",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 30,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 400,
+        "max_non_estate_items": 400,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "Original2013patch explicitly names Hermit400; retained originalcollector identity supplied by root",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 32,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "EverylocalManorloreexplicit3room; Apr2013universal3roomtotal500",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 33,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "EverylocalManorloreexplicit3room; Apr2013universal3roomtotal500",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 34,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 500,
+        "max_non_estate_items": 500,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "EverylocalManorloreexplicit3room; Apr2013universal3roomtotal500",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 38,
+      "type": 2,
+      "effective_fields": {
+        "max_items": 1000,
+        "max_non_estate_items": 1000,
+        "max_npc_items": 20,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "later_placeable_count_used_as_shared_budget",
+          "description": "December 2023 firsthand guide reports Standard 1,000 placeable items; this shared-budget policy is not an authenticated 2013 aggregate limit.",
+          "source_urls": [
+            "https://www.redguides.com/community/threads/so-you-want-to-buy-a-guild-hall.89350/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 20; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 39,
+      "type": 2,
+      "effective_fields": {
+        "max_items": 1500,
+        "max_non_estate_items": 1500,
+        "max_npc_items": 20,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "configurable_server_default",
+          "description": "Historical Grand capacity is unknown. Default 1,500 is a moderate budget between Standard 1,000 and Palatial 2,000, consistent with Modest 1,500. It is not a Live claim.",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 20; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 40,
+      "type": 2,
+      "effective_fields": {
+        "max_items": 2000,
+        "max_non_estate_items": 2000,
+        "max_npc_items": 20,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "2013-04-17 firsthand player Palatial total2000; not server definition",
+          "source_urls": [
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/post-2945712"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 20; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 41,
+      "type": 2,
+      "effective_fields": {
+        "max_items": 1500,
+        "max_non_estate_items": 1500,
+        "max_npc_items": 20,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "later_placeable_count_used_as_shared_budget",
+          "description": "December 2023 guide reports Modest 1,500 placeable items, tentatively corroborated January 2021; shared budget is reconstructed rather than authenticated 2013 total.",
+          "source_urls": [
+            "https://www.redguides.com/community/threads/so-you-want-to-buy-a-guild-hall.89350/",
+            "https://www.redguides.com/community/threads/teleport-anchors-and-pocket-guilds.76065/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 20; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    },
+    {
+      "definition_id": 42,
+      "type": 3,
+      "effective_fields": {
+        "max_items": 600,
+        "max_non_estate_items": 600,
+        "max_npc_items": 5,
+        "max_children": 1,
+        "children": [
+          174
+        ]
+      },
+      "field_sources": {
+        "max_items": {
+          "classification": "researched",
+          "description": "Original2013patch explicitly names Evantil600; retained originalcollector identity supplied by root",
+          "source_urls": [
+            "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+            "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+          ]
+        },
+        "max_non_estate_items": {
+          "classification": "configurable_server_default",
+          "description": "Non-estate storage shares the overall item budget; it is not additional capacity."
+        },
+        "max_npc_items": {
+          "classification": "configurable_server_default",
+          "description": "Conservative actor budget of 5, matching the existing Sunrise yard policy; NPC items also consume the overall item budget."
+        },
+        "max_children": {
+          "classification": "configurable_server_default",
+          "description": "One typed child estate per room; existing property moving-crate limits still apply."
+        },
+        "children": {
+          "classification": "reviewed_existing_emulator_child_definition",
+          "description": "Only existing typed moving-crate definition 174 is supported; child contents keep their separate 100-item budget."
+        }
+      }
+    }
+  ]
+}

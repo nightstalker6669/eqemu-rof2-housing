@@ -3,6 +3,8 @@
 -- Original client text specifies 30 days without any guild-member login.
 -- Current-roster activity, explicit current-leader recipient, one reviewed
 -- small crate, and carried-copper refund are compatibility policies. No seed.
+-- Recipient identity is checked/locked by the retirement service. No FK to
+-- legacy character_data: normal upstream character saves use DELETE-like REPLACE.
 CREATE TABLE IF NOT EXISTS housing_guild_inactivity_policy (
  estate_id INT UNSIGNED NOT NULL PRIMARY KEY,
  native_plot_id INT UNSIGNED NOT NULL,
@@ -13,7 +15,6 @@ CREATE TABLE IF NOT EXISTS housing_guild_inactivity_policy (
  inactive_seconds INT UNSIGNED NOT NULL,
  review_reference VARCHAR(255) NOT NULL,
  CONSTRAINT housing_guild_inactive_estate FOREIGN KEY(estate_id) REFERENCES housing_estates(id) ON DELETE RESTRICT,
- CONSTRAINT housing_guild_inactive_recipient FOREIGN KEY(recipient_character_id) REFERENCES character_data(id) ON DELETE RESTRICT,
  CONSTRAINT housing_guild_inactive_shape CHECK(native_plot_id>0 AND native_plot_id<4294967295 AND catalog_revision>0 AND recipient_character_id>0 AND inactive_seconds=2592000 AND CHAR_LENGTH(review_reference)>0)
 ) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS housing_guild_inactivity_retirements (

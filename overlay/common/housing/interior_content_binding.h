@@ -3,12 +3,19 @@
 #include "catalog_content_binding.h"
 #include "crate_geometry_registry.h"
 #include <algorithm>
+#include <memory>
 namespace Housing::InteriorContent {
 // Separate room domain, carried by explicit interior reservation tags rather
 // than the exterior content-binding decoder. Crate custody remains a separate
 // typed allocator contract; recognizing its physical content grants none.
 inline constexpr uint32_t Version=3;
 inline constexpr size_t MaximumManifestBytes=2*(RegionWire::MaximumPayload+NeighborhoodWire::MaximumPayload)+4096;
+// Capacity authority is versioned separately from immutable content identity.
+// A loaded projection retains these exact original definitions for all v3 tags.
+struct CapacityIdentity {
+ EstateWire::Definition definition;
+ std::vector<EstateWire::Definition> child_definitions;
+};
 struct Profile {
  uint64_t house_id=0;
  uint32_t native_estate_id=0;
@@ -21,6 +28,8 @@ struct Profile {
  uint32_t client_build=20130510;
  bool reviewed_room=false;
  std::vector<EstateWire::Definition> child_definitions;
+ std::shared_ptr<const CapacityIdentity> capacity_identity;
+ uint64_t capacity_policy_revision=0;
 };
 // Primary area_id stays stable; the remaining regions belong to this exact
 // reviewed room profile and are never inferred from unrelated loaded areas.
@@ -44,7 +53,16 @@ inline std::vector<EstateWire::Definition> Definitions(const Profile& p){
  if(!ValidChildDefinitions(p))throw std::invalid_argument("Invalid room child definitions");
  auto definitions=p.child_definitions;definitions.insert(definitions.begin(),p.definition);return definitions;
 }
-inline std::vector<uint8_t> DefinitionPayload(const Profile& p){return EstateWire::EncodeBootstrap(Definitions(p),{});}
+inline const EstateWire::Definition& IdentityDefinition(const Profile& p){return p.capacity_identity?p.capacity_identity->definition:p.definition;}
+inline std::vector<uint8_t> DefinitionPayload(const Profile& p){
+ if(!p.capacity_identity)return EstateWire::EncodeBootstrap(Definitions(p),{});
+ Profile base=p;base.definition=p.capacity_identity->definition;base.child_definitions=p.capacity_identity->child_definitions;base.capacity_identity.reset();base.capacity_policy_revision=0;
+ return EstateWire::EncodeBootstrap(Definitions(base),{});
+}
+inline const EstateWire::Definition& IdentityChildDefinition(const Profile& p,const EstateWire::Definition& child){
+ if(p.capacity_identity)for(const auto& original:p.capacity_identity->child_definitions)if(original.id==child.id)return original;
+ return child;
+}
 struct Input {
  Profile room;
  PlacementPolicy::ItemMetadata item;
@@ -97,7 +115,7 @@ inline Result Build(const Input& input){
   std::set<uint32_t> children;for(auto child:d.children)ContentBinding::Detail::Require(ContentBinding::Detail::Identity(child)&&child!=d.id&&children.insert(child).second);
   ContentBinding::Detail::Writer w;w.Text(crate_definition?"EQEmuHousingInteriorCrateContentBinding":"EQEmuHousingInteriorContentBinding");w.Word(Version);w.Word(p.client_build);
   w.Word(uint32_t(p.house_id));w.Word(uint32_t(p.house_id>>32));w.Word(p.native_estate_id);w.RouteValue(p.route);
-  ContentBinding::Detail::TargetDefinition(w,d);w.Text(p.zone_short_name);w.Text(p.client_asset_sha256);w.Text(p.collision_map_sha256);w.Text(p.manifest_sha256);
+  ContentBinding::Detail::TargetDefinition(w,IdentityDefinition(p));w.Text(p.zone_short_name);w.Text(p.client_asset_sha256);w.Text(p.collision_map_sha256);w.Text(p.manifest_sha256);
   w.Word(p.region.id);for(auto f:p.region.matrix)w.Float(f);for(auto f:p.region.opaque_vector)w.Float(f);for(auto id:p.region.opaque_ids)w.Word(id);
   w.Word(m.item_id);w.Word(m.model_id);w.Word(m.placement_mask);w.Float(m.minimum_scale);w.Float(m.maximum_scale);
   auto native=n;native.upkeep_id=0;native.maker_id=0;auto tail=ItemWire::EncodeTail(native);ContentBinding::Detail::Require(ItemWire::DecodeTail(tail.data(),tail.size()).has_value());
@@ -106,7 +124,7 @@ inline Result Build(const Input& input){
   if(input.npc){const auto& npc=*input.npc;w.Text(npc.legacy_fixed_eye?"OriginalFixedHeightNpcClass":"OriginalGenericNpcClassPC53PC24Chop");w.Word(npc.race);w.Word(npc.gender);w.Text(npc.model);w.Float(npc.actor_height);w.Float(npc.entity_height);w.Text(npc.source_sha256);if(!npc.legacy_fixed_eye){w.Word(npc.roffset_bits);w.Word(npc.race_flag);for(auto h:npc.allowed_heights.height_bits)w.Word(h);w.Text(std::string(NpcNativeModels::ClientSha256));w.Text(std::string(NpcNativeModels::ModdatSha256));}}
   if(crate){w.Text(crate->archive_sha256);w.Text(crate->positions_sha256);w.Text(crate->indices_sha256);w.Text(crate->witness_sha256);
    const auto child=std::find_if(p.child_definitions.begin(),p.child_definitions.end(),[&](const auto& value){return value.id==crate_definition;});
-   ContentBinding::Detail::Require(child!=p.child_definitions.end());ContentBinding::Detail::TargetDefinition(w,*child);
+   ContentBinding::Detail::Require(child!=p.child_definitions.end());ContentBinding::Detail::TargetDefinition(w,IdentityChildDefinition(p,*child));
   }
   // Preserve existing single-region v3 identities byte-for-byte. New room
   // sets additionally bind every owned region's exact serialized bytes.

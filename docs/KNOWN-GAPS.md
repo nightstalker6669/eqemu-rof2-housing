@@ -91,3 +91,36 @@ Item cache deployment requires a cold restart and regeneration of the actual
 active shared-item prefix from the correct database. The upstream hotfix/content
 database path can leave normal zone startup using stale item metadata; SQL
 readback or a successful hotfix message alone does not establish runtime use.
+
+## Additional original house families, October21
+
+The [variant update](HOUSE-VARIANTS-2026-10-21.md) supports144 compiled
+physical templates and a separate source-labelled capacity policy. Native
+Evantil placement, cold-restart retention, original tree-room entry and visible
+floor-chair placement passed. Modest room entry/chair placement/pickup also passed;
+Tree pickup, Grand entry/furniture and Palatial exterior Shed storage also
+passed. The native Ctrl-click/placement/pickup/merge cycle restored both chairs
+with an empty cursor and no floating duplicate. Representative model/family evidence is not an individual SKU
+acceptance claim.
+
+Historical Grand capacity and interior vault/NPC/child limits remain unknown in
+the evidence registry. The approved separate policy supplies explicit defaults,
+including Grand1500, personalNPC5/guild20 and technical child174. Original
+legacy61823/Standard10-limit base bytes remain preserved for identity while
+installed capacity policies project approved gameplay limits. The checked deployment installed ten existing-room policies and 144 exact
+template grants while conserving base profile/custody/pose bytes. Native Palatial2000-limit display, shared vault stack retrieval and empty
+child-crate placement/pickup passed, including automatic policy installation on
+its fresh room. The representative native split-refresh conservation cycle
+also passed; source alone does not install policies.
+
+Hermit's720/723 association and inconsistent later Manor aliases64378..64395
+remain excluded. Source envelope regions, entry coordinates, zone access policy
+and missing-limit defaults are implementation choices, not captured Live server
+content. No unverified NPC metadata binding is seeded by the quota policy.
+Generic zoning restrictions remain active; optional matched737/738/751 metadata
+repairs remove the earlier admin gate as explicit operator policy.
+
+The optional guild-recipient compatibility migration is required on installations
+with the old character foreign key; otherwise upstream `REPLACE` saves can fail
+while a policy references that character. The applied correction preserved policy rows and current-recipient service
+checks; ordinary native zoning/save persisted its destination successfully. See [installation](INSTALL.md#guild-recipient-policy-and-character-saves).

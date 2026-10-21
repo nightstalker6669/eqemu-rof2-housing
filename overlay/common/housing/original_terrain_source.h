@@ -8,7 +8,7 @@ struct TerrainCatalogEntry {uint32_t zone_id,vertices,polygons;std::string_view 
 // CTerrain10020aa0 copies XYZ unchanged and A,C,B with source low16 flags.
 // The later externalZON10065430 SKIPS first terrain placement; its authored
 // transform is not applied to terrain. Do not substitute azone triangles.
-inline constexpr std::array<TerrainCatalogEntry,10> OriginalTerrainCatalog{{
+inline constexpr std::array<TerrainCatalogEntry,13> OriginalTerrainCatalog{{
 {714,6540,4935,"phinterior3a1","6a50b95f20c88870e132b2e40fc907addddf1b3066ecade9a1afeaf0d9a69112","fbd6a4de7dfcce1a4686443ef30cc802bf39405a6454504e0ba858b832504a2c",{0,"ter_plhinterior1.ter","6571467569e3be5d5828b02665a17c4bc4a5b6e30cf952e3de2e202a1da3759d","7bb719cfb1301d17dfbeab4888b42385bbb6f12ef758c797fe57f2cb24a601f1","c3eeae898a9ee3239f47e845373b6b617f684a768d9a92546c03bba3215db36b"}},
 {716,7815,4935,"phinterior3a2","1b646dc15140d446067efff9d5334d41044df0471119350c53670a6e355fba8c","d6547c239886477fb3b123b1dd37d3bf86d7ea03446c613edef0b39cafe98229",{0,"ter_phinterior3a2.ter","e1e3595ea2e2f36885031bb73396f28ce374fe519812444e511d3bd147b15aba","68ce4785a02b54b1e2d153378b32ef22914af148b9caaf0bfdf2c77e4dc8bfbb","c574c773c443cd205fc5db7f4f44b4ea1914971e9831b68d45ea042ef6624ca7"}},
 {717,7371,4935,"phinterior3a3","12b899113198ce6c72a8998a461b6e50595cdbc4742ab37eb48477a2567b6f90","20c91d96537279ce91925786e5b4bdc590d5399fec3e8b4cf45fe5106f742596",{0,"ter_phinterior3a3.ter","380eb62c362cdc7c6f8fb609ff7bc7d32a3cd5dab32a9f0ca273c848237cb5ab","45b81431734c0babbf4c22c45bf7e21dbd684f2c7b871bf7ab125f7fefd5e9e2","3697c9b8975bb6c5ce155ef419bbe77e9a3d48806ec47ab5302623591ce635f5"}},
@@ -19,6 +19,7 @@ inline constexpr std::array<TerrainCatalogEntry,10> OriginalTerrainCatalog{{
 {738,12612,7854,"guildhallsml","c2d721bc975db78b20586366eb69bca160b12fef50541cc9285e8267d6279e3d","baefe3746ef9f32d0426b14f9feca2d50addb38a2ef8e5d012959d90b9d8ca40",{0,"ter_entry_room.ter","2041335411b4e2426b1a90521fc38703bd1e56e0ff39497c7b54a2e3739eebe1","f33bc06d3415b07e8745bea7d7802297b3049ce7aa4d4ccdc3f3d45f9942daef","cc399428a2706b1ed1773e7a823afd5bbb015cba327610aca1e2d414ca9cc38e"}},
 {737,100636,50542,"guildhalllrg","6e89264f72245f79b062d206fb3cfa79599c26c523ec0fe568c1101a321e4029","3f7b8c0dbde496a4a802930aceb39694650305bafdeb019cdafc985acfdc90fa",{0,"ter_centerrm.ter","4c18ed312bad5cc547b970494d27ff8235c6d3d09d5ca342fc6246469317abc5","66840bd528fe9a214e8d3029399cd24c80687773f67026967d5508ac5d2ab6da","c394dea220a74d2960b22633c7924c4e4093269689312835ed5d1c8e504e7377"}},
 {751,8378,5264,"guildhall3","f8c8703ff3288e2350bb394d1c52b06dbd4392d852aca5f21f27227371651240","592667a7b6ff715dbb6a55532109b191db2efcbd82a6278a53678ebaead47f2d",{0,"ter_guildhall3.ter","8731c7bdf261b4b428d1f077b4e7ccc54a9f5f9f1f4aeef7017cfb4b92fa500f","fe3ecd056c2b199ad26c1ea3d7a06bac48be827a030e2150ebe7cc732826a0b8","c5c1b9a8dd09b0db76e4f49c36fa377b2a852aacbbbe5c41a436232a4e189bf2"}}
+#include "original_variant_terrain.inc"
 }};
 // Original-owned private immutable sidecar only. Compiled metadata authenticates
 // source bytes and exact world-frame convention. Caller separately authenticates

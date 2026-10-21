@@ -51,11 +51,15 @@ struct Provider {
  static std::shared_ptr<const Resource> ReadResource(std::string_view zone,uint32_t index,std::span<const uint8_t> bytes){
   const auto*p=Find(zone,index);if(!p)return {};auto mesh=Geometry(zone,index,bytes);if(!mesh)return {};auto resource=std::shared_ptr<Resource>(new Resource);resource->mesh_sha_=p->mesh.mesh_sha256;resource->mesh_=mesh;
   if(!p->raw_low16_zero){
-   // Exact compiled Standard OBP_water only. Hash/geometry/count checks above
+   // Exact compiled Standard OBP_water and four original Tree visual steps.
+   // Every source triangle has low16 flag1 and is skipped by the original query.
+   // Hash/geometry/count checks above
    // bind the original ordinary kind0, +5cfalse, no-override profile. Its name
    // matches none of100c5270's special mutation profiles. Current association
    // with that original definition remains independently required by Bind.
-   if(p->zone!="guildhall"||p->placement_index!=86||p->vertices!=30||p->polygons!=40||!std::all_of(mesh->polygons.begin(),mesh->polygons.end(),[](const auto&poly){return poly.flags==1;}))return {};
+   const bool reviewed_empty=(p->zone=="guildhall"&&p->placement_index==86&&p->vertices==30&&p->polygons==40)||
+    (p->zone=="phinteriortree"&&p->placement_index>=21&&p->placement_index<=24);
+   if(!reviewed_empty||!std::all_of(mesh->polygons.begin(),mesh->polygons.end(),[](const auto&poly){return poly.flags==1;}))return {};
    resource->all_skipped_=true;return resource;
   }
   if(p->polygons>200){auto generated=OriginalSimpleTreeGenerator::Build(mesh,{true,true,false,0,p->polygons});if(generated.status!=OriginalSimpleTreeGenerator::Status::Ready)return {};resource->tree_=std::make_shared<const OriginalSimpleTreeQuery::Tree>(std::move(generated.tree));}

@@ -23493,6 +23493,7 @@ case 717:return ConnectedRegionData{717,"phinterior3a3","45b81431734c0babbf4c22c
 {1,{{0x1.0bbf680000000p+3f,0x1.0bbf680000000p+3f}},{{-0x1.d457ae0000000p+4f,-0x1.bf2bc60000000p+4f,0x1.ae84aa0000000p-1f,0x1.6666640000000p+1f}},{{4931,4932}}},
 {0,{{-0x1.d457b00000000p+4f,-0x1.d457b00000000p+4f}},{{0x1.0bbf6a0000000p+3f,0x1.3617400000000p+3f,0x1.ae84aa0000000p-1f,0x1.6666640000000p+1f}},{{4933,4934}}},
 }};
+#include "interior_variant_connected_regions.inc"
 default:return {};}}
 }
 #endif

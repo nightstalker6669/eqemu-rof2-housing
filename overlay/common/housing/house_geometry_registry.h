@@ -5,7 +5,8 @@
 #include <string_view>
 namespace Housing::HouseGeometry {
 // Original RoF2 plain CSimpleModel geometry: existing native-correlated records
-// plus hash-pinned finite static resource class records (policy2). Those class
+// plus hash-pinned finite static resource class records (policy2), and an
+// explicit original EQLOD collision child (policy3). Those class
 // records are not individual native captures. Geometry recognition does not
 // authorize adoption, ownership, child allocation, interior routing or placement.
 // In particular Grand and Modest share geometry, but remain separate item IDs.
@@ -151,6 +152,7 @@ inline constexpr Record Records[]={
  {61940,20018,"IT20018",{20018,{9.5367431640625e-07,9.5367431640625e-07,20.142614364624023},{20.270057678222656,16.886863708496094,20.142621994018555},true,7.62939453125e-06},"336cf1c30cc1de0183c6b1f3ca85f09fdb39c558dbb4dc64a94744a458db40cf","373311ee551c2d9cb1b4cb80ce68c6c8a834c26bc0ae2a1c9d67169dcc1f64ba","4a235a77023b6fd670d859bc5e75a4beba15b158f08d9491d06bc1f05091cac5","e5702d35f977a802b2d264c4c325c79c26930665d6cacd4e7d0d53367d2be6ce","afd89e96dba48ce5d3205cd908bbc325842c97723d0b380fd7158ed62fc449cb",1802,1028,2,false},
  {61941,20018,"IT20018",{20018,{9.5367431640625e-07,9.5367431640625e-07,20.142614364624023},{20.270057678222656,16.886863708496094,20.142621994018555},true,7.62939453125e-06},"336cf1c30cc1de0183c6b1f3ca85f09fdb39c558dbb4dc64a94744a458db40cf","373311ee551c2d9cb1b4cb80ce68c6c8a834c26bc0ae2a1c9d67169dcc1f64ba","4a235a77023b6fd670d859bc5e75a4beba15b158f08d9491d06bc1f05091cac5","e5702d35f977a802b2d264c4c325c79c26930665d6cacd4e7d0d53367d2be6ce","afd89e96dba48ce5d3205cd908bbc325842c97723d0b380fd7158ed62fc449cb",1802,1028,2,false},
  {61942,20018,"IT20018",{20018,{9.5367431640625e-07,9.5367431640625e-07,20.142614364624023},{20.270057678222656,16.886863708496094,20.142621994018555},true,7.62939453125e-06},"336cf1c30cc1de0183c6b1f3ca85f09fdb39c558dbb4dc64a94744a458db40cf","373311ee551c2d9cb1b4cb80ce68c6c8a834c26bc0ae2a1c9d67169dcc1f64ba","4a235a77023b6fd670d859bc5e75a4beba15b158f08d9491d06bc1f05091cac5","e5702d35f977a802b2d264c4c325c79c26930665d6cacd4e7d0d53367d2be6ce","afd89e96dba48ce5d3205cd908bbc325842c97723d0b380fd7158ed62fc449cb",1802,1028,2,false},
+#include "house_geometry_variant_aliases.inc"
 };
 inline const Record* Lookup(uint32_t item,std::string_view model){
  for(const auto& record:Records)if(record.item_id==item&&model==record.model)return &record;

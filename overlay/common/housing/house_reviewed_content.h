@@ -29,7 +29,7 @@ public:
    if(!definition||!items.insert(e.item_id).second||r.definition_id!=definition||
       !r.reviewed_server_route||r.zone_version||!OriginalInteriors::Matches(r.zone_id,r.zone_short_name)||
       ((HouseTemplates::Type(e.item_id)==2)!=(r.zone_id==345||r.zone_id==737||r.zone_id==738||r.zone_id==751))||
-      (e.item_id!=61823&&HouseTemplates::Type(e.item_id)==3&&!HouseTemplates::Matches(e.item_id,r.definition_id,r.zone_id))||
+      (e.item_id!=61823&&!HouseTemplates::Matches(e.item_id,r.definition_id,r.zone_id))||
       !ContentBinding::Detail::Hash(r.client_asset_sha256)||!ContentBinding::Detail::Hash(r.collision_map_sha256)||
       !ContentBinding::Detail::Hash(r.content_manifest_sha256))throw std::invalid_argument("Invalid reviewed house content");
    for(const auto& point:{r.spawn,r.exit}){

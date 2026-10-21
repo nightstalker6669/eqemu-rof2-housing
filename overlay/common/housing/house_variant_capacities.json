@@ -1,0 +1,1086 @@
+{
+  "format": "reviewed-house-variant-capacities-v1",
+  "classification": "Partialcontentreferencewith explicit sourcequality; NOTa recoveredcomplete2013definitionbatch",
+  "unknown_fields_are_null": true,
+  "unknown_subset_policy": "Generator may disable unsupported subset capabilities explicitly atwire0; zero is implementationpolicy, nothistoricalevidence",
+  "definitions": [
+    {
+      "definition_id": 5,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61823,
+        61826,
+        61829,
+        61832,
+        61835,
+        61838
+      ],
+      "zone_id": 714,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco House, Stucco interior",
+        "Zimel Style Plaster House, Stucco interior",
+        "Zimel Style Stone House, Stucco interior",
+        "Monel Style Plaster House, Stucco interior",
+        "Monel Style Country House, Stucco interior",
+        "Monel Style Brick House, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 7,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61824,
+        61827,
+        61830,
+        61833,
+        61836,
+        61839
+      ],
+      "zone_id": 716,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco House, Wood interior",
+        "Zimel Style Plaster House, Wood interior",
+        "Zimel Style Stone House, Wood interior",
+        "Monel Style Plaster House, Wood interior",
+        "Monel Style Country House, Wood interior",
+        "Monel Style Brick House, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 8,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61825,
+        61828,
+        61831,
+        61834,
+        61837,
+        61840
+      ],
+      "zone_id": 717,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco House, Stone interior",
+        "Zimel Style Plaster House, Stone interior",
+        "Zimel Style Stone House, Stone interior",
+        "Monel Style Plaster House, Stone interior",
+        "Monel Style Country House, Stone interior",
+        "Monel Style Brick House, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 9,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61841,
+        61844,
+        61847,
+        61850,
+        61853,
+        61856
+      ],
+      "zone_id": 714,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Hut, Stucco interior",
+        "Zimel Style Plaster Hut, Stucco interior",
+        "Zimel Style Stone Hut, Stucco interior",
+        "Monel Style Plaster Hut, Stucco interior",
+        "Monel Style Country Hut, Stucco interior",
+        "Monel Style Brick Hut, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 10,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61842,
+        61845,
+        61848,
+        61851,
+        61854,
+        61857
+      ],
+      "zone_id": 716,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Hut, Wood interior",
+        "Zimel Style Plaster Hut, Wood interior",
+        "Zimel Style Stone Hut, Wood interior",
+        "Monel Style Plaster Hut, Wood interior",
+        "Monel Style Country Hut, Wood interior",
+        "Monel Style Brick Hut, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 11,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61843,
+        61846,
+        61849,
+        61852,
+        61855,
+        61858
+      ],
+      "zone_id": 717,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Hut, Stone interior",
+        "Zimel Style Plaster Hut, Stone interior",
+        "Zimel Style Stone Hut, Stone interior",
+        "Monel Style Plaster Hut, Stone interior",
+        "Monel Style Country Hut, Stone interior",
+        "Monel Style Brick Hut, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 12,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61859,
+        61862,
+        61865,
+        61868,
+        61871,
+        61874
+      ],
+      "zone_id": 714,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Residence, Stucco interior",
+        "Zimel Style Plaster Residence, Stucco interior",
+        "Zimel Style Stone Residence, Stucco interior",
+        "Monel Style Plaster Residence, Stucco interior",
+        "Monel Style Country Residence, Stucco interior",
+        "Monel Style Brick Residence, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 13,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61860,
+        61863,
+        61866,
+        61869,
+        61872,
+        61875
+      ],
+      "zone_id": 716,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Residence, Wood interior",
+        "Zimel Style Plaster Residence, Wood interior",
+        "Zimel Style Stone Residence, Wood interior",
+        "Monel Style Plaster Residence, Wood interior",
+        "Monel Style Country Residence, Wood interior",
+        "Monel Style Brick Residence, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 14,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61861,
+        61864,
+        61867,
+        61870,
+        61873,
+        61876
+      ],
+      "zone_id": 717,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Residence, Stone interior",
+        "Zimel Style Plaster Residence, Stone interior",
+        "Zimel Style Stone Residence, Stone interior",
+        "Monel Style Plaster Residence, Stone interior",
+        "Monel Style Country Residence, Stone interior",
+        "Monel Style Brick Residence, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 15,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61877,
+        61880,
+        61883,
+        61886,
+        61889,
+        61892
+      ],
+      "zone_id": 714,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Domicile, Stucco interior",
+        "Zimel Style Plaster Domicile, Stucco interior",
+        "Zimel Style Stone Domicile, Stucco interior",
+        "Monel Style Plaster Domicile, Stucco interior",
+        "Monel Style Country Domicile, Stucco interior",
+        "Monel Style Brick Domicile, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 16,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61878,
+        61881,
+        61884,
+        61887,
+        61890,
+        61893
+      ],
+      "zone_id": 716,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Domicile, Wood interior",
+        "Zimel Style Plaster Domicile, Wood interior",
+        "Zimel Style Stone Domicile, Wood interior",
+        "Monel Style Plaster Domicile, Wood interior",
+        "Monel Style Country Domicile, Wood interior",
+        "Monel Style Brick Domicile, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 17,
+      "type": 3,
+      "room_count": 3,
+      "template_ids": [
+        61879,
+        61882,
+        61885,
+        61888,
+        61891,
+        61894
+      ],
+      "zone_id": 717,
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Zimel Style Stucco Domicile, Stone interior",
+        "Zimel Style Plaster Domicile, Stone interior",
+        "Zimel Style Stone Domicile, Stone interior",
+        "Monel Style Plaster Domicile, Stone interior",
+        "Monel Style Country Domicile, Stone interior",
+        "Monel Style Brick Domicile, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 18,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61895,
+        61898,
+        61901,
+        61904
+      ],
+      "zone_id": 715,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster House, Stucco interior",
+        "Cobbler Style Stone House, Stucco interior",
+        "Behroe Style Stone House, Stucco interior",
+        "Behroe Style Brick House, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 19,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61896,
+        61899,
+        61902,
+        61905
+      ],
+      "zone_id": 718,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster House, Wood interior",
+        "Cobbler Style Stone House, Wood interior",
+        "Behroe Style Stone House, Wood interior",
+        "Behroe Style Brick House, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 20,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61897,
+        61900,
+        61903,
+        61906
+      ],
+      "zone_id": 719,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster House, Stone interior",
+        "Cobbler Style Stone House, Stone interior",
+        "Behroe Style Stone House, Stone interior",
+        "Behroe Style Brick House, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 21,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61907,
+        61910,
+        61913,
+        61916,
+        67078
+      ],
+      "zone_id": 715,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Hut, Stucco interior",
+        "Cobbler Style Stone Hut, Stucco interior",
+        "Behroe Style Stone Hut, Stucco interior",
+        "Behroe Style Brick Hut, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 22,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61908,
+        61911,
+        61914,
+        61917
+      ],
+      "zone_id": 718,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Hut, Wood interior",
+        "Cobbler Style Stone Hut, Wood interior",
+        "Behroe Style Stone Hut, Wood interior",
+        "Behroe Style Brick Hut, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 23,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61909,
+        61912,
+        61915,
+        61918
+      ],
+      "zone_id": 719,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Hut, Stone interior",
+        "Cobbler Style Stone Hut, Stone interior",
+        "Behroe Style Stone Hut, Stone interior",
+        "Behroe Style Brick Hut, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 24,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61919,
+        61922,
+        61925,
+        61928
+      ],
+      "zone_id": 715,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Residence, Stucco interior",
+        "Cobbler Style Stone Residence, Stucco interior",
+        "Behroe Style Stone Residence, Stucco interior",
+        "Behroe Style Brick Residence, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 25,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61920,
+        61923,
+        61926,
+        61929
+      ],
+      "zone_id": 718,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Residence, Wood interior",
+        "Cobbler Style Stone Residence, Wood interior",
+        "Behroe Style Stone Residence, Wood interior",
+        "Behroe Style Brick Residence, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 26,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61921,
+        61924,
+        61927,
+        61930
+      ],
+      "zone_id": 719,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Residence, Stone interior",
+        "Cobbler Style Stone Residence, Stone interior",
+        "Behroe Style Stone Residence, Stone interior",
+        "Behroe Style Brick Residence, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 27,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61931,
+        61934,
+        61937,
+        61940
+      ],
+      "zone_id": 715,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Domicile, Stucco interior",
+        "Cobbler Style Stone Domicile, Stucco interior",
+        "Behroe Style Stone Domicile, Stucco interior",
+        "Behroe Style Brick Domicile, Stucco interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 28,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61932,
+        61935,
+        61938,
+        61941
+      ],
+      "zone_id": 718,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Domicile, Wood interior",
+        "Cobbler Style Stone Domicile, Wood interior",
+        "Behroe Style Stone Domicile, Wood interior",
+        "Behroe Style Brick Domicile, Wood interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 29,
+      "type": 3,
+      "room_count": 1,
+      "template_ids": [
+        61933,
+        61936,
+        61939,
+        61942
+      ],
+      "zone_id": 719,
+      "max_items": 300,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "definition_identity_evidence": "retained later item metadata",
+      "complete_original_definition": false,
+      "template_names": [
+        "Cobbler Style Plaster Domicile, Stone interior",
+        "Cobbler Style Stone Domicile, Stone interior",
+        "Behroe Style Stone Domicile, Stone interior",
+        "Behroe Style Brick Domicile, Stone interior"
+      ],
+      "profile_policy": "Known total only. Existing subset-disabled profiles are technical capability restrictions; never call their zeros recovered Live limits.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "2013-04-17 class-wide item total; original author transcription independently retained",
+      "provenance": "retained later item metadata"
+    },
+    {
+      "definition_id": 30,
+      "type": 3,
+      "zone_id": null,
+      "template_ids": [
+        54999
+      ],
+      "max_items": 400,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "evidence": "Original2013patch explicitly names Hermit400; retained originalcollector identity supplied by root",
+      "provenance": "Named2013patchtotal",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "complete_original_definition": false,
+      "route_status": "Unresolvedperiod720vs723; modernmesh723association requiresreview"
+    },
+    {
+      "definition_id": 32,
+      "type": 3,
+      "zone_id": 714,
+      "template_ids": [
+        57501,
+        57504,
+        57507,
+        57510,
+        57513,
+        57516,
+        64378,
+        64381,
+        64384,
+        64387,
+        64390,
+        64393
+      ],
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "evidence": "EverylocalManorloreexplicit3room; Apr2013universal3roomtotal500",
+      "provenance": "Universal2013three-roomtotal; retainedlateritemname/definition/loreassociation",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "complete_original_definition": false
+    },
+    {
+      "definition_id": 33,
+      "type": 3,
+      "zone_id": 716,
+      "template_ids": [
+        57502,
+        57505,
+        57508,
+        57511,
+        57514,
+        57517,
+        64379,
+        64382,
+        64385,
+        64388,
+        64391,
+        64394
+      ],
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "evidence": "EverylocalManorloreexplicit3room; Apr2013universal3roomtotal500",
+      "provenance": "Universal2013three-roomtotal; retainedlateritemname/definition/loreassociation",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "complete_original_definition": false
+    },
+    {
+      "definition_id": 34,
+      "type": 3,
+      "zone_id": 717,
+      "template_ids": [
+        57503,
+        57506,
+        57509,
+        57512,
+        57515,
+        57518,
+        64380,
+        64383,
+        64386,
+        64389,
+        64392,
+        64395
+      ],
+      "max_items": 500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "evidence": "EverylocalManorloreexplicit3room; Apr2013universal3roomtotal500",
+      "provenance": "Universal2013three-roomtotal; retainedlateritemname/definition/loreassociation",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "complete_original_definition": false
+    },
+    {
+      "definition_id": 38,
+      "type": 2,
+      "template_ids": [
+        66618
+      ],
+      "zone_id": 345,
+      "name": "Standard Guild Hall",
+      "max_items": null,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "No period-authenticated numerical capacity recovered",
+      "complete_original_definition": false,
+      "template_names": [
+        "Standard Guild Hall"
+      ],
+      "profile_policy": "Preserve existing bound Standard fixtures; no new complete original profile can be seeded from available capacity evidence.",
+      "source_urls": [
+        "https://www.redguides.com/community/threads/so-you-want-to-buy-a-guild-hall.89350/"
+      ],
+      "evidence": "No period-authenticated numerical capacity recovered",
+      "provenance": "Historicaltotalunknown; existingboundtechnicalprofilespreserved",
+      "later_placeable_count": 1000
+    },
+    {
+      "definition_id": 39,
+      "type": 2,
+      "template_ids": [
+        66619
+      ],
+      "zone_id": 738,
+      "name": "Grand Guild Hall",
+      "max_items": null,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "No period-authenticated numerical capacity recovered",
+      "complete_original_definition": false,
+      "template_names": [
+        "Grand Guild Hall"
+      ],
+      "profile_policy": "Preserve existing bound Standard fixtures; no new complete original profile can be seeded from available capacity evidence.",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "evidence": "No period-authenticated numerical capacity recovered",
+      "provenance": "NoexactcredibleGrandnumericcapacityrecovered; activationdisabled"
+    },
+    {
+      "definition_id": 40,
+      "type": 2,
+      "template_ids": [
+        66620
+      ],
+      "zone_id": 737,
+      "name": "Palatial Guild Hall",
+      "max_items": 2000,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "2013-04-17 firsthand player Palatial total2000; not server definition",
+      "complete_original_definition": false,
+      "template_names": [
+        "Palatial Guild Hall"
+      ],
+      "profile_policy": "Preserve existing bound Standard fixtures; no new complete original profile can be seeded from available capacity evidence.",
+      "source_urls": [
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/post-2945712"
+      ],
+      "evidence": "2013-04-17 firsthand player Palatial total2000; not server definition",
+      "provenance": "Contemporaneousfirsthandplayerreport Apr17,2013; notserverdefinition"
+    },
+    {
+      "definition_id": 41,
+      "type": 2,
+      "template_ids": [
+        66660
+      ],
+      "zone_id": 751,
+      "name": "Modest Guild Hall",
+      "max_items": 1500,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "total_evidence": "No period-authenticated numerical capacity recovered",
+      "complete_original_definition": false,
+      "template_names": [
+        "Modest Guild Hall"
+      ],
+      "profile_policy": "Preserve existing bound Standard fixtures; no new complete original profile can be seeded from available capacity evidence.",
+      "source_urls": [
+        "https://www.redguides.com/community/threads/so-you-want-to-buy-a-guild-hall.89350/",
+        "https://www.redguides.com/community/threads/teleport-anchors-and-pocket-guilds.76065/"
+      ],
+      "evidence": "Modest1500placeableitemsreportedDec2023; Jan2021independenttentative1500corroboration",
+      "provenance": "Later2023firsthandplayerguide placeablecount; reconstructedordinaryfurnishinglimit, NOTauthenticated2013total"
+    },
+    {
+      "definition_id": 42,
+      "type": 3,
+      "zone_id": 766,
+      "template_ids": [
+        77407
+      ],
+      "max_items": 600,
+      "max_non_estate_items": null,
+      "max_npc_items": null,
+      "max_children": null,
+      "children": null,
+      "evidence": "Original2013patch explicitly names Evantil600; retained originalcollector identity supplied by root",
+      "provenance": "Named2013patchtotal",
+      "source_urls": [
+        "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+      ],
+      "complete_original_definition": false
+    }
+  ]
+}

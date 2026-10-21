@@ -140,8 +140,11 @@ referenced hidden stat items and keys in your own item database before use.
    prefix** selected by `variables.hotfix_name`, including a nonempty prefix if
    one is active. Confirm which item database supplies that generation and
    verify the reviewed item metadata is present there. Keep all zones stopped
-   while replacing the dataset. Restart world and zones, then verify the running
-   processes attach the intended regenerated dataset.
+   while replacing the dataset. Select the generated prefix **after** the
+   `shared_memory` process finishes: this upstream tool can clear
+   `variables.hotfix_name` when it contains `hotfix_`. Recheck the final variable
+   before restarting world and zones, then verify the running processes attach
+   the intended regenerated dataset.
 
 Do not substitute `#hotfix` alone for step4. In this upstream code, the shared
 item generation/hotfix path can load through `content_db`, while normal zone
@@ -152,3 +155,45 @@ No guessed tradeskill minimum levels are retained, and evolving physical trophy
 placement remains disabled until its separate identity/progression can survive
 custody, relog, recovery, containment and retirement. Unknown catalogue entries
 remain excluded. The repository supplies no client assets or complete item seed.
+
+## Additional reviewed house variants
+
+Use [the portable variant generator](HOUSE-VARIANTS-2026-10-21.md) with the
+operator's matching original client and prepared maps. Preserve every existing
+configured template and its permanent bindings. Activate the generated proposal
+through reviewed production catalogue/persistence setup in a fresh neighborhood;
+generation itself makes no database or runtime changes.
+
+Review the three optional October21 migrations: Evantil77407 item metadata,
+missing original zone766 registration, and supported guild737/738/751 zone identity/
+normal-player access. Their technical policies and guarded preconditions are
+explicit in the SQL and variant documentation. Stop metadata writers, apply
+against the correct configured database, regenerate shared items, select the
+generated prefix after generation finishes, and cold-start world and every zone
+to refresh both item and zone caches. A hotfix alone is insufficient.
+
+For full room quotas, also install unseeded migration039 and review the separate
+source-labelled capacity policy. The checked maintenance API appends policies
+for existing rooms and exact template/base grants for future legacy allocations;
+it does not rewrite original profile bytes or historic item tags. Native bootstrap
+uses effective values. Keep all world/zones stopped for existing-room upgrades,
+review the complete pinned plan and retain backups. Adding Grand requires merging
+its registry entry with existing Palatial/Modest entries and a reviewed fresh
+plot catalogue that permits definition39; do not rewrite a bound catalogue.
+NPC quotas do not seed missing NPC item metadata. See [capacity and identity
+boundaries](HOUSE-VARIANTS-2026-10-21.md#existing-rooms-and-future-preserved-templates).
+
+Capacity maintenance requires the operator to stop every world and zone process. The API locks historical inventory process records without treating them as death certificates; it refuses active inventory sessions, leases or pending work. Installing capacities does not reconcile inventory or mark a process reaped.
+
+### Guild-recipient policy and character saves
+
+Apply [character-save compatibility](../overlay/utils/sql/optional/2026_10_21_housing_character_save_compatibility.sql) after installing guild inactivity policies.
+The upstream character save uses `REPLACE`, whose transient delete conflicts
+with the old recipient foreign key. The guarded migration removes only the exact
+`housing_guild_inactive_recipient` constraint, preserving policy and receipt
+rows; conflicting definitions are refused. Fresh guild-policy creation omits this
+constraint. The service still locks and revalidates the current guild, leader,
+recipient, account and nondeleted character before retirement. Stop concurrent
+schema writers; no process restart or item-cache regeneration is required for
+this DDL-only correction. The applied migration conserved policy rows, and
+ordinary native zoning/save persisted the correct destination instance.

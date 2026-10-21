@@ -174,6 +174,21 @@ def catalog(overlay):
         source = directory / name
         require(source.is_file() and source.stat().st_size <= 4 * 1024 * 1024, f'Missing/oversized catalog: {name}')
         text = source.read_text(encoding='utf-8')
+        # These two reviewed tables preserve their older entries and append
+        # immutable variant records through a single bounded local include.
+        include = {
+            'original_terrain_source.h': 'original_variant_terrain.inc',
+            'original_zon_authored_actor_catalog.h': 'original_zon_variant_actors.inc',
+        }.get(name)
+        if include and ('#include "' + include + '"') in text:
+            marker = '#include "' + include + '"'
+            require(text.count(marker) == 1, 'Duplicate variant catalog include')
+            part = directory / include
+            require(part.is_file() and not part.is_symlink() and part.stat().st_size <= 4 * 1024 * 1024,
+                    f'Missing/oversized variant catalog: {include}')
+            extra = part.read_text(encoding='utf-8')
+            require('#include' not in extra, 'Nested variant catalog include refused')
+            text = text.replace(marker, extra)
         rows = ROW.findall(text)
         counts = re.findall(r'std::array<[^>\n]+,\s*(\d+)>\s+\w+\s*\{\{', text)
         require(len(counts) == 1 and len(rows) == int(counts[0]) and rows, f'Unsupported/incomplete catalog schema: {name}')

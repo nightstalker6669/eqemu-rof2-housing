@@ -3,6 +3,7 @@
 #include "interior_content_binding.h"
 #include "scene_service.h"
 #include "house_binding_service.h"
+#include "interior_capacity_policy_db.h"
 #include <cctype>
 namespace Housing::InteriorContent {
 struct Snapshot {Scene::InteriorSnapshot context;Profile room;uint64_t profile_revision=0;};
@@ -43,7 +44,7 @@ inline LiveItems::Result<Snapshot> ReadProfileUnderTransaction(Database& db,cons
   const auto& outer=context.value.context.house_definition;
   if(p.definition.id!=interior.definition_id||p.definition.type!=outer.type||p.definition.zone_id!=source.zone_id||p.region.id!=p.definition.area_id||!p.definition.area_id||!p.definition.max_items||p.definition.max_non_estate_items>p.definition.max_items||!OriginalInteriors::Matches(source.zone_id,p.zone_short_name))return {{},Error::Conflict};
   RegionPayload(p);out.context=std::move(context.value);
-  if(!(anchor?profile_policy.ReviewedAnchorUnderTransaction(db,fence,lease,out):profile_policy.ReviewedUnderTransaction(db,fence,lease,out)))return {{},Error::Unauthorized};p.reviewed_room=true;
+  if(!(anchor?profile_policy.ReviewedAnchorUnderTransaction(db,fence,lease,out):profile_policy.ReviewedUnderTransaction(db,fence,lease,out)))return {{},Error::Unauthorized};if(!InteriorCapacity::ApplyUnderTransaction(db,p,out.profile_revision))return {{},Error::Conflict};p.reviewed_room=true;
   return {std::move(out),Error::None};
  }catch(...){return {{},Error::DatabaseFailure};}
 }

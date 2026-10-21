@@ -61,6 +61,27 @@ inline std::string Cargo(Database& db,uint64_t crate,uint32_t owner,const std::v
  Append(db,out,"interiors","SELECT house_id,native_estate_id,zone_id,zone_version,instance_id,HEX(catalog_key),catalog_revision FROM housing_house_interiors WHERE house_id IN ("+houses+") ORDER BY house_id",7);
  return out;
 }
+// A picked-up house retains its permanent interior/native identity for later
+// reparenting. It is not an installed child of its historical plot. Recognize
+// only a complete, empty, quiescent carried binding; never deactivate the node.
+inline void CheckRetirementChildren(Database& db,uint32_t parent,const std::string& allowed_custody={}){
+ auto children=Q(db,"SELECT native_id,node_key,definition_id,catalog_key FROM housing_native_estates WHERE parent_native_id="+Id(parent)+" AND active=1 ORDER BY native_id FOR UPDATE");
+ for(auto child=children.begin();child!=children.end();++child){
+  const auto native=N(child[0]);
+  if(!allowed_custody.empty()&&Q(db,"SELECT i.house_id FROM housing_house_interiors i JOIN housing_house_locations l ON l.house_id=i.house_id AND l.location_kind=2 WHERE i.native_estate_id="+Id(native)+" AND l.custody_id IN ("+allowed_custody+") FOR UPDATE").RowCount()==1)continue;
+  auto found=Q(db,"SELECT h.house_id,h.item_template_id,h.pending_request_key,l.location_kind,l.character_id,l.slot_id,l.custody_id,i.definition_id,i.zone_id,i.zone_version,i.instance_id,i.catalog_key,i.catalog_revision FROM housing_house_interiors i JOIN housing_house_instances h USING(house_id) JOIN housing_house_locations l USING(house_id) WHERE i.native_estate_id="+Id(native)+" FOR UPDATE");
+  if(found.RowCount()!=1)throw Stop{Status::Deferred};auto r=found.begin();const auto house=N(r[0]),item=N(r[1]),owner=N(r[4]),slot=N(r[5]);
+  if(r[2]||N(r[3])!=1||r[6]||!owner||owner>UINT32_MAX||slot>UINT32_MAX||!child[1]||std::string(child[1])!="house:"+Id(house)||N(child[2])!=N(r[7])||!child[3]||!r[11]||std::string(child[3])!=r[11]||!N(r[12]))throw Stop{Status::Deferred};
+  // Session acquisition locks this character row; fence a foreign carried owner too.
+  if(Q(db,"SELECT id FROM character_data WHERE id="+Id(owner)+" AND deleted_at IS NULL FOR UPDATE").RowCount()!=1)throw Stop{Status::Deferred};
+  auto inventory=Q(db,"SELECT "+std::string(InventoryRowDB::Columns)+" FROM inventory WHERE character_id="+Id(owner)+" AND slot_id="+Id(slot)+" FOR UPDATE");if(inventory.RowCount()!=1)throw Stop{Status::Deferred};auto carried=InventoryRowDB::Decode(inventory.begin());
+  if(!CustodyCodec::Valid(carried)||carried.values.item_id!=item||(carried.values.charges!=0&&carried.values.charges!=1))throw Stop{Status::Deferred};
+  auto metadata=Q(db,"SELECT idfile,UNK227,evoitem FROM items WHERE id="+Id(item)+" FOR UPDATE");if(metadata.RowCount()!=1||!metadata.begin()[0]||!HouseGeometry::Lookup(uint32_t(item),metadata.begin()[0])||N(metadata.begin()[1])!=N(r[7])||N(metadata.begin()[2]))throw Stop{Status::Deferred};
+  if(Q(db,"SELECT house_id FROM housing_house_room_profiles WHERE house_id="+Id(house)+" FOR UPDATE").RowCount()!=1)throw Stop{Status::Deferred};
+  auto instance=Q(db,"SELECT id FROM instance_list WHERE id="+Id(N(r[10]))+" AND zone="+Id(N(r[8]))+" AND version="+Id(N(r[9]))+" AND never_expires=1 FOR UPDATE");if(instance.RowCount()!=1)throw Stop{Status::Deferred};
+  for(const auto& query:{"SELECT native_item_id FROM housing_live_placement_reservations WHERE native_estate_id="+Id(native)+" AND state=0","SELECT custody_id FROM housing_live_item_storage WHERE native_estate_id="+Id(native),"SELECT custody_id FROM housing_house_item_scopes WHERE house_id="+Id(house),"SELECT custody_id FROM housing_live_vault_items WHERE house_id="+Id(house),"SELECT p.native_item_id FROM housing_interior_placement_reservations p LEFT JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id WHERE p.house_id="+Id(house)+" AND (r.native_item_id IS NULL OR r.state<>2 OR r.custody_id IS NOT NULL)","SELECT native_id FROM housing_native_estates WHERE parent_native_id="+Id(native)+" AND active=1","SELECT character_id FROM housing_inventory_sessions WHERE (character_id="+Id(owner)+" OR (zone_id="+Id(N(r[8]))+" AND instance_id="+Id(N(r[10]))+")) AND active=1","SELECT character_id FROM housing_live_item_leases WHERE character_id="+Id(owner)+" AND (active=1 OR pending_key IS NOT NULL)","SELECT character_id FROM housing_house_inventory_pending WHERE character_id="+Id(owner)})Empty(db,query);
+ }
+}
 // Only the trusted offline retirement transaction calls this helper, after
 // locking its actual inactive owner, generation and exact delivery review.
 // Review absence retains the prior packed-crate-only behavior.
@@ -225,7 +246,7 @@ inline Status RetireImpl(Database& db,uint32_t estate,uint32_t now,bool guild){
   Empty(db,"SELECT custody_id FROM housing_live_item_custody WHERE estate_id="+Id(estate));
   Empty(db,"SELECT custody_id FROM housing_live_item_storage WHERE native_estate_id="+Id(native));
   Empty(db,"SELECT p.custody_id FROM housing_live_placed_items p JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id WHERE r.native_estate_id="+Id(native));
-  Empty(db,"SELECT native_id FROM housing_native_estates WHERE parent_native_id="+Id(native)+" AND active=1");
+  CheckRetirementChildren(db,uint32_t(native));
   }
  }
  if(refund){One(db,"UPDATE character_currency SET copper="+Id(after_money[3])+" WHERE id="+Id(owner)+" AND copper="+Id(before_money[3]));One(db,"UPDATE housing_escrow_balances SET copper=0 WHERE estate_id="+Id(estate)+" AND copper="+Id(refund));}

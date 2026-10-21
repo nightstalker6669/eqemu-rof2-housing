@@ -1301,6 +1301,7 @@ inline std::optional<PlanarInventory> OriginalPlanarInventory(uint32_t zone_id){
    {5122,5124},{5126,5130},{5134,5146},{5148,5150},{5155,5162},{5168,5177},{5179,5181},{5185,5191},
    {5211,5221},{5223,5225},{5227,5231},{5235,5242},{5244,5246},{5251,5257},
   };for(const auto& run:runs)for(uint32_t id=run.first;id<run.end;++id)p.triangle_ids.push_back(id);break;}
+ #include "original_variant_planar_inventory.inc"
  default:return {};
  }
  p.side_masks.assign(p.triangle_ids.size(),uint8_t{2});return p;

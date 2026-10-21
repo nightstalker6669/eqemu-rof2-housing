@@ -63,7 +63,8 @@ inline bool ReadManifest(const char* filename,bool guild,std::optional<PersonalT
   const char* room_path=room_override?room_override:guild?".house-guild-room-test.json":".house-room-test.json";std::ifstream room_file(room_path,std::ios::binary);
   if(room_file){
    std::string room_raw;char chunk[4096];while(room_file.read(chunk,sizeof chunk)||room_file.gcount()){room_raw.append(chunk,size_t(room_file.gcount()));if(room_raw.size()>InteriorContent::MaximumManifestBytes)return false;}if(room_file.bad())return false;
-   Json::Value room_doc;std::istringstream stream(room_raw);Json::CharReaderBuilder builder;std::string errors;if(!Json::parseFromStream(builder,stream,&room_doc,&errors)||!room_doc.isObject()||room_doc["schema"].asString()!=(guild?"housing-room-guild-test-v1":"housing-room-personal-test-v1")||!room_doc["profile_revision"].isUInt64()||!room_doc["profile_revision"].asUInt64())return false;
+   Json::Value room_doc;std::istringstream stream(room_raw);Json::CharReaderBuilder builder;std::string errors;if(!Json::parseFromStream(builder,stream,&room_doc,&errors)||!room_doc.isObject()||!room_doc["schema"].isString()||!room_doc["profile_revision"].isUInt64()||!room_doc["profile_revision"].asUInt64())return false;
+   const auto room_schema=room_doc["schema"].asString();if(room_schema!=(guild?"housing-room-guild-v1":"housing-room-personal-v1")&&room_schema!=(guild?"housing-room-guild-test-v1":"housing-room-personal-test-v1"))return false;
    auto payload=[&](const char* key){if(!room_doc[key].isString())throw std::invalid_argument("Missing room payload");auto text=room_doc[key].asString();if(text.empty()||text.size()>2*(std::string(key)=="regions_hex"?RegionWire::MaximumPayload:NeighborhoodWire::MaximumPayload)||text.size()%2)throw std::invalid_argument("Room payload bound");std::vector<uint8_t> out;for(size_t j=0;j<text.size();j+=2)out.push_back(uint8_t((digit(text[j])<<4)|digit(text[j+1])));return out;};
    auto bundle=Catalog::DecodePayloads(payload("definitions_hex"),payload("regions_hex"));if(bundle.definitions.empty()||bundle.definitions.size()>1001||bundle.regions.empty()||!bundle.costs.empty())return false;
    InteriorContent::Profile profile;bool found_definition=false;for(const auto& d:bundle.definitions){if(d.id==route.definition_id){if(found_definition)return false;profile.definition=d;found_definition=true;}else profile.child_definitions.push_back(d);}if(!found_definition||!InteriorContent::ValidChildDefinitions(profile))return false;profile.region=bundle.regions[0];profile.additional_regions.assign(bundle.regions.begin()+1,bundle.regions.end());profile.route={route.zone_id,0,0};profile.zone_short_name=route.zone_short_name;profile.client_asset_sha256=route.client_asset_sha256;profile.collision_map_sha256=route.collision_map_sha256;profile.manifest_sha256=digest(room_raw);
@@ -82,7 +83,8 @@ inline bool ReadRegistry(const char* filename,std::vector<PersonalTestSelection>
  try{
   std::string raw;char block[4096];while(input.read(block,sizeof block)||input.gcount()){raw.append(block,size_t(input.gcount()));if(raw.size()>65536)return false;}if(input.bad())return false;
   Json::Value doc;Json::CharReaderBuilder builder;builder["rejectDupKeys"]=true;builder["failIfExtra"]=true;builder["strictRoot"]=true;std::istringstream stream(raw);std::string error;
-  if(!Json::parseFromStream(builder,stream,&doc,&error)||!doc.isObject()||doc["schema"].asString()!=(guild?"housing-guild-content-registry-test-v1":"housing-personal-content-registry-test-v1")||!doc["entries"].isArray()||doc["entries"].empty()||doc["entries"].size()>128)return false;
+  if(!Json::parseFromStream(builder,stream,&doc,&error)||!doc.isObject()||!doc["schema"].isString()||!doc["entries"].isArray()||doc["entries"].empty()||doc["entries"].size()>HouseTemplates::Count)return false;
+  const auto registry_schema=doc["schema"].asString();if(registry_schema!=(guild?"housing-guild-content-registry-v1":"housing-personal-content-registry-v1")&&registry_schema!=(guild?"housing-guild-content-registry-test-v1":"housing-personal-content-registry-test-v1"))return false;
   std::vector<PersonalTestSelection> entries;std::set<uint32_t> items;std::set<std::string> manifests,rooms;
   for(const auto& entry:doc["entries"]){
    if(!entry.isObject()||!entry["manifest"].isString()||!entry["room_manifest"].isString())return false;
@@ -99,7 +101,7 @@ inline bool ReadRegistry(const char* filename,std::vector<PersonalTestSelection>
 // and the transaction still resolves actual plot/owner/child capacity afresh.
 inline bool ValidSelections(const std::vector<PersonalTestSelection>& entries){
  try{
-  if(entries.empty()||entries.size()>128)return false;std::set<uint32_t> items;
+  if(entries.empty()||entries.size()>HouseTemplates::Count)return false;std::set<uint32_t> items;
   for(const auto& s:entries){
    const auto* known=HouseTemplates::Lookup(s.item_template_id);
    if(!known||!items.insert(s.item_template_id).second||!s.content||s.content->Entries().size()!=1||s.content->Entries()[0].item_id!=s.item_template_id||!s.content->Route(s.item_template_id)||!s.experimental_no_upkeep||!HouseGeometry::Lookup(known->item,known->model))return false;

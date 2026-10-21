@@ -1,6 +1,6 @@
 # Status at publication
 
-Snapshot: October 20, 2026. This is an experimental source publication. Housing remains incomplete; representative original-client acceptance is distinguished from implementation and static protocol recovery.
+Snapshot: October 21, 2026. This is an experimental source publication. Housing remains incomplete; representative original-client acceptance is distinguished from implementation and static protocol recovery.
 
 | Area | Implementation / evidence | Remaining limit |
 |---|---|---|
@@ -10,12 +10,42 @@ Snapshot: October 20, 2026. This is an experimental source publication. Housing 
 | Stack quantities | Native yard-vault partial store/retrieve and house-closet partial store/retrieve conserved totals | Native whole/partial Inventory and Shed/Crate quantity transfers passed for an owned placed personal-yard crate; Standard guild-hall interior whole/partial cycle, Trustee creator-restriction refusals and a delegated visitor-owned crate/revocation cycle also passed; other variants remain open |
 | Crates / houses | Stable identities and recovery; native furnished house-in-crate plot transfer, recipient unpack and retained interior entry; Standard guild automatic return, cross-plot restoration and delegated visitor-owned interior crate cycle | Other hall profiles and automatic-vault variants; native repurchase/economics for same-plot recovery |
 | Layouts | Native decoder and transactional mixed-source application/recovery; native personal Inventory/Shed/Crate load and furnished retained-crate guild-room load | Other source classes, rotations and cross-room combinations remain unaccepted |
-| Guild housing | Guild ownership/ACL/current-membership checks, permanent interiors, source-bound routes and Guild Lobby left-door contract | Additional hall profiles/capacities and simultaneous native editor interactions; current-authority matrix and representative delegated-crate lifecycle are checked |
+| Guild housing | Guild ownership/ACL/current-membership checks, permanent interiors, source-bound routes and Guild Lobby left-door contract; all four reviewed guild profiles, explicit normal-player zone policy and labelled capacity defaults; native Modest cycle, Palatial placement/entry/furniture/vault/child/storage and Grand entry/furniture/default1500 display | Simultaneous native editor interactions remain pending |
 | Trophies / anchors | Three researched reconstructed trophy definitions; native guild placement, selection, opt-in, paid activation, disable, cold-restart persistence and source-pickup invalidation; Giant native placement/selection,75-favor activation with +400HP/endurance, disable, paused-time relog/resume without duplicate debit and pickup invalidation; personal placement metadata and per-estate cap integrated; anchor machinery retained | Landing shares reviewed model coverage without an individual native cycle; evolving trophies disabled; full original catalogue and wider recipient matrix unresolved. See [trophy scope](TROPHIES-2026-10-20.md) |
 | Economy / lifecycle | Purchase, escrow/upkeep selection, retirement, durable receipts and recovery | Original paid wallet ordering/cadence/refunds/eviction/inactivity/guild dissolution |
 | Inventory safety | Session/writer fencing, raw-row preservation, atomic transactions, durable operation receipts, recovery/reconciliation | This is experimental software; fixture coverage is not a guarantee for arbitrary databases |
 
 The October19 layout/crate follow-up also fixes exterior scene reads after a furnished interior crate is picked up. Carried room members retain room provenance and are hidden only after full carried-container validation.
+
+## Reviewed house-variant update, October21
+
+The compiled registry recognizes144 original-model templates. A portable generator
+creates fresh source-authenticated content using researched totals plus a
+separate explicit default policy: vault shares total, NPC5personal/20guild and
+child1 with exact technical174. Grand1500 is labelled a server default. Its
+additional configuration completes144 selections after preserving the earlier143.
+Append-only capacity policies can upgrade existing rooms and future legacy
+allocations without rewriting immutable profiles or historical fingerprints.
+The deployment installed policies for ten existing bound rooms and exact grants
+for all 144 configured templates. Original profile/custody/pose bytes were
+conserved. Palatial native2000-limit display, shared vault stack round trip and empty
+child-crate placement/pickup passed; its fresh room automatically received the
+registered template policy.
+
+Native Evantil placement on a real personal plot passed with its original
+EQLOD-selected collision model. The house survived a cold restart, entry into its
+original tree interior succeeded after metadata repair, and an actual chair was
+placed and visibly rendered on the interior floor. Modest entry and representative chair placement/pickup also passed; Tree chair pickup, Grand original738 entry/furniture pickup and automatic
+room policy grant also passed; Grand displayed its labelled1500 shared budget.
+Palatial Placed→Shed preserved its permanent room. Native Ctrl-click split, preview/placement, pickup and merge also passed,
+restoring both chairs with an empty cursor and no floating duplicate. The
+representative native checks for this variant/capacity batch are complete. Guarded optional migrations register missing zone766 and explicitly
+remove legacy admin255 gating from supported737/738/751; these are documented local
+housing policies. Entry preflight now rejects absent cached/current destination
+metadata before granting instance admission. The shared empty-property return
+path now recognizes an empty carried retained room without destroying its
+permanent identity; the checked guild service completed that case with no item
+delivery or refund and exact conservation. See [variant scope and installation](HOUSE-VARIANTS-2026-10-21.md).
 
 ## Representative native results
 
@@ -126,3 +156,7 @@ New mounted Add operations use a distinct V4 content policy with exact convex fo
 ## Guild and delegated lifecycle completion
 
 The [guild/delegated update](GUILD-DELEGATED-LIFECYCLE-2026-10-20.md) adds complete structural room preflight to furnished house return/relocation and preserves valid completed-return history after later pickup and destination retirement. The actual authority matrix passed, including rank/membership changes, management hierarchy, creator restrictions, revocation and rollback. The original client completed a visitor-owned interior crate/partial-stack cycle with same-session revocation denial, and a world-timer-generated furnished guild-hall return followed by cross-plot restoration, permanent-room entry, Shed restoration and re-entry. These later results extend the narrower historical observations above; they do not certify every hall profile or universal Live policy. No opcode, packet layout or migration changed.
+
+The guarded guild-recipient compatibility migration was applied without changing
+policy rows. An ordinary native zoning/save then persisted the correct
+destination instance; upstream character-save code remained unchanged.

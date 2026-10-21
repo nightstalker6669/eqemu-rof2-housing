@@ -1,6 +1,7 @@
 #ifndef EQEMU_HOUSING_HOUSE_TEMPLATE_REGISTRY_H
 #define EQEMU_HOUSING_HOUSE_TEMPLATE_REGISTRY_H
 #include <cstdint>
+#include <cstddef>
 namespace Housing::HouseTemplates {
 // Item definitions/lore from retained original merchant metadata. Personal
 // material routes use original registered personal room assets and their actual wall
@@ -129,11 +130,38 @@ inline constexpr Record Records[]={
  {61940,27,3,715,"IT20018"},
  {61941,28,3,718,"IT20018"},
  {61942,29,3,719,"IT20018"},
+ // Retained collector and complete placement metadata match reviewed61913;
+ // preserve the distinct physical item while sharing its definition/material.
+ {67078,21,3,715,"IT20026"},
+ // Manor material names, lore and retained definitions agree. The room
+ // association reuses the same reviewed original three-room material family.
+ {57501,32,3,714,"IT20020"},
+ {57502,33,3,716,"IT20020"},
+ {57503,34,3,717,"IT20020"},
+ {57504,32,3,714,"IT20021"},
+ {57505,33,3,716,"IT20021"},
+ {57506,34,3,717,"IT20021"},
+ {57507,32,3,714,"IT20022"},
+ {57508,33,3,716,"IT20022"},
+ {57509,34,3,717,"IT20022"},
+ {57510,32,3,714,"IT20023"},
+ {57511,33,3,716,"IT20023"},
+ {57512,34,3,717,"IT20023"},
+ {57513,32,3,714,"IT20024"},
+ {57514,33,3,716,"IT20024"},
+ {57515,34,3,717,"IT20024"},
+ {57516,32,3,714,"IT20025"},
+ {57517,33,3,716,"IT20025"},
+ {57518,34,3,717,"IT20025"},
+ // Original registered Evantil interior and explicit original EQLOD collision
+ // resource; retained collector definition42. See variant content provenance.
+ {77407,42,3,766,"IT23651"},
  {66618,38,2,345,"IT23371"},
  {66619,39,2,738,"IT23372"},
  {66620,40,2,737,"IT23373"},
  {66660,41,2,751,"IT23372"},
 };
+inline constexpr std::size_t Count=sizeof(Records)/sizeof(Records[0]);
 inline constexpr const Record* Lookup(uint32_t item){for(const auto& r:Records)if(r.item==item)return &r;return nullptr;}
 inline constexpr uint32_t Type(uint32_t item){const auto*r=Lookup(item);return r?r->type:0;}
 inline constexpr uint32_t Definition(uint32_t item){const auto*r=Lookup(item);return r?r->definition:0;}

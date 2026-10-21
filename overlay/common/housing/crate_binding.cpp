@@ -74,14 +74,17 @@ LiveItems::Result<Binding> BindInteriorPlacedUnderTransaction(Database& db,const
 LiveItems::Result<EstateWire::Definition> ReadDefinitionUnderTransaction(Database& db,const Allocation& a){
  try{
   auto tx=Q(db,"SELECT @@in_transaction");if(tx.RowCount()!=1||N(tx.begin()[0])!=1)Bad(Error::InvalidArgument);CrateCreationOrigin::Validate(db,a.creation_request_key,a.created_by_character_id);EncodeAllocation(a);const auto& b=a.binding;
-  auto parent=Q(db,"SELECT i.house_id,i.definition_id,i.zone_id,n.definition_id FROM housing_house_interiors i JOIN housing_native_estates n ON n.native_id=i.native_estate_id WHERE i.native_estate_id="+std::to_string(b.parent_native_estate_id)+" FOR UPDATE");
+  auto parent=Q(db,"SELECT i.house_id,i.definition_id,i.zone_id,n.definition_id,i.zone_version,i.instance_id FROM housing_house_interiors i JOIN housing_native_estates n ON n.native_id=i.native_estate_id WHERE i.native_estate_id="+std::to_string(b.parent_native_estate_id)+" FOR UPDATE");
   Catalog::Bundle bundle;
   if(parent.RowCount()){
    if(parent.RowCount()!=1||N(parent.begin()[1])!=N(parent.begin()[3]))Bad(Error::Conflict);
-   auto profile=Q(db,"SELECT client_build,HEX(definitions_blob),HEX(regions_blob) FROM housing_house_room_profiles WHERE house_id="+std::to_string(N(parent.begin()[0]))+" FOR UPDATE");if(profile.RowCount()!=1||N(profile.begin()[0])!=20130510)Bad(Error::Conflict);
-   bundle=Catalog::DecodePayloads(Unhex(profile.begin()[1]),Unhex(profile.begin()[2]));InteriorContent::Profile room;bool found=false;
+   auto profile=Q(db,"SELECT revision,client_build,origin,zone_short_name,HEX(client_asset_sha256),HEX(collision_map_sha256),HEX(manifest_sha256),HEX(definitions_blob),HEX(regions_blob) FROM housing_house_room_profiles WHERE house_id="+std::to_string(N(parent.begin()[0]))+" FOR UPDATE");if(profile.RowCount()!=1||N(profile.begin()[1])!=20130510)Bad(Error::Conflict);
+   auto metadata=profile.begin();for(unsigned n=0;n<9;++n)if(!metadata[n])Bad(Error::Conflict);
+   bundle=Catalog::DecodePayloads(Unhex(metadata[7]),Unhex(metadata[8]));if(bundle.regions.empty()||!bundle.costs.empty())Bad(Error::Conflict);InteriorContent::Profile room;bool found=false;
    for(const auto& d:bundle.definitions)if(d.id==N(parent.begin()[1])){if(found||d.zone_id!=N(parent.begin()[2])||(d.type!=2&&d.type!=3))Bad(Error::Conflict);room.definition=d;found=true;}else room.child_definitions.push_back(d);
    if(!found||!InteriorContent::ValidChildDefinitions(room))Bad(Error::Conflict);
+   if(N(parent.begin()[4])>UINT8_MAX||!N(parent.begin()[5])||N(parent.begin()[5])>32000)Bad(Error::Conflict);room.house_id=N(parent.begin()[0]);room.native_estate_id=b.parent_native_estate_id;room.route={uint32_t(N(parent.begin()[2])),uint8_t(N(parent.begin()[4])),uint16_t(N(parent.begin()[5]))};room.origin=Catalog::Origin(N(metadata[2]));room.zone_short_name=metadata[3];room.client_asset_sha256=InteriorCapacity::Detail::Lower(metadata[4]);room.collision_map_sha256=InteriorCapacity::Detail::Lower(metadata[5]);room.manifest_sha256=InteriorCapacity::Detail::Lower(metadata[6]);room.region=bundle.regions.front();room.additional_regions.assign(bundle.regions.begin()+1,bundle.regions.end());
+   if(!InteriorCapacity::ApplyUnderTransaction(db,room,N(metadata[0])))Bad(Error::Conflict);bundle.definitions=InteriorContent::Definitions(room);
   }else{
    auto catalog=Q(db,"SELECT revision,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key="+S(db,b.catalog_key)+" FOR UPDATE");if(catalog.RowCount()!=1||N(catalog.begin()[0])!=b.catalog_revision)Bad(Error::Conflict);bundle=Catalog::DecodePayloads(Unhex(catalog.begin()[1]),Unhex(catalog.begin()[2]));
   }

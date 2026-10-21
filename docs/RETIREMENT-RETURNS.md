@@ -27,3 +27,14 @@ The original server received matching world, zone, UCS and inventory-recovery bi
 Augments, evolving items and filled bags remain refused at supported custody ingress. Missing historical Live inactivity/refund rules, alternate currencies, later partial-stack lineage and destroyed typed-container proofs are separate unresolved work. These results establish the configured supported retirement path, not every historical Live rule or every item variant.
 
 See [batch configuration](../overlay/common/housing/offline_return_batches.md), [earlier mixed returns](MIXED-RETURNS-2026-10-18.md), and [vault-aware Move Out](VAULT-MOVE-OUT-2026-10-19.md). No fixtures, tests, private logs, credentials or game assets are included.
+
+## Empty property with a carried retained room, October 21
+
+A picked-up house keeps its permanent interior and historical native parent.
+The shared personal/guild empty-property return path now recognizes only an
+exact carried identity with an empty, quiescent room; it preserves that node and
+completed placement history for later reparenting. Placed, nonempty, pending or
+uncertain children still refuse. The checked guild service completed this case
+without item delivery or refund and with exact conservation. The administrative
+review advanced only its callsite maintenance time, without changing player login
+timestamps or the global clock. See [variant implementation and scope](HOUSE-VARIANTS-2026-10-21.md#retirement-of-an-empty-plot-after-house-pickup).
