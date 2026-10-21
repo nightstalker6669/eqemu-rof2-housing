@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 13762,
-      "sha256": "7a3abd2e0a6b4eaf04eee70719c8ed205eb9617631af74eb7202cd9ee5c966ba"
+      "bytes": 14503,
+      "sha256": "4742cb049024c24adf06d0878470eda6f7859a5a1ea95b8e21d0efdd040c5b94"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -76,8 +76,8 @@
     },
     {
       "path": "docs/HOUSE-VARIANTS-2026-10-21.md",
-      "bytes": 14796,
-      "sha256": "b8f8753acf58ed22a8493bcbbfbe0d9ebd146b9ae7e1e7502f87f0af2ca25d9d"
+      "bytes": 15329,
+      "sha256": "a9b0f8b674b5d4821452af7fee18c5648ffe88b941268c40c6972acf25e94504"
     },
     {
       "path": "docs/INDIVIDUAL-VAULT-CRATE-2026-10-19.md",
@@ -91,8 +91,8 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 16987,
-      "sha256": "bf7cdb01aeb3dbc0b174927353580931230f20d405bde7cfd3d420405274bc37"
+      "bytes": 18121,
+      "sha256": "b04761707d865b4a753bcce31476bfcca97544e488951015a218729d1926b95d"
     },
     {
       "path": "docs/INTERIOR-ACCESS-2026-10-19.md",
@@ -108,6 +108,11 @@
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
       "bytes": 6644,
       "sha256": "de6d72b0e28faa3753d685f92d7561a84b23a345e4f5284cbe096f371cd344f7"
+    },
+    {
+      "path": "docs/NPC-ITEM-BINDINGS-2026-10-21.md",
+      "bytes": 6254,
+      "sha256": "f02a20f797af1c67fd087879ef1aa71f1a284b67561eff6a7c8a6cfb69f57f71"
     },
     {
       "path": "docs/ORIGINAL-SCENE-INTEGRATION-2026-10-20.md",
@@ -175,9 +180,24 @@
       "sha256": "4b9566b6322614611d8316c795b075fa9e35855e858ec6bc1b08328261a8c35e"
     },
     {
+      "path": "docs/provenance/house-variants/HERMIT-HIDEAWAY.md",
+      "bytes": 6109,
+      "sha256": "ba6643144912dc7149050211cca3ced5b07e4e9485265edc368b99dd93e77f79"
+    },
+    {
       "path": "docs/provenance/house-variants/IT23651-COL-witness.json",
       "bytes": 2962,
       "sha256": "04b0eb6c2499ed54a1e9473ec68a36f60e3da936d60aef621969559a389eb0c5"
+    },
+    {
+      "path": "docs/provenance/house-variants/MANOR-ALIASES.md",
+      "bytes": 2421,
+      "sha256": "9acbdec4e5b8c3258d680af84b91ce607e81543d1b5e2573fca8b26f2cd6d8c0"
+    },
+    {
+      "path": "docs/provenance/housing-npc/HLG-PREVIEW-ENVELOPE.md",
+      "bytes": 4441,
+      "sha256": "224a90098a510d3e7533c2701f54e7e48cba8bc48482ea9f7e002973359030e5"
     },
     {
       "path": "overlay/common/housing/README.md",
@@ -206,8 +226,8 @@
     },
     {
       "path": "overlay/common/housing/catalog_content_binding.h",
-      "bytes": 19523,
-      "sha256": "ab4abb7e3cbce68ef7da53846a5d2c9f59ebdff8f5e261af8fe2329c1706f106"
+      "bytes": 19718,
+      "sha256": "c7e2561b37cf3e638550b5ccdc8ad68800c69570435ce85df63b16d8fb050df4"
     },
     {
       "path": "overlay/common/housing/catalog_content_db.h",
@@ -506,8 +526,13 @@
     },
     {
       "path": "overlay/common/housing/house_geometry_variant_aliases.inc",
-      "bytes": 10717,
-      "sha256": "13898ea48bc254b499d97ef69343d06b0396b4c8f6b2174382d2d42f0087423c"
+      "bytes": 10800,
+      "sha256": "803635a4b4158dc0d2b5bddf35c4b521462f56f061c36803a8ff0507386858d3"
+    },
+    {
+      "path": "overlay/common/housing/house_hermit_geometry.inc",
+      "bytes": 667,
+      "sha256": "1c8e7378d560c139e445200357e1e647e5fa0745d88ec52371758251f3638b2d"
     },
     {
       "path": "overlay/common/housing/house_interior_allocator.cpp",
@@ -548,6 +573,16 @@
       "path": "overlay/common/housing/house_item_scope_db.h",
       "bytes": 2131,
       "sha256": "81c6fa71e0a5537effe92435253e97a6b4361a1921169c24e65bd027c828b5cf"
+    },
+    {
+      "path": "overlay/common/housing/house_manor_aliases.inc",
+      "bytes": 751,
+      "sha256": "6b27af3f5f8003cc585079c06a71c57ddd5e3e98fb668d905115dbd8f72dd99d"
+    },
+    {
+      "path": "overlay/common/housing/house_manor_geometry_aliases.inc",
+      "bytes": 9560,
+      "sha256": "9f2cfa9284f6d98e67cd550d28131190ae0c9a0233dff729429fafaf206306e2"
     },
     {
       "path": "overlay/common/housing/house_operation_authority.cpp",
@@ -606,13 +641,13 @@
     },
     {
       "path": "overlay/common/housing/house_template_registry.h",
-      "bytes": 5859,
-      "sha256": "b04510d4acaba216df74fa1dc1cd17a571512a941d5a291646573f2c881830c9"
+      "bytes": 6073,
+      "sha256": "687c2c5fef2d388bbdc07fca39089cd445572fe079af93adabb545d2d8c725b5"
     },
     {
       "path": "overlay/common/housing/house_variant_capacities.json",
-      "bytes": 42504,
-      "sha256": "f4fe592e0da72d8a4684e3d52e9f3fc80d7048fd317cc15106e801d0dc3ba03b"
+      "bytes": 42689,
+      "sha256": "8dddca436f85ca7685139c96e000f4f7f033ee420834b4328721227d387b81e6"
     },
     {
       "path": "overlay/common/housing/house_variant_capacity_defaults.json",
@@ -621,8 +656,8 @@
     },
     {
       "path": "overlay/common/housing/house_variant_geometry.json",
-      "bytes": 470375,
-      "sha256": "b4dc4129f0342c3f67024c594da125215e04a02f851f1b7e6fbf65ae5d815968"
+      "bytes": 471703,
+      "sha256": "b82a86e6c8d43f93c32cc6b676f10e3d845f72efbdbd3da25f953bb776dff22e"
     },
     {
       "path": "overlay/common/housing/inactivity_retirement_db.h",
@@ -641,8 +676,8 @@
     },
     {
       "path": "overlay/common/housing/interior_content_binding.h",
-      "bytes": 12965,
-      "sha256": "57d7a6385bd24342b2b61eb604cde468a84fbb80e777d10e9d40dbc596972b91"
+      "bytes": 13159,
+      "sha256": "2440afa7c92fa4a2a2dc2073c27936779b6f180fdebdd09f577670149a4bc76f"
     },
     {
       "path": "overlay/common/housing/interior_item_content_db.h",
@@ -966,13 +1001,23 @@
     },
     {
       "path": "overlay/common/housing/npc_item_metadata.h",
-      "bytes": 3284,
-      "sha256": "50fff2807bd11da43f2e594f335f2cb5e0db73c3ebed770bf86b09d7a9c778a9"
+      "bytes": 3853,
+      "sha256": "cb8a82cca837266c913e720f111ee4b39c7251c2e23222766fe7e1651e535c27"
     },
     {
       "path": "overlay/common/housing/npc_item_metadata_db.h",
       "bytes": 4272,
       "sha256": "e7675c35b1f53aac9aa11faa5f32cdd9fc2a677fb8b9b049ba02016531278b8c"
+    },
+    {
+      "path": "overlay/common/housing/npc_native_admission.h",
+      "bytes": 4050,
+      "sha256": "6beea3a5f4823e0bebb2cdbb56895e8a4b1caab08ba6dd31501b3184521a8da4"
+    },
+    {
+      "path": "overlay/common/housing/npc_native_admission.json",
+      "bytes": 6784,
+      "sha256": "04765af0cbc4636b5355ddccb19fb509c4d7706270f0340b156d6994c79a7b74"
     },
     {
       "path": "overlay/common/housing/npc_native_frame.h",
@@ -995,9 +1040,19 @@
       "sha256": "dbbac7980955c50ad7d3b46ac03d8e93077412c59784954419863dc5724c7dc5"
     },
     {
+      "path": "overlay/common/housing/npc_reviewed_item_bindings.h",
+      "bytes": 1355,
+      "sha256": "ac30c18dace0886cf9f7e3d0901fad1931c1dcd1a12b3b4810f6d4effc06f59b"
+    },
+    {
+      "path": "overlay/common/housing/npc_reviewed_item_bindings.json",
+      "bytes": 3264,
+      "sha256": "4367281d3ea244b1f8eba86d5f8428535b0eb698f9cde375f822223444f74a00"
+    },
+    {
       "path": "overlay/common/housing/npc_runtime.h",
-      "bytes": 5915,
-      "sha256": "afdff2f6f2c51ed41c391f06b4b7a461b5bdf109e0eda6ffef263ff9dbc9ab40"
+      "bytes": 7161,
+      "sha256": "bf65a398340b4d221a46138a010cc2e742600c84f314c94a625ea013cac29c27"
     },
     {
       "path": "overlay/common/housing/npc_runtime_db.h",
@@ -1965,6 +2020,21 @@
       "sha256": "5d759ceaf2a9a5d4171e9c9f5d9e6f95efcc907eea30a47d8a6f31f8bb8923e5"
     },
     {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_hermit_metadata.sql",
+      "bytes": 3021,
+      "sha256": "2070ad6a445ff27b041a013f9ffc71d09aaca075eeb6898b3a4db9c9a57039e4"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_hermit_zone.sql",
+      "bytes": 2837,
+      "sha256": "e8ed405631177ef97f87a6697e6dee89f456251f26076a75be84edaae9ed637c"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_holgresh_npc_binding.sql",
+      "bytes": 3886,
+      "sha256": "382cc1118fde77032538ac3dbd317a7cab48dd5421e5f373ef33bdfac9dae52b"
+    },
+    {
       "path": "overlay/utils/sql/optional/2026_10_21_housing_supported_guild_zones.sql",
       "bytes": 5454,
       "sha256": "6e4a427ba58e9a41d356fc15ec95e5181a627f8c11c16acdb6720a79989f9a05"
@@ -1996,8 +2066,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 214292,
-      "sha256": "9a554767b7b0963b1f29547ce260629c643e3ac1500c088aeca20cb201ed2df8"
+      "bytes": 216801,
+      "sha256": "f649e354b428363bb42b0dc5c8011e8895bf4b01663b04b7b1076aa6dbe586c8"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",
@@ -2256,8 +2326,8 @@
     },
     {
       "path": "tools/generate_house_variant_content.py",
-      "bytes": 24595,
-      "sha256": "e9cd5ed61d43a9ea4d7cf9531a246d83842aa9563dc08a1e383decfd101efec0"
+      "bytes": 25411,
+      "sha256": "c581b970a0c2500714b3b0dc5f6ae77602941e1d905efb2cd4761c95d5fedd7c"
     },
     {
       "path": "tools/install_original_geometry.py",

@@ -1,0 +1,110 @@
+# Hermit's Hideaway
+
+This overlay associates item 54999, physical definition 30 and exterior model
+IT20022 with personal interior723 (`phinterior1d1`). The route is a reviewed
+reconstruction. It is **not a captured May 2013 Live server definition or route**.
+
+## Evidence and boundaries
+
+The supported May 2013 client executable is SHA256
+`2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e`.
+It registers both 720 (`phinterior1b1`) and 723 (`phinterior1d1`) with the long name
+“Dragon House Interior.” Those registrations alone do not identify the house SKU.
+
+The original resources distinguish them. 720 uses ordinary stucco, stone, timber,
+window and hardwood materials. 723 has a dragon-door material, flame statue,
+lava, ornate green/black marble and snake-pattern flooring. Hermit's Hideaway's
+retained item lore describes an abode for a reclusive dragon lover. The later
+primary operational [mesh inventory](https://mqmesh.com/other.php) directly names
+723 “Hermit's Hideaway Interior” and720 “One Room House Interior.” These
+independent observations support the reconstructed723 route; 720 is not used as
+an alternate Hermit interior.
+
+The physical item fields come from the retained
+[SoDEQ collector export](https://items.sodeq.org/downloads/items.txt.gz), row 47932:
+collector 2.5.2.3, created 2015-12-11 and updated 2021-09-18. This is later collected
+item data, not an authenticated 2013 packet. Compressed export SHA256:
+`ec0699f4f0e7f070b2e99297f521e9a266b13010b41b0b443216da2be2865302`.
+Raw row SHA256:
+`19dce41c7e21ffa0073c83426b435324413c998252fb396784ce01bf926c4ca6`.
+
+`house_hermit_geometry.inc` reuses the existing original IT20022 static geometry
+class with its archive/member/ordered-geometry witnesses. It does not claim an
+individual native placement capture. The original 723 terrain, authored door and
+mounting-source inventories are independently pinned in the source registries.
+The source archive SHA256 is
+`3692e070adc32533afdf5fad7b39f290fb610785371771a29e71299d78dfd354`;
+the prepared Map SHA256 is
+`fb8a1ea99fcfcb2497a209e4d5238c458136cd9e376d998e0d2d31868ee50aae`.
+Original game meshes and archives are not distributed by this repository.
+
+## Limits and room policy
+
+The named [2013 housing improvements](https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/)
+raised Hermit's Hideaway's total to 400 items. That researched total is recorded
+separately from configurable emulator policy:
+
+| Field | Effective value | Basis |
+|---|---:|---|
+| Total items |400|Named 2013 patch|
+| Non-estate vault items |400|Configurable server default; shares total budget|
+| NPC items |5|Configurable server default; also consumes total budget|
+| Child estates |1|Configurable server default|
+| Allowed child definition |174|Existing reviewed technical moving-crate definition|
+
+Child 174 has its separate 100-item budget. The property-wide one-moving-crate
+restriction remains authoritative. An NPC quota does not supply an NPC item
+binding; reviewed item metadata, model/height evidence and normal authority
+checks remain required.
+
+The room envelope comes from original source geometry and remains a technical
+broad phase. It is not captured Live permission-region data. Entry `(0,0,4,0)`
+is a technical Map-checked spawn; the original zone contains no recovered safe
+point marker. Original collision/mounting checks, access, ownership and lease
+validation remain mandatory. The compatibility content loader uses its explicitly
+labelled no-upkeep policy; this is not an original upkeep schedule.
+
+## Installation
+
+1. Install matching overlay code and build the server. Preserve existing immutable
+   content profiles; capacity revisions use the separate reviewed policy path.
+2. Review the two optional migrations under `overlay/utils/sql/optional/`:
+   `2026_10_21_housing_hermit_metadata.sql` and
+   `2026_10_21_housing_hermit_zone.sql`. Quiesce item metadata writers before
+   applying them to the intended database. The first accepts only the exact empty
+   physical-field preimage or reviewed postimage. The second inserts an absent
+   zone 723 row or accepts its exact policy postimage. Conflicting rows refuse;
+   they are not silently overwritten.
+3. Generate fresh private content from the operator's matching client and prepared
+   Maps. The generator never writes a database or changes running services:
+
+   ```sh
+   python3 tools/generate_house_variant_content.py \
+     --source-root overlay \
+     --client /private/ROF2 \
+     --maps /private/prepared-maps \
+     --output /private/generated-housing \
+     --copy-resources
+   ```
+
+   Supply the applicable `--preserve-registry` and `--preserve-manifest` arguments
+   when retaining already installed profiles. Review generated catalogue,
+   registry and manifest changes before installation. Do not overwrite a retained
+   house's immutable base profile with newly generated bytes.
+4. Install authenticated private geometry using
+   `tools/install_original_geometry.py`, or install only verified missing
+   SHA-named sources from the reviewed private resource plan. Required 723 sources
+   are the original terrain and authored door. Install `maps/base/phinterior1d1.map`
+   and the original `phinterior1d1.eqg` at the private archive path named in the
+   generated manifests. Existing files must be byte-identical or require separate review.
+5. Apply reviewed catalogue/profile provisioning, refresh shared item caches and
+   deploy matching binaries as one coordinated server update. Confirm native
+   placement, entry, furnishing and return on the intended runtime before calling
+   the deployment accepted. No Live-equivalence claim follows from static evidence
+   or content generation alone.
+
+Native acceptance placed54999 on an actual personal plot, displayed its400-item
+budget, and entered original723 through the house context menu. A Draconic
+Chair completed floor placement and pickup, restoring the original stack.
+These checks validate the implementation; the original item-to723 association
+remains the reviewed reconstruction described above.

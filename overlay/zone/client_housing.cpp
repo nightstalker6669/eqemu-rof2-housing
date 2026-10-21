@@ -8,6 +8,7 @@
 #include "../common/housing/stack_partition_application.h"
 #include "../common/housing/npc_item_metadata.h"
 #include "../common/housing/npc_runtime.h"
+#include "../common/housing/npc_native_admission.h"
 #include "../common/housing/upkeep_cycle_db.h"
 #include "../common/housing/rent_state_db.h"
 #include "../common/housing/interior_storage_service.h"
@@ -539,6 +540,23 @@ std::vector<std::pair<uint32_t,uint32_t>> FurnitureRegions(const FurnitureTarget
  if(target.room){if(!target.room->room_profile)throw std::invalid_argument("Missing room regions");auto selected=item?FurnitureAdmissionRoom(target,*item,native,digest):std::optional<Housing::InteriorContent::Profile>{*target.room->room_profile};if(!selected)throw std::invalid_argument("Missing selected room profile");for(const auto& region:Housing::InteriorContent::Regions(*selected))result.emplace_back(region.id,0);}
  else result.emplace_back(target.region.id,0);return result;
 }
+// The client tests the animated renderer box; persisted NPC placement uses its
+// canonical ground frame. Publish only a temporary, reviewed presentation box.
+// All mutation/preflight checks above continue to use the original room profile.
+std::optional<std::vector<std::pair<uint32_t,uint32_t>>> FurnitureNpcNativeRegions(Client* c,const FurnitureTarget& target,const EQ::ItemInstance& item){
+ if(!target.room||!target.room->room_profile)return {};auto npc=FurnitureNpc(item);
+ const auto& base=*target.room->room_profile;if(!base.reviewed_room||!base.house_id||base.native_estate_id!=target.node.native_id.value)throw std::invalid_argument("NPC admission room identity");
+ auto view=LoadHousingView(c);if(!view||!view->interior||!view->interior->room_profile||view->data.catalog.key!=target.key||view->data.catalog.revision!=target.revision||view->interior->room_profile->house_id!=base.house_id||view->interior->room_profile->manifest_sha256!=base.manifest_sha256||view->interior->room_profile->native_estate_id!=base.native_estate_id)throw std::invalid_argument("NPC admission view changed");
+ // Restore the canonical collection for ordinary previews. This removes any
+ // earlier NPC projection independently of native status-map update semantics.
+ if(!npc||!Housing::NpcNativeAdmission::Reviewed(*npc)){SendEstatePayload(c,OP_RealEstateRegions,Housing::RegionWire::EncodeBootstrap(view->data.catalog.regions));return {};}
+ const uint32_t id=0x7d000000u|(base.region.id&0x00ffffffu);
+ if(std::any_of(view->data.catalog.regions.begin(),view->data.catalog.regions.end(),[&](const auto& r){return r.id==id;}))throw std::invalid_argument("NPC admission region collision");
+ auto projection=Housing::NpcNativeAdmission::Build(*npc,Housing::InteriorContent::Regions(base),id);auto regions=view->data.catalog.regions;regions.push_back(projection.region);
+ //49df replaces, rather than appends, the native collection. Preserve every
+ // current base/connected/yard region and whitelist only this preview's extra ID.
+ const auto bytes=Housing::RegionWire::EncodeBootstrap(regions);auto status=FurnitureRegions(target,&item);status.emplace_back(id,0);SendEstatePayload(c,OP_RealEstateRegions,bytes);return status;
+}
 bool FurnitureCurrentCatalog(const Housing::LiveItems::Stored& row,const FurnitureTarget& target,uint64_t witnessed=0){
  // This witness comes only from a fresh, authorized server read. Presence of
  // a stored digest alone establishes neither current content nor permission.
@@ -821,7 +839,7 @@ void FurniturePreview(Client* c,const FurniturePending& pending,const FurnitureT
  preview.source_slots={int16_t(pending.row.values.slot_id),-1,-1};
  if(house){auto actor=Housing::HousePlacement::Preview(*pending.presentation,pending.reservation,pending.presentation->GetUnscaledItem()->HousingDefinitionID,target.house_definition_type,placed.transform,pending.house_before.get());if(!actor)throw std::invalid_argument("House preview identity rejected");preview.actor=*actor;}
  else preview.actor=FurnitureActor(*pending.presentation,placed,nullptr,true);preview.flags={0,0,1};preview.words={request.trailing[0],request.trailing[1],0};
- preview.region_results=FurnitureRegions(target,pending.presentation.get(),pending.reservation.native_item_id,pending.room?std::optional<std::array<uint8_t,SHA256_DIGEST_LENGTH>>{pending.room->content_digest}:std::nullopt);preview.fallback={target.root,1};SendEstatePayload(c,OP_RealEstatePlacementBegin,Housing::PlacementWire::EncodePreview(preview));
+ preview.region_results=FurnitureRegions(target,pending.presentation.get(),pending.reservation.native_item_id,pending.room?std::optional<std::array<uint8_t,SHA256_DIGEST_LENGTH>>{pending.room->content_digest}:std::nullopt);if(auto projection=FurnitureNpcNativeRegions(c,target,*pending.presentation))preview.region_results=std::move(*projection);preview.fallback={target.root,1};SendEstatePayload(c,OP_RealEstatePlacementBegin,Housing::PlacementWire::EncodePreview(preview));
 }
 bool HouseGeometryPreviewScope(Client* c){
  const auto* config=EQEmuConfig::get();
@@ -877,7 +895,7 @@ void FurnitureMovePreview(Client* c,const Session::Move& move,const FurnitureTar
  // the Items Place button coordinates otherwise project through the UI edge.
  // Native ctor 0x5056b0 arg6 (third wire flag) selects screen-ray initialization.
  preview.flags=move.before.stowed?std::array<uint8_t,3>{0,0,uint8_t(move.room?0:1)}:std::array<uint8_t,3>{1,1,0};
- preview.words={request.trailing[0],request.trailing[1],0};preview.region_results=FurnitureRegions(target,move.presentation.get(),move.before.placement->reservation.native_item_id);preview.fallback={target.root,1};
+ preview.words={request.trailing[0],request.trailing[1],0};preview.region_results=FurnitureRegions(target,move.presentation.get(),move.before.placement->reservation.native_item_id);if(auto projection=FurnitureNpcNativeRegions(c,target,*move.presentation))preview.region_results=std::move(*projection);preview.fallback={target.root,1};
  SendEstatePayload(c,OP_RealEstatePlacementBegin,Housing::PlacementWire::EncodePreview(preview));
 }
 std::unique_ptr<EQApplicationPacket> FurnitureCursorDeletion(uint32_t slot=EQ::invslot::slotCursor){

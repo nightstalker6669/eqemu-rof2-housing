@@ -1,0 +1,64 @@
+{
+  "format": "housing-reviewed-npc-item-bindings-v1",
+  "client_sha256": "2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e",
+  "racedata_sha256": "8c50fe1b68059164b6e93aa37c0c4649737b0006d3e9f2e071a714791824f49d",
+  "moddat_sha256": "aa9c7b337de23630f2ee78d442c619453efe6b500b01616d9a561474c6561ec8",
+  "bindings": [
+    {
+      "item_id": 77408,
+      "item_name": "Holgresh House Pet",
+      "item_npc_definition_key": "a_holgresh",
+      "interactive": false,
+      "opaque_respawn_interval": 4500,
+      "default_scale_bits": 1065353216,
+      "actor_model_prefix": "HLG",
+      "original_actor_definition": "HLG_ACTORDEF",
+      "race": 715,
+      "gender": 2,
+      "height_mode": "original-client-model-default",
+      "wire_actor_height_bits": 1086324736,
+      "model_default_size_bits": 1086324736,
+      "historical_actor_height_bits": null,
+      "historical_actor_height_recovered": false,
+      "policy_note": "Uses size6.0 authenticated by original racedata/default constructor as an explicit native override. Keeps source historical height unknown0/null. Zero wire height is avoided because504830 would pass zero to the scale setter; a renderer clamp is not established; not a claim of captured Live item size or server NPC AI/respawn timing.",
+      "collector": {
+        "url": "https://items.sodeq.org/itemraw.php?id=77408",
+        "sha256": "a385977fbfc54ef7b41b1e443605724b32886f1c3028bb813c134df4a1356354",
+        "collected_later_than_client": true
+      },
+      "period_official_same_appearance_source": "https://www.everquest.com/news/imported-eq-enus-524410",
+      "original_familiar_model_witness": "spells_us.txt spell37806 Pet Illusion: Holgresh, race715",
+      "original_actor_resource": {
+        "archive": "hlg.eqg",
+        "archive_sha256": "7c98d2226b8c7c6d21fb20224114e0f2bc732f64e541df2a5810b16bc19c0496",
+        "manifest": "Resources/OnDemandResources.txt",
+        "manifest_sha256": "213cf4a17de6676490f9da97afe330cfb4a317ca156089f398c9521c346c7619",
+        "record": "hlg.eqg^HLG.MDS^HLG_ACTORDEF^EQGS"
+      },
+      "original_call_path": [
+        "housing504c12..504c74 resolves first3 actor token into race/gender and creates local entity",
+        "constructor59646d..596509 initializes size-1;596724..596734 invokes5a3f40(0,1), selecting racedata default6",
+        "housing504f5f calls504830;504865 uses raw actor height for59ef50 visual scale, so selected model-default policy explicitly emits6 rather than wire0",
+        "5a3f40 obtains race default via7f4730 and original ROffset/control-state arithmetic",
+        "7f47d0 parses racedata fields89/90;race715 both6.0"
+      ],
+      "source_actor_height_bits": 0
+    }
+  ],
+  "unseeded_period_candidates": [
+    {
+      "item_id": 107152,
+      "name": "Black Bear Cub",
+      "item_npc_definition_key": "black_bear_cub",
+      "actor_model_prefix": null,
+      "reason": "Period item confirmed; exact original item-to-renderer model/appearance not established."
+    },
+    {
+      "item_id": 107166,
+      "name": "Friendly Puppy",
+      "item_npc_definition_key": "friendly_pup",
+      "actor_model_prefix": null,
+      "reason": "Period item confirmed; exact original item-to-renderer model/appearance not established."
+    }
+  ]
+}

@@ -848,7 +848,7 @@
     {
       "definition_id": 30,
       "type": 3,
-      "zone_id": null,
+      "zone_id": 723,
       "template_ids": [
         54999
       ],
@@ -861,10 +861,11 @@
       "provenance": "Named2013patchtotal",
       "source_urls": [
         "https://www.eqemulator.org/forums/archive/index.php/t-39092.html",
-        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/"
+        "https://forums.everquest.com/index.php?threads/housing-and-marketplace-improvements.199446/",
+        "https://mqmesh.com/all.php"
       ],
       "complete_original_definition": false,
-      "route_status": "Unresolvedperiod720vs723; modernmesh723association requiresreview"
+      "route_status": "Reviewed reconstruction: original dragon-room geometry/materials and authentic dragon-lover item lore, corroborated by later primary mesh inventory naming phinterior1d1 Hermit; not a captured May2013 server route."
     },
     {
       "definition_id": 32,

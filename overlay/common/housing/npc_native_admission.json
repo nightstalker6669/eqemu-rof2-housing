@@ -1,0 +1,161 @@
+{
+  "format": "housing-reviewed-npc-native-admission-v1",
+  "policy_revision": 1,
+  "purpose": "Temporary native renderer admission preimage only; canonical server placement/collision/identity unchanged",
+  "binding": {
+    "item_id": 77408,
+    "item_key": "a_holgresh",
+    "actor_prefix": "HLG",
+    "race": 715,
+    "gender": 2,
+    "source_sha256": "4367281d3ea244b1f8eba86d5f8428535b0eb698f9cde375f822223444f74a00",
+    "source_raw_height": "unknown; retained zero",
+    "model_default_override": 6
+  },
+  "original_assets": {
+    "eqgame_sha256": "2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e",
+    "graphics_sha256": "ade556b68e98f6f39c5578f70431e11c0b9babcc15b8571eb22cf1e2b654417e",
+    "d3dx9_30_sha256": "5edeed79f2359527a55b8189cfa8b9b121cd608d44eead905a0f3436938ad532",
+    "archive": "hlg.eqg",
+    "archive_sha256": "7c98d2226b8c7c6d21fb20224114e0f2bc732f64e541df2a5810b16bc19c0496",
+    "members": [
+      {
+        "name": "crch_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 22336,
+        "sha256": "ce7653d19c0e70e6c5499499defbeb591fc48fe62401be0956c04f5b8344442d"
+      },
+      {
+        "name": "crmp_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 206476,
+        "sha256": "7330de9f93ca01d0481985f32d152fd539b3d3533ea22d32edc0248abbd2ce66"
+      },
+      {
+        "name": "flch_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 87808,
+        "sha256": "cc03bb5e8646fc74624cc2dfe95b8d4a525d9122669d773568c0bd14f62f4903"
+      },
+      {
+        "name": "hlg.mds",
+        "magic": "45514753",
+        "size": 170265,
+        "sha256": "5cdc9a28fb4660d964c1368af3f79364a3397ea98b5638819b75e4f891f9c7cf"
+      },
+      {
+        "name": "idle_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 231028,
+        "sha256": "4804a844717b23344e4afdcca11962778a0d7c080e1266bfcc4988802104e8b4"
+      },
+      {
+        "name": "jmpa_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 50980,
+        "sha256": "d004283fa815aef4b1ade0467edf88a33c9c5d6874148ce404e6c60e5cbff40c"
+      },
+      {
+        "name": "jmpu_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 87808,
+        "sha256": "2b8fcdb88f7b28d5860ae8a9e72fc680e1d641526bbd395f834a5c04bde7cafe"
+      },
+      {
+        "name": "nrun_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 59164,
+        "sha256": "7f7c465ee848501642ccc814b68f3dd76d3dc02c8101284d39e43d201f8b5293"
+      },
+      {
+        "name": "slpr_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 91900,
+        "sha256": "eb93ae053274ee4e5e6480619c104a4b2b52bb5b279f8d8039ad0af5ea752279"
+      },
+      {
+        "name": "stnd_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 87808,
+        "sha256": "5133cbb3f2b2e380e87076416c3c90089645d4b0be2d7b3e01854104e8eca0e2"
+      },
+      {
+        "name": "stun_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 87808,
+        "sha256": "6fd3e9487e26cce9f10a27b3b70b6de425f7a0542b94d52927a1d572acf27e37"
+      },
+      {
+        "name": "swim_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 108268,
+        "sha256": "d6c4fb2b6d0fc672d109de6255884c17191fe7e2b8e834f0c4a4a61cae055f8e"
+      },
+      {
+        "name": "turn_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 87808,
+        "sha256": "c45823d9992c720d9ae9f35213a0707313f48b94c637ecd2461a445f98fb252f"
+      },
+      {
+        "name": "walk_ba_1_hlg.ani",
+        "magic": "45514741",
+        "size": 87808,
+        "sha256": "fc78be69c45fcd17117505d51fd1912bdda2a5ed6cf454a74bd3fd952f40bab9"
+      }
+    ]
+  },
+  "source_coverage": {
+    "bones": 93,
+    "clips": 13,
+    "tracks": 1209,
+    "frames": 28923,
+    "max_hierarchy_depth": 12,
+    "bbox_union_updates": 92,
+    "strict0_root_z_correction": -3.125,
+    "source_extrema_sha256": "4647d025df33ed3d6d9edb9e06e897092872895ad6effca1216c7e196db7a537"
+  },
+  "renderer_corner_radius": {
+    "formula": "B(A) = intercept + anchor_coefficient * A; add accepted entity height before native projection",
+    "intercept": 83.88973520919154,
+    "anchor_coefficient": 0.0002442745683602869,
+    "maximum_anchor_norm": 65536,
+    "includes": [
+      "all original bind transforms and own-archive clips",
+      "source strict0 root correction",
+      "native key subset reduction without component quantization",
+      "clamped continuous vector interpolation and quaternion normalization",
+      "original nonnegative two-track housing crossfades",
+      "selected SSE Normalize one Newton step",
+      "selected SSE matrix multiply and scalar quaternion construction",
+      "all92 repeated bbox center/extent updates",
+      "sqrt3 bbox corner enclosure",
+      "raw6 original visual-scale variants and getter reciprocal/remultiply"
+    ]
+  },
+  "native_witness": {
+    "keyframe_and_compressed_GetSRT": "0x43bb8d",
+    "keyframe_quaternion": "0x43ae1d clamps t and normalizes",
+    "keyframe_vectors": "0x43b017 clamps t",
+    "compression": "0x43c4ff retains original key subset; signs only",
+    "controller": "0x437d82 normalizes final quaternion; original graphics0x10040070 creates2tracks,0x1003fcc0 schedules paired0/1 transitions",
+    "selected_normalize": "0x6117fd",
+    "selected_matrix_multiply": "0x6110b6",
+    "selected_rotation_quaternion": "0x44252f",
+    "normal_input_scope": "Original nonnegative two-track housing controller and bind fallback; excludes external API injections, attached models, mutated clocks or arbitrary animation/controller replacement.",
+    "normalize_norm_addition": 7.62939453125e-06,
+    "normalize_proof": "u=2^-23, gamma8=8u/(1-8u); positive normal dot and bounded RSQRT ensure Newton positive. Norm <= (1+u)^4/((1-u)*sqrt(1-gamma8)) < 1+2^-17.",
+    "rsqrt_primary_reference": "https://cdrdv2-public.intel.com/774492/325383-sdm-vol-2abcd.pdf"
+  },
+  "projection_policy": {
+    "original_profile_rewritten": false,
+    "fallback_status": 1,
+    "id_derivation": "0x7d000000 | (base region ID & 0x00ffffff); positive reserved range, refuse conflict against current full catalogue",
+    "wire_collection": "49df replaces entire region collection; preserve full current collection and append temporary box",
+    "rounding": "outward float box; double outward radius, gamma256 world-corner/inverse enclosure, twice outward power of2 bound",
+    "server_checks": "All canonical NPC ground frame, authoritative regions, floor/ceiling/collision, identity, quota and custody checks unchanged.",
+    "stale_geometry": "Every ordinary interior Begin/Move restores full canonical49df collection before preview; no reliance on native status-map replacement",
+    "source_shape": "Original opaque_vector must be zero and opaque_ids both0xffffffff"
+  },
+  "redistributed_client_assets": false
+}

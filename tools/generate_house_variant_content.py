@@ -66,8 +66,25 @@ def text(value, label):
     return value
 
 
+def source_include_text(path, active=()):
+    require(path.is_file() and not path.is_symlink() and path.stat().st_size <= MAX_JSON,
+            'Missing, linked or oversized compiled registry: ' + path.name)
+    identity = path.resolve()
+    require(identity not in active and len(active) <= 4, 'Cyclic or excessive registry include depth')
+    raw = path.read_text(encoding='utf-8')
+    includes = re.findall(r'^\s*#include "([^"\n]+\.inc)"', raw, re.MULTILINE)
+    require(len(includes) == len(set(includes)), 'Duplicate registry include')
+    for name in includes:
+        require(re.fullmatch(r'[A-Za-z0-9_]+\.inc', name), 'Unsafe compiled registry include')
+        pattern = r'^\s*#include "' + re.escape(name) + r'"[ \t]*$'
+        require(len(re.findall(pattern, raw, re.MULTILINE)) == 1, 'Unsupported registry include syntax')
+        extra = source_include_text(path.parent / name, active + (identity,))
+        raw = re.sub(pattern, lambda match: extra, raw, flags=re.MULTILINE)
+    return raw
+
+
 def templates(source):
-    raw = (source / 'common/housing/house_template_registry.h').read_text(encoding='utf-8')
+    raw = source_include_text(source / 'common/housing/house_template_registry.h')
     rows = re.findall(r'\{(\d+),(\d+),(\d+),(\d+),"(IT\d+)"\}', raw)
     result = {}
     for item, definition, kind, zone, model in rows:
@@ -77,9 +94,7 @@ def templates(source):
                             zone_id=int(zone), model=model)
     require(result, 'Missing compiled template registry')
     geometry_file = source / 'common/housing/house_geometry_registry.h'
-    geometry_text = geometry_file.read_text(encoding='utf-8')
-    for include in re.findall(r'#include "([A-Za-z0-9_]+\.inc)"', geometry_text):
-        geometry_text += '\n' + (geometry_file.parent / include).read_text(encoding='utf-8')
+    geometry_text = source_include_text(geometry_file)
     models = {}
     for item, model in re.findall(r'\{(\d+),\d+,"(IT\d+)"', geometry_text):
         require(int(item) not in models, 'Duplicate compiled exterior geometry')

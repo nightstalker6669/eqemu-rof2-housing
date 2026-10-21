@@ -164,9 +164,13 @@ configured template and its permanent bindings. Activate the generated proposal
 through reviewed production catalogue/persistence setup in a fresh neighborhood;
 generation itself makes no database or runtime changes.
 
-Review the three optional October21 migrations: Evantil77407 item metadata,
-missing original zone766 registration, and supported guild737/738/751 zone identity/
-normal-player access. Their technical policies and guarded preconditions are
+Review the optional October21 variant migrations: Evantil77407 item metadata,
+missing original zone766 registration, supported guild737/738/751 zone identity/
+normal-player access, and Hermit54999 metadata plus missing zone723 registration.
+Hermit uses the explicitly reviewed route reconstruction in its
+[provenance guide](provenance/house-variants/HERMIT-HIDEAWAY.md).
+The18 later Manor aliases need no item repair when their exact structured fields
+already match; contradictory lore is retained. Their technical policies and guarded preconditions are
 explicit in the SQL and variant documentation. Stop metadata writers, apply
 against the correct configured database, regenerate shared items, select the
 generated prefix after generation finishes, and cold-start world and every zone
@@ -180,6 +184,9 @@ uses effective values. Keep all world/zones stopped for existing-room upgrades,
 review the complete pinned plan and retain backups. Adding Grand requires merging
 its registry entry with existing Palatial/Modest entries and a reviewed fresh
 plot catalogue that permits definition39; do not rewrite a bound catalogue.
+New variants need exact template/base capacity grants as well as their files.
+Register only newly configured templates and preserve existing room policy heads
+and grants. Adding files never authorizes an existing bound catalogue rewrite.
 NPC quotas do not seed missing NPC item metadata. See [capacity and identity
 boundaries](HOUSE-VARIANTS-2026-10-21.md#existing-rooms-and-future-preserved-templates).
 
@@ -197,3 +204,13 @@ recipient, account and nondeleted character before retirement. Stop concurrent
 schema writers; no process restart or item-cache regeneration is required for
 this DDL-only correction. The applied migration conserved policy rows, and
 ordinary native zoning/save persisted the correct destination instance.
+
+### Reviewed housing NPC item
+
+The optional [Holgresh binding](NPC-ITEM-BINDINGS-2026-10-21.md) has a separate
+guarded seed after NPC metadata/runtime prerequisites. It preserves the real
+item key and opaque respawn value and uses an explicit original-model-default
+sizing policy. Audit retained item custody with the versioned codec first.
+Build and deploy matching shared-memory/common/world/zone/UCS tools, seed only
+the reviewed tuple, regenerate the actual shared-item prefix, select it after
+generation, and cold-start. Other unproved item-to-model bindings stay disabled.

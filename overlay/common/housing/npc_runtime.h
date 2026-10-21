@@ -7,15 +7,19 @@
 #include "npc_native_model_profiles.h"
 namespace Housing::NpcRuntime {
 // Original executable2a8702ad...:50a370 prefix lookup,59efd0 race correction,
-// 5b2061..5b2095 NPC placement envelope. No source item-to-model mapping seeded.
-struct Profile {uint32_t item_id=0,race=0,gender=0,model_id=0;std::string model,filename,source_sha256;float actor_height=0,entity_height=0;NpcNativeHeight::Variants allowed_heights{};uint32_t roffset_bits=0;bool race_flag=false;bool legacy_fixed_eye=false;};
+// 5b2061..5b2095 NPC placement envelope. Explicit reviewed item/model bindings are separate from item NPC keys.
+struct Profile {uint32_t item_id=0,race=0,gender=0,model_id=0;std::string model,filename,source_sha256;float actor_height=0,entity_height=0;NpcNativeHeight::Variants allowed_heights{};uint32_t roffset_bits=0,respawn_interval=0,model_default_size_bits=0;bool race_flag=false;bool legacy_fixed_eye=false,original_model_default=false;};
 inline std::optional<Profile> Review(const NpcItemMetadata::Source& s){
- if(!NpcItemMetadata::Valid(s)||s.filename.size()<3||s.interactive||s.respawn_interval||!(s.actor_height>0)||!std::isfinite(s.actor_height))return {};
- const auto prefix=s.filename.substr(0,3);Profile p;p.item_id=s.item_id;p.model=prefix;p.filename=s.filename;p.source_sha256=s.source_sha256;p.actor_height=s.actor_height;
+ if(!NpcItemMetadata::Valid(s)||s.filename.size()<3||s.interactive||!std::isfinite(s.actor_height))return {};
+ const auto* binding=NpcReviewedBindings::Lookup(s.item_id);
+ if(binding){if(!NpcReviewedBindings::Matches(*binding,s.filename,s.interactive,s.respawn_interval,s.source_sha256,s.actor_height))return {};}
+ else if(s.respawn_interval||!(s.actor_height>0))return {};
+ const std::string prefix=binding?std::string(binding->actor_prefix):s.filename.substr(0,3);Profile p;p.item_id=s.item_id;p.model=prefix;p.filename=s.filename;p.source_sha256=s.source_sha256;p.actor_height=s.actor_height;p.respawn_interval=s.respawn_interval;
+ if(binding){p.original_model_default=true;p.model_default_size_bits=binding->default_size_bits;p.actor_height=NpcNativeHeight::Float(binding->default_size_bits);}
  const auto* model=NpcNativeModels::Lookup(prefix);if(!model)return {};
- p.race=model->race;p.gender=model->gender;p.roffset_bits=model->roffset_bits;p.race_flag=model->race_flag;
+ p.race=model->race;p.gender=model->gender;if(binding&&(p.race!=binding->race||p.gender!=binding->gender))return {};p.roffset_bits=model->roffset_bits;p.race_flag=model->race_flag;
  if(model->fixed_height_bits)p.allowed_heights.height_bits={model->fixed_height_bits,model->fixed_height_bits,model->fixed_height_bits,model->fixed_height_bits};
- else{auto heights=NpcNativeHeight::OriginalControlStates(NpcNativeHeight::Bits(s.actor_height),model->roffset_bits,model->race_flag);if(!heights)return {};p.allowed_heights=*heights;}
+ else{auto heights=NpcNativeHeight::OriginalControlStates(binding?binding->default_size_bits:NpcNativeHeight::Bits(s.actor_height),model->roffset_bits,model->race_flag);if(!heights)return {};p.allowed_heights=*heights;}
  p.entity_height=NpcNativeHeight::Float(p.allowed_heights.height_bits[0]);p.legacy_fixed_eye=prefix=="EYE"&&p.race==108&&p.gender==2;
  // Server semantic model namespace; NOT an original wire model/race number.
  p.model_id=0xf0000000u|(p.race<<2)|p.gender;return p;
@@ -27,13 +31,17 @@ inline std::optional<Profile> Cached(const EQ::ItemData& d){
  if(end==std::end(d.HousingHousepetFilename)||sha_end==std::end(d.HousingNpcSourceSha256)||d.HousingInteractiveObject>1)return {};
  return Review({d.ID,std::string(d.HousingHousepetFilename,end),d.HousingInteractiveObject!=0,d.HousingNpcRespawnInterval,std::string(d.HousingNpcSourceSha256,sha_end),d.HousingNpcActorHeight});
 }
-inline bool Same(const Profile& a,const Profile& b){return a.item_id==b.item_id&&a.race==b.race&&a.gender==b.gender&&a.model_id==b.model_id&&a.model==b.model&&a.filename==b.filename&&a.actor_height==b.actor_height&&a.entity_height==b.entity_height&&a.source_sha256==b.source_sha256&&a.allowed_heights.height_bits==b.allowed_heights.height_bits&&a.roffset_bits==b.roffset_bits&&a.race_flag==b.race_flag&&a.legacy_fixed_eye==b.legacy_fixed_eye;}
-inline bool Valid(const Profile& p){auto reviewed=Review({p.item_id,p.filename,false,0,p.source_sha256,p.actor_height});return reviewed&&Same(*reviewed,p)&&p.model_id==reviewed->model_id;}
+inline bool Same(const Profile& a,const Profile& b){return a.item_id==b.item_id&&a.race==b.race&&a.gender==b.gender&&a.model_id==b.model_id&&a.model==b.model&&a.filename==b.filename&&a.actor_height==b.actor_height&&a.entity_height==b.entity_height&&a.source_sha256==b.source_sha256&&a.allowed_heights.height_bits==b.allowed_heights.height_bits&&a.roffset_bits==b.roffset_bits&&a.race_flag==b.race_flag&&a.legacy_fixed_eye==b.legacy_fixed_eye&&a.respawn_interval==b.respawn_interval&&a.model_default_size_bits==b.model_default_size_bits&&a.original_model_default==b.original_model_default;}
+inline bool Valid(const Profile& p){auto reviewed=Review({p.item_id,p.filename,false,p.respawn_interval,p.source_sha256,p.original_model_default?0.0f:p.actor_height});return reviewed&&Same(*reviewed,p)&&p.model_id==reviewed->model_id;}
 inline PlacementPolicy::Geometry Geometry(const Profile& p){
  if(!Valid(p))throw std::invalid_argument("Incoherent NPC profile");
  PlacementPolicy::Geometry g;g.model_id=p.model_id;g.center={0,0,p.entity_height};g.extents={1,1,p.entity_height};g.native_collision_verified=true;g.npc_height=p.entity_height;return g;
 }
 inline bool NativeItem(const ItemWire::Metadata& n){return !n.interactive&&!n.respawn_interval&&std::isfinite(n.scale_min)&&std::isfinite(n.scale_max)&&n.scale_min>0&&n.scale_max>=n.scale_min&&n.placement_type==0&&!n.definition_id;}
+inline bool NativeItem(const ItemWire::Metadata& n,const Profile& p){
+ if(!Valid(p))return false;if(!p.original_model_default)return NativeItem(n);
+ return !n.interactive&&n.housepet_filename==p.filename&&n.respawn_interval==p.respawn_interval&&n.default_scale==1.0f&&n.placeable==142&&n.scale_min==1.0f&&n.scale_max==1.0f&&n.placement_type==0&&!n.definition_id;
+}
 inline bool Pose(const PlacementPolicy::Transform& t){return t.scale>0&&std::isfinite(t.scale)&&std::isfinite(t.pitch)&&std::isfinite(t.roll);}
 // Native711a's submitted Z is the actor origin minus actual entity height.
 // Stored NPC poses use this submitted ground frame;1045/626e restore actor Z.

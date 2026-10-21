@@ -153,6 +153,10 @@ inline constexpr Record Records[]={
  {57516,32,3,714,"IT20025"},
  {57517,33,3,716,"IT20025"},
  {57518,34,3,717,"IT20025"},
+#include "house_manor_aliases.inc"
+ // Reviewed Hermit reconstruction: original dragon-room evidence plus later
+ // primary zone-name association; not a recovered May2013 server route.
+ {54999,30,3,723,"IT20022"},
  // Original registered Evantil interior and explicit original EQLOD collision
  // resource; retained collector definition42. See variant content provenance.
  {77407,42,3,766,"IT23651"},

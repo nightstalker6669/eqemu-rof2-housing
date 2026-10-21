@@ -28485,6 +28485,47 @@
       ],
       "region_policy": "Exact compiled full original-source connected-region envelope; technical broad phase only, source-bound runtime collision and placement checks remain mandatory. Not captured Live estate regions.",
       "spawn_policy": "Technical original-source base-floor entry at0,0,4; actual Map floor0 and105 bounded clearance rays verified. Representative native confirmation still required; no original safe/spawn markers recovered."
+    },
+    {
+      "zone_id": 723,
+      "short_name": "phinterior1d1",
+      "client_asset_sha256": "3692e070adc32533afdf5fad7b39f290fb610785371771a29e71299d78dfd354",
+      "collision_map_sha256": "fb8a1ea99fcfcb2497a209e4d5238c458136cd9e376d998e0d2d31868ee50aae",
+      "source_faces_sha256": "1fb6771d343230d0a2de526a6fb26bd9b618aa8cc0a6c294668569c61e941d3c",
+      "regions_words": [
+        [
+          1108466738,
+          0,
+          0,
+          0,
+          0,
+          1110722874,
+          0,
+          0,
+          0,
+          0,
+          1096286210,
+          0,
+          1084742008,
+          3245367678,
+          1096286209,
+          1065353216,
+          0,
+          0,
+          0,
+          4294967295,
+          4294967295
+        ]
+      ],
+      "regions_words_sha256": "05c8a2f23233a7e16706e516e258ec4df9508ab2f52a5948963380a7a0e9a6bd",
+      "spawn": [
+        0,
+        0,
+        4,
+        0
+      ],
+      "region_policy": "Exact compiled original connected structural-mesh envelope; technical broad phase only. Original source collision/mount/ACL guards remain required. Not captured Live permission regions.",
+      "spawn_policy": "Technical source-floor entry0,0,4, independent actualMap floor and105clearance-ray witnesses passed; no original safe markers. Native acceptance pending."
     }
   ],
   "provenance": "Original client source hashes and reviewed technical deployment geometry. Profile-local region IDs are generated implementation identifiers. No actor, estate, native instance ID or original game asset is included."

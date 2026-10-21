@@ -1,8 +1,9 @@
 # Reviewed house and guild-hall variants, October 21, 2026
 
-The compiled registry now recognizes 144 distinct physical templates: the
-existing 120 personal houses, 18 coherent Manor variants, the separately
-identified Behroe hut 67078, Evantil's Abode 77407, and four guild halls.
+The compiled registry now recognizes 163 distinct physical templates: the
+existing 120 personal houses, 18 canonical Manor variants, 18 equivalent later
+Manor aliases, Hermit's Hideaway54999, Behroe hut67078, Evantil's Abode77407,
+and four guild halls.
 Recognition still requires matching item metadata, original model geometry,
 reviewed room content, current ownership and the normal custody transaction.
 A registry entry alone does not activate a room or establish native acceptance.
@@ -62,8 +63,10 @@ The output uses `housing-personal-content-registry.json` and
 `housing-guild-content-registry.json`, with `housing-house-ITEM.json` and
 `housing-room-ITEM.json` entries. The runtime accepts these production schemas
 and the existing legacy schemas. The initial 22-profile extension retained 121 existing configurations, yielding 143
-selections. The separately configured Grand profile completes all 144 compiled
-selections after merging its entry into the existing guild registry. Preserve
+selections. The separately configured Grand profile completed the initial144 selections.
+The subsequent18 Manor aliases and Hermit add19 selections, yielding163, while
+preserving those144 configured profiles byte for byte. Merge new personal
+registry entries rather than replacing the existing registry. Preserve
 existing Palatial/Modest registry entries when adding Grand; a generated registry
 containing only the new entry is not a replacement for their active registry.
 
@@ -72,8 +75,8 @@ containing only the new entry is not a replacement for their active registry.
 The researched evidence registry remains unchanged, including its historical
 unknowns. A separate [configurable capacity policy](../overlay/common/housing/house_variant_capacity_defaults.json)
 records every effective field and its source classification. Personal totals
-are300/500, Manor500 and Evantil600. The reviewed Hermit total400 remains data
-only because its route is unresolved. Standard1000 and Modest1500 use the stated
+are300/500, Manor500 and Evantil600. Hermit uses the researched400 total and the reviewed723 route described
+in its [provenance guide](provenance/house-variants/HERMIT-HIDEAWAY.md). Standard1000 and Modest1500 use the stated
 later placeable-derived budget; Palatial2000 has period player evidence.
 **Grand1500 is an explicit server default**, not a recovered historical total.
 
@@ -88,8 +91,11 @@ record are labelled emulator policy wherever original data is missing.
 Edit effective fields and accurate provenance in the separate policy file and
 increment its policy revision. Regenerate fresh profiles. Existing bound rooms
 require the checked capacity ledger upgrade; changing a file alone does not
-reconfigure them. Inconsistent later Manor aliases and Hermit's720/723 association
-remain excluded.
+reconfigure them. The 18 later Manor aliases reuse exact structured model/definition metadata;
+contradictory lore remains untouched. Hermit's723 association is an explicitly
+reviewed reconstruction, not a captured original server definition. See the
+[Manor evidence](provenance/house-variants/MANOR-ALIASES.md) and
+[Hermit evidence](provenance/house-variants/HERMIT-HIDEAWAY.md).
 
 ### Existing rooms and future preserved templates
 
