@@ -45,7 +45,7 @@ client lookup from `a_holgresh` to `HLG`.
 
 Only the exact item/key/source hash/opaque-field/unknown-source-height tuple can
 select this policy. Wrong source, altered key, zeroed respawn, a claimed source
-height6, interactive records and unproved item/model pairs remain rejected.
+height6, interactive records passed to this pet policy and unproved item/model pairs remain rejected.
 Ordinary and legacy NPC guards remain unchanged. Content fingerprints add the
 model-default domain and exact race-data/default-size witness only for this new
 binding; older fingerprint bytes and permanent profile identities are preserved.
@@ -76,8 +76,10 @@ placement and camp/relog replay in Hermit's Hideaway also passed with a
 committed durable pose and the native Items list retaining its placed House
 location; an
 ordinary chair preview subsequently returned green using its canonical regions.
-This document does not certify every house-pet item, captured Live size or
-interactive NPC AI. Acceptance used an administratively provisioned character
+This document does not certify every house-pet item or captured Live size.
+Interactive service contracts use the separate [service implementation](SERVICE-NPCS-2026-10-21.md),
+with real server NPCs and independently authenticated metadata; they do not use
+the Holgresh client-local pet path. Representative Grand hall placement and service transactions passed; the separate service document records remaining acceptance boundaries. Acceptance used an administratively provisioned character
 and properties; it does not establish a fresh purchase or all non-admin roles.
 
 ## Indoor animated preview admission

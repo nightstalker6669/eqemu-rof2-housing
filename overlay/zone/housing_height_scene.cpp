@@ -6,6 +6,8 @@
 #include "corpse.h"
 #include "zone.h"
 #include "housing_actor_publication.h"
+#include "housing_service_npcs.h"
+#include "housing_service_authority.h"
 #include "../common/housing/house_binding_service.h"
 #include "../common/housing/interior_content_binding.h"
 #include "../common/housing/original_terrain_source.h"
@@ -79,7 +81,7 @@ Doors* CurrentPublishedDoor(Client&client,uint32_t id,const ActorPublication::Do
  return found;
 }
 std::string Census(Client&client){std::ostringstream out;out<<zone->GetZoneID()<<':'<<zone->GetInstanceID()<<':'<<ActorPublication::Revision(client)<<';';
- std::map<uint16_t,Mob*> mobs(entity_list.GetMobList().begin(),entity_list.GetMobList().end());for(const auto&[id,m]:mobs){if(!m)return {};out<<'m'<<id<<':'<<m->GetRace()<<':'<<unsigned(m->GetGender())<<':'<<unsigned(m->GetBodyType())<<':'<<std::bit_cast<uint32_t>(m->GetSize())<<';';}
+ std::map<uint16_t,Mob*> mobs(entity_list.GetMobList().begin(),entity_list.GetMobList().end());for(const auto&[id,m]:mobs){if(!m)return {};out<<'m'<<id<<':'<<m->GetRace()<<':'<<unsigned(m->GetGender())<<':'<<unsigned(m->GetBodyType())<<':'<<std::bit_cast<uint32_t>(m->GetSize())<<':'<<m->GetHousingEstateId()<<':'<<m->GetHousingItemId()<<':'<<m->GetHousingItemGuid()<<';';}
  for(const auto&[id,c]:entity_list.GetCorpseList()){if(!c)return {};out<<'c'<<id<<';';}
  const auto&publications=ActorPublication::Publication(client);if(!publications.DoorsPublished())return {};out<<'D'<<publications.Revision()<<';';for(const auto&[id,record]:publications.PublishedDoors()){const auto&d=record.door;out<<'p'<<id<<':'<<record.generation<<':'<<record.closed_resource<<':'<<PublishedDoorName(d)<<':'<<unsigned(d.doorId)<<':'<<unsigned(d.opentype)<<':'<<d.size<<':'<<d.incline<<':'<<unsigned(d.invert_state)<<':'<<unsigned(d.state_at_spawn)<<':'<<d.door_param<<':'<<std::bit_cast<uint32_t>(d.xPos)<<':'<<std::bit_cast<uint32_t>(d.yPos)<<':'<<std::bit_cast<uint32_t>(d.zPos)<<':'<<std::bit_cast<uint32_t>(d.heading)<<';';}
  std::map<uint16_t,Doors*> doors(entity_list.GetDoorsList().begin(),entity_list.GetDoorsList().end());for(const auto&[id,d]:doors){if(!d)return {};out<<'d'<<id<<':'<<d->GetDoorDBID()<<':'<<d->GetDoorName()<<':'<<unsigned(d->GetOpenType())<<':'<<d->GetSize()<<':'<<d->GetIncline()<<':'<<d->GetInvertState()<<':'<<d->IsDoorOpen()<<':'<<d->GetDoorParam()<<':'<<d->GetClientVersionMask()<<':'<<std::bit_cast<uint32_t>(d->GetPosition().x)<<':'<<std::bit_cast<uint32_t>(d->GetPosition().y)<<':'<<std::bit_cast<uint32_t>(d->GetPosition().z)<<':'<<std::bit_cast<uint32_t>(d->GetPosition().w)<<';';}
@@ -146,12 +148,31 @@ Result Admit(Client& client,Database&db,const LiveItems::Lease&lease,const Scene
   // Bind its exact existing SQL identity without inventing a destination actor.
   if(subject.kind==LiveItems::MountSubject::Kind::Move){auto source=db.QueryDatabase("SELECT native_item_id,pose_revision FROM housing_live_placed_items WHERE custody_id="+std::to_string(subject.custody_id)+" FOR UPDATE",false);if(!source.Success()||source.RowCount()!=1||!source.begin()[0]||!source.begin()[1]||std::stoul(source.begin()[0])!=subject.native_item_id||std::stoull(source.begin()[1])!=subject.pose_revision)return out;matched_subject=true;}
   std::set<uint32_t> native_ids;std::map<uint32_t,std::optional<NpcItemMetadata::Source>> npc_metadata;
+  std::map<uint32_t,PlacedHeightFilters::Actor> linked_service_actors;
   for(const auto&content:room.contents){const auto&row=content.stored;if(row.stowed||content.contained_in_crate||!row.placement)continue;const auto&p=*row.placement;const auto native=p.reservation.native_item_id;
    if(!native||!native_ids.insert(native).second||!content.room||!p.pose_revision)return out;
    if(subject.kind==LiveItems::MountSubject::Kind::Move&&native==subject.native_item_id){if(row.custody_id!=subject.custody_id||p.pose_revision!=subject.pose_revision||row.row.values.item_id!=selected.values.item_id)return out;matched_subject=true;}
    const auto item=row.row.values.item_id;if(!npc_metadata.count(item))npc_metadata[item]=NpcItemMetadata::ReadUnderTransaction(db,item);const auto&npc_source=npc_metadata[item];
    if(npc_source&&!NpcItemMetadata::Ordinary(*npc_source)){
-    auto e=entry({},PoseSha(p.transform),{},p.pose_revision);auto npc=NpcRuntime::Review(*npc_source);if(npc&&fence.NpcProfileMatchesUnderTransaction(db,lease,*npc)){auto projected=PlacedNpcHeightFilters::Project(*npc,p.transform,p.npc_frame,native);if(projected)e.actor=*projected;}scene.entries.push_back(std::move(e));continue;
+    auto npc=NpcRuntime::Review(*npc_source);
+    if(npc&&npc->service){
+     // Interactive contracts have ONE actual published network NPC. They do
+     // not create the received noninteractive CPlacedNPC's local graphics.
+     // A missing/duplicate/stale binding remains Unknown, never omission.
+     size_t matches=0;uint32_t spawn=0;std::optional<PlacedHeightFilters::Actor> actor;
+     for(const auto&[id,record]:ActorPublication::Publication(client).Records()){
+      if(record.spawn.housing_estate_id!=p.reservation.native_estate_id||record.spawn.housing_item_id!=native)continue;
+      ++matches;spawn=id;if(matches>1)break;
+      auto*mob=id<=UINT16_MAX?entity_list.GetMob(uint16_t(id)):nullptr;auto bound=ServiceNpcs::LiveBinding(mob);
+      if(!bound||bound->custody_id!=row.custody_id||bound->estate_id!=row.estate_id||bound->house_id!=room.house->house_id||bound->item_id!=item||bound->native_item_id!=native||bound->native_estate_id!=p.reservation.native_estate_id||!fence.NpcProfileMatchesUnderTransaction(db,lease,*npc)||!ServiceAuthority::Validate(db,*bound,nullptr))continue;
+      // Validate uses THIS custody transaction. Find/Bindings would open a
+      // second locking connection and can deadlock on our own source rows.
+      actor=ActorPublication::ProjectServiceHeightActor(client,uint16_t(id),*npc,row.custody_id,p.reservation.native_estate_id,native);
+     }
+     if(matches==1&&actor&&linked_service_actors.emplace(spawn,*actor).second)continue;
+     scene.entries.push_back(entry({},PoseSha(p.transform),{},p.pose_revision));continue;
+    }
+    auto e=entry({},PoseSha(p.transform),{},p.pose_revision);if(npc&&fence.NpcProfileMatchesUnderTransaction(db,lease,*npc)){auto projected=PlacedNpcHeightFilters::Project(*npc,p.transform,p.npc_frame,native);if(projected)e.actor=*projected;}scene.entries.push_back(std::move(e));continue;
    }
    const H::MeshCatalogEntry* mesh=MeshEntry(item);
    auto e=entry(mesh?mesh->member_sha256:std::string_view{},PoseSha(p.transform),mesh?mesh->mesh_sha256:std::string_view{},p.pose_revision);e.actor.type=9;e.actor.application_identity=native;e.actor.restriction_mask=2;e.actor.volume=1;
@@ -162,7 +183,16 @@ Result Admit(Client& client,Database&db,const LiveItems::Lease&lease,const Scene
   // Per-recipient outgoing publications define dynamic actor presence.
   // Current server entities bind their state but cannot invent unpublished actors.
   out.stage=6;std::set<uint32_t> dynamic_ids;for(const auto&[id,mob]:entity_list.GetMobList()){if(!mob)return out;dynamic_ids.insert(id);}for(const auto&[id,corpse]:entity_list.GetCorpseList()){if(!corpse)return out;dynamic_ids.insert(id);}for(const auto&[id,record]:ActorPublication::Publication(client).Records()){(void)record;dynamic_ids.insert(id);}
-  for(auto id:dynamic_ids){if(!ActorPublication::Publication(client).Find(id))continue;auto e=entry({}, {}, {},1);if(id<=UINT16_MAX){auto projected=ActorPublication::ProjectHeightActor(client,uint16_t(id));if(projected)e.actor=*projected;}scene.entries.push_back(std::move(e));}
+  for(auto id:dynamic_ids){const auto*published=ActorPublication::Publication(client).Find(id);if(!published)continue;auto e=entry({}, {}, {},published->generation);
+   auto linked=linked_service_actors.find(id);
+   if(linked!=linked_service_actors.end())e.actor=linked->second;
+   else if(id<=UINT16_MAX){
+    auto*mob=entity_list.GetMob(uint16_t(id));const auto&spawn=published->spawn;
+    const bool bound=spawn.housing_estate_id&&spawn.housing_estate_id!=UINT32_MAX&&spawn.housing_item_id&&spawn.housing_item_id!=UINT32_MAX;
+    // Unsupported housing-bound network actors never borrow ordinary player
+    // projection and never manufacture a second local placed-NPC actor.
+    if(!bound&&!ServiceNpcs::Managed(mob)){auto projected=ActorPublication::ProjectHeightActor(client,uint16_t(id));if(projected)e.actor=*projected;}
+   }scene.entries.push_back(std::move(e));}
   const auto&door_publications=ActorPublication::Publication(client);if(!door_publications.DoorsPublished())return out;
   for(const auto&[id,record]:door_publications.PublishedDoors()){auto e=entry({}, {}, {},record.generation);auto*door=CurrentPublishedDoor(client,id,record);if(door){e.actor.type=3;e.actor.application_identity=uint64_t(id)+1;e.actor.restriction_mask=2;e.actor.volume=1;e.actor.switch_data=PlacedHeightFilters::Switch{record.door.opentype,PublishedDoorName(record.door)};e.conservative_world_bounds=ClosedGuildDoorBounds(client,*door);}scene.entries.push_back(std::move(e));}
   for(const auto&[id,object]:entity_list.GetObjectList()){(void)id;if(!object)return out;scene.entries.push_back(entry({}, {}, {},1));}

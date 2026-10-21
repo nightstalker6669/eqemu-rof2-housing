@@ -2,6 +2,7 @@
 #ifndef EQEMU_HOUSING_INVENTORY_BRIDGE_H
 #define EQEMU_HOUSING_INVENTORY_BRIDGE_H
 #include "housing_inventory_identity.h"
+#include "housing_guild_portal.h"
 #include "../common/housing/ownership_transfer_service.h"
 #include "../common/housing/trophy_benefits_db.h"
 #include "../common/housing/guild_trophies_db.h"
@@ -113,6 +114,7 @@ public:
  LiveItems::Result<LayoutMixedJournal::Receipt> LoadLayoutMixed(const std::string&,
   const std::vector<uint8_t>&,const LayoutMixedCoordinator::Intent&,
   const std::map<uint64_t,std::unique_ptr<EQ::ItemInstance>*>&,bool enabled=false);
+ LiveItems::Result<GuildPortal::Alignment> AlignGuildPortal(const GuildPortalRuntime::Source&,uint32_t trade_slot,int32_t runtime_serial,const GuildPortalRuntime::Validator&);
  LiveItems::Result<bool> CloseSession(); // Lifecycle owner must call before Client destruction.
 private:
  OwnershipTransfer::Result<OwnershipTransfer::Receipt> ExecutePersonalPlotTransfer(const std::string&,const std::array<uint8_t,EstateWire::PurchaseSize>&,bool,const OwnershipTransfer::Source*);

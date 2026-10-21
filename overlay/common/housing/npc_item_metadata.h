@@ -2,6 +2,7 @@
 #define EQEMU_HOUSING_NPC_ITEM_METADATA_H
 #include "item_wire.h"
 #include "npc_reviewed_item_bindings.h"
+#include "service_item_bindings.h"
 #include "../item_data.h"
 #include <algorithm>
 #include <map>
@@ -17,13 +18,13 @@ inline void Apply(EQ::ItemData& item,const Source& source){
 }
 inline bool Ordinary(const Source& source){return source.filename.empty()&&!source.interactive&&!source.respawn_interval;}
 inline bool Ordinary(const EQ::ItemData& item){return !item.HousingHousepetFilename[0]&&!item.HousingInteractiveObject&&!item.HousingNpcRespawnInterval;}
-inline void ToWire(ItemWire::Metadata& metadata,const Source& source){if(!Valid(source))throw std::invalid_argument("Invalid reviewed NPC item metadata source");metadata.housepet_filename=source.filename;metadata.interactive=source.interactive;metadata.respawn_interval=source.respawn_interval;if(const auto* binding=NpcReviewedBindings::Lookup(source.item_id);binding&&NpcReviewedBindings::Matches(*binding,source.filename,source.interactive,source.respawn_interval,source.source_sha256,source.actor_height))metadata.default_scale=1.0f;}
+inline void ToWire(ItemWire::Metadata& metadata,const Source& source){if(!Valid(source))throw std::invalid_argument("Invalid reviewed NPC item metadata source");metadata.housepet_filename=source.filename;metadata.interactive=source.interactive;metadata.respawn_interval=source.respawn_interval;if(const auto* binding=NpcReviewedBindings::Lookup(source.item_id);binding&&NpcReviewedBindings::Matches(*binding,source.filename,source.interactive,source.respawn_interval,source.source_sha256,source.actor_height))metadata.default_scale=1.0f;if(const auto* service=ServiceItemBindings::Lookup(source.item_id);service&&ServiceItemBindings::Matches(*service,source.filename,source.interactive,source.respawn_interval,source.source_sha256,source.actor_height))metadata.default_scale=1.0f;}
 inline void ToWire(ItemWire::Metadata& metadata,const EQ::ItemData& item){
  metadata.housepet_filename.clear();metadata.interactive=false;metadata.respawn_interval=0;
  if(!item.HousingNpcMetadataKnown){if(!Ordinary(item))throw std::invalid_argument("Unreviewed NPC item metadata");return;}
  const auto end=std::find(std::begin(item.HousingHousepetFilename),std::end(item.HousingHousepetFilename),char(0));
  if(end==std::end(item.HousingHousepetFilename)||item.HousingInteractiveObject>1)throw std::invalid_argument("Invalid cached NPC item metadata");
- std::string filename(item.HousingHousepetFilename,end);if(!Filename(filename))throw std::invalid_argument("Invalid cached NPC item filename");metadata.housepet_filename=std::move(filename);metadata.interactive=item.HousingInteractiveObject!=0;metadata.respawn_interval=item.HousingNpcRespawnInterval;if(const auto* binding=NpcReviewedBindings::Lookup(item.ID);binding&&NpcReviewedBindings::Matches(*binding,metadata.housepet_filename,metadata.interactive,metadata.respawn_interval,std::string_view(item.HousingNpcSourceSha256,64),item.HousingNpcActorHeight))metadata.default_scale=1.0f;
+ std::string filename(item.HousingHousepetFilename,end);if(!Filename(filename))throw std::invalid_argument("Invalid cached NPC item filename");metadata.housepet_filename=std::move(filename);metadata.interactive=item.HousingInteractiveObject!=0;metadata.respawn_interval=item.HousingNpcRespawnInterval;if(const auto* binding=NpcReviewedBindings::Lookup(item.ID);binding&&NpcReviewedBindings::Matches(*binding,metadata.housepet_filename,metadata.interactive,metadata.respawn_interval,std::string_view(item.HousingNpcSourceSha256,64),item.HousingNpcActorHeight))metadata.default_scale=1.0f;if(const auto* service=ServiceItemBindings::Lookup(item.ID);service&&ServiceItemBindings::Matches(*service,metadata.housepet_filename,metadata.interactive,metadata.respawn_interval,std::string_view(item.HousingNpcSourceSha256,64),item.HousingNpcActorHeight))metadata.default_scale=1.0f;
 }
 }
 #endif

@@ -1,7 +1,7 @@
 {
   "client_build": "May 10, 2013 RoF2",
   "client_sha256": "2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e",
-  "real_estate_count": 48,
+  "real_estate_count": 49,
   "guild_trophy_count": 6,
   "documented_opcode_count": 67,
   "complete_protocol": false,
@@ -329,6 +329,12 @@
       "opcode": "0x5a63",
       "direction": "S2C+C2S",
       "description": "estateID:u32@0; senderText:char[64]@12; acceptance:u8@185; other fields preserved or opaque"
+    },
+    {
+      "name": "OP_RealEstateBindSpawn",
+      "opcode": "0x21ea",
+      "direction": "S2C",
+      "description": "S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+NUL@4..20;bytes21..23 unobserved on valid profile;estateID:u32@24,itemID:u32@28. Prior18-byte GUID storage wording overstated wire consumption. Malformed unbounded strlen reads are not extra valid fields. Implemented canonical32-byte publisher uses zero gap21..23 after the viewer item list; exclusive original emitted length remains unknown."
     }
   ],
   "unresolved_related": [
@@ -367,18 +373,6 @@
       "layout": "estateID:u32@0; itemID:u32@4",
       "limits": [
         "Only8 consumed bytes established; exclusive original full packet length not demonstrated"
-      ]
-    },
-    {
-      "opcode": "0x21ea",
-      "name": "Bind spawn to housing item",
-      "mapped": false,
-      "direction": "S2C",
-      "layout_status": "partial",
-      "meaning_status": "complete",
-      "layout": "S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+NUL@4..20;bytes21..23 unobserved on valid profile;estateID:u32@24,itemID:u32@28. Prior18-byte GUID storage wording overstated wire consumption. Malformed unbounded strlen reads are not extra valid fields.",
-      "limits": [
-        "32 accessed bytes established, including unaccessed gap22..23; original full emitted length unknown"
       ]
     },
     {

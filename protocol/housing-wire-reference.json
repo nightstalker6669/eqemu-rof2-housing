@@ -6,7 +6,7 @@
     "image_base": "0x400000"
   },
   "scope": {
-    "mapped_opcode_count": 54,
+    "mapped_opcode_count": 55,
     "reference_not_reinterpret_cast_api": true,
     "all_lengths": "application payload only; exclude 2-byte opcode/transport",
     "endianness": "little endian for integers and IEEE754 f32/f64",
@@ -17,8 +17,8 @@
     },
     "bounds": "65535 and codec name limits are emulator policies, not recovered universal native maxima",
     "status": "67 documented numbers:47 complete/20 partial documented layouts,30 complete/34 partial/3 unknown meanings. Not full protocol closure or universal native acceptance.",
-    "mapping_source": "October 18, 2026 housing integration snapshot:48 real-estate and6 guild-trophy mappings.",
-    "publication_update": "Updated source integration and mapped inspection/voting/swap/status/consent/trophy-open messages; preserved detailed prior shared schemas and added the independently classified67-number catalogue.",
+    "mapping_source": "October 21, 2026 housing integration snapshot:49 real-estate and6 guild-trophy mappings.",
+    "publication_update": "Activated previously recovered21ea spawn-to-housing binding for placed interactive services; documented opcode total remains67. Representative Grand hall service placement and transactions passed; remaining native boundaries are recorded in docs/SERVICE-NPCS-2026-10-21.md.",
     "documented_opcode_count": 67
   },
   "schemas": {
@@ -3659,20 +3659,21 @@
       ]
     },
     {
-      "name": "Bind spawn to housing item",
+      "name": "OP_RealEstateBindSpawn",
       "opcode": "0x21ea",
-      "mapped": false,
+      "mapped": true,
       "direction": "S2C",
       "documented_layout": "S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+NUL@4..20;bytes21..23 unobserved on valid profile;estateID:u32@24,itemID:u32@28. Prior18-byte GUID storage wording overstated wire consumption. Malformed unbounded strlen reads are not extra valid fields.",
       "current_audit": {
         "layout_status": "partial",
         "meaning_status": "complete",
         "limits": [
-          "32 accessed bytes established, including unaccessed gap22..23; original full emitted length unknown"
+          "32 accessible bytes established, including unobserved gap21..23; exclusive original emitted length unknown. The server emits a canonical32-byte profile."
         ]
       },
       "notes": [
-        "See recovered-layouts.json for independent extent and semantic limitations. Actual production codecs, where implemented, are under overlay/common/housing. No schema is invented for opaque bytes."
+        "See recovered-layouts.json for independent extent and semantic limitations. Actual production codecs, where implemented, are under overlay/common/housing. No schema is invented for opaque bytes.",
+        "Production publisher emits canonical32 bytes, zeroing unobserved21..23, after the recipient item list. This is integration of an existing recovered number; representative Grand hall service placement and transactions passed; wider boundaries remain in the service document."
       ]
     },
     {
@@ -4060,18 +4061,6 @@
       "layout": "estateID:u32@0; itemID:u32@4",
       "limits": [
         "Only8 consumed bytes established; exclusive original full packet length not demonstrated"
-      ]
-    },
-    {
-      "opcode": "0x21ea",
-      "name": "Bind spawn to housing item",
-      "mapped": false,
-      "direction": "S2C",
-      "layout_status": "partial",
-      "meaning_status": "complete",
-      "layout": "S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+NUL@4..20;bytes21..23 unobserved on valid profile;estateID:u32@24,itemID:u32@28. Prior18-byte GUID storage wording overstated wire consumption. Malformed unbounded strlen reads are not extra valid fields.",
-      "limits": [
-        "32 accessed bytes established, including unaccessed gap22..23; original full emitted length unknown"
       ]
     },
     {

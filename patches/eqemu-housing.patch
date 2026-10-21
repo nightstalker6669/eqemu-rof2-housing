@@ -62,10 +62,10 @@ index 3052fd7..26adc93 100644
  	if (RuleB(Character, SoftDeletes)) {
  		delete_type = "soft-deleted";
 diff --git a/common/emu_oplist.h b/common/emu_oplist.h
-index 268fa97..719cb82 100644
+index 268fa97..ca65d22 100644
 --- a/common/emu_oplist.h
 +++ b/common/emu_oplist.h
-@@ -627,4 +627,65 @@ N(OP_ZoneSpawns),
+@@ -627,4 +627,66 @@ N(OP_ZoneSpawns),
  N(OP_ZoneUnavail),
  N(OP_ResetAA),
  N(OP_UnderWorld),
@@ -92,6 +92,7 @@ index 268fa97..719cb82 100644
 +N(OP_RealEstatePlacementBegin),
 +N(OP_RealEstatePlacementCommit),
 +N(OP_RealEstateWorldItem),
++N(OP_RealEstateBindSpawn),
 +N(OP_RealEstateWorldRemove),
 +N(OP_RealEstatePlacementSource),
 +N(OP_RealEstatePlacementEnd),
@@ -132,10 +133,22 @@ index 268fa97..719cb82 100644
 +
 +N(OP_GuildTrophyOptIn),
 diff --git a/common/eq_packet_structs.h b/common/eq_packet_structs.h
-index 0a13492..0a44c49 100644
+index 0a13492..b8a03e4 100644
 --- a/common/eq_packet_structs.h
 +++ b/common/eq_packet_structs.h
-@@ -3858,6 +3858,7 @@ struct Internal_GuildMemberEntry_Struct {
+@@ -326,6 +326,11 @@ union
+ 	bool buyer;
+ 	bool untargetable;
+ 	uint32 npc_tint_id;
++	// Canonical server-only extension. RoF2 serializes these in its existing
++	// variable spawn tail; other client encoders retain their normal layouts.
++	char housing_item_guid[17];
++	uint32 housing_estate_id;
++	uint32 housing_item_id;
+ };
+ 
+ struct PlayerState_Struct {
+@@ -3858,6 +3863,7 @@ struct Internal_GuildMemberEntry_Struct {
  	uint32	rank;						//network byte order
  	uint32	time_last_on;				//network byte order
  	uint32	tribute_enable;				//network byte order
@@ -143,7 +156,7 @@ index 0a13492..0a44c49 100644
  	uint32	total_tribute;				//total guild tribute donated, network byte order
  	uint32	last_tribute;				//unix timestamp
  //	char	public_note[1];				//variable length.
-@@ -3868,6 +3869,7 @@ struct Internal_GuildMemberEntry_Struct {
+@@ -3868,6 +3874,7 @@ struct Internal_GuildMemberEntry_Struct {
  
  struct Internal_GuildMembers_Struct {	//just for display purposes, this is not actually used in the message encoding.
  	char	player_name[64];		//variable length.
@@ -396,7 +409,7 @@ index 99edfb5..28312fe 100644
  		mutable CharacterEvolvingItemsRepository::CharacterEvolvingItems  m_evolving_details{};
  
 diff --git a/common/patches/rof2.cpp b/common/patches/rof2.cpp
-index b250a5d..b3d9892 100644
+index b250a5d..fc7a2b5 100644
 --- a/common/patches/rof2.cpp
 +++ b/common/patches/rof2.cpp
 @@ -1,3 +1,5 @@
@@ -480,7 +493,27 @@ index b250a5d..b3d9892 100644
  
                  SerializeItem(ob, (const EQ::ItemInstance *)int_struct->inst, int_struct->slot_id, 0,
                                old_item_pkt->PacketType);
-@@ -5599,6 +5633,10 @@ namespace RoF2
+@@ -4920,9 +4954,16 @@ namespace RoF2
+ 			// SplineID -- no idea
+ 			Buffer += 8;
+ 			VARSTRUCT_ENCODE_TYPE(uint8, Buffer, emu->IsMercenary);
+-			VARSTRUCT_ENCODE_STRING(Buffer, "0000000000000000"); // RealEstateItemGuid
+-			VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 0xffffffff); // RealEstateID
+-			VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 0xffffffff); // RealEstateItemID
++			// The original spawn tail binds ordinary interactive NPCs to housing
++			// custody. Keep the canonical 16-character GUID width used in PacketSize.
++			const bool housing_bound = emu->housing_item_guid[16] == '\0' &&
++				std::strlen(emu->housing_item_guid) == 16 &&
++				std::strspn(emu->housing_item_guid, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-") == 16 &&
++				emu->housing_estate_id && emu->housing_estate_id != 0xffffffff &&
++				emu->housing_item_id && emu->housing_item_id != 0xffffffff;
++			VARSTRUCT_ENCODE_STRING(Buffer, housing_bound ? emu->housing_item_guid : "0000000000000000"); // RealEstateItemGuid
++			VARSTRUCT_ENCODE_TYPE(uint32, Buffer, housing_bound ? emu->housing_estate_id : 0xffffffff); // RealEstateID
++			VARSTRUCT_ENCODE_TYPE(uint32, Buffer, housing_bound ? emu->housing_item_id : 0xffffffff); // RealEstateItemID
+ 			// 29 zero bytes follow
+ 			// PhysicsEffects follow here ... unsure what they are but it's a count followed by a struct like {spellid, casterid, effectid, baseeffect}
+ 			Buffer += 29;
+@@ -5599,6 +5640,10 @@ namespace RoF2
  
  	DECODE(OP_FindPersonRequest)
  	{
@@ -491,7 +524,7 @@ index b250a5d..b3d9892 100644
  		DECODE_LENGTH_EXACT(structs::FindPersonRequest_Struct);
  		SETUP_DIRECT_DECODE(FindPersonRequest_Struct, structs::FindPersonRequest_Struct);
  
-@@ -6464,6 +6502,12 @@ namespace RoF2
+@@ -6464,6 +6509,12 @@ namespace RoF2
  
  		structs::InventorySlot_Struct slot_id{};
  		switch (packet_type) {
@@ -504,7 +537,7 @@ index b250a5d..b3d9892 100644
  		case ItemPacketLoot:
  			slot_id = ServerToRoF2CorpseSlot(slot_id_in);
  			break;
-@@ -6544,7 +6588,9 @@ namespace RoF2
+@@ -6544,7 +6595,9 @@ namespace RoF2
  		hdrf.ornamentHeroModel = hero_model;
  		hdrf.unknown063 = 0;
  		hdrf.Copied = 0;
@@ -515,7 +548,7 @@ index b250a5d..b3d9892 100644
  		hdrf.unknowna5 = 0;
  		hdrf.ItemClass = item->ItemClass;
  
-@@ -6880,7 +6926,7 @@ namespace RoF2
+@@ -6880,7 +6933,7 @@ namespace RoF2
  		//evolve_string; // Some String, but being evolution related is just a guess
  
  		iqbs.Heirloom = 0;
@@ -524,7 +557,7 @@ index b250a5d..b3d9892 100644
  		iqbs.unknown28 = -1;
  		iqbs.unknown29 = packet_type == ItemPacketInvalid ? 0xFF : 0;
  		iqbs.unknown30 = -1;
-@@ -6890,7 +6936,29 @@ namespace RoF2
+@@ -6890,7 +6943,29 @@ namespace RoF2
  		iqbs.unknown38 = 0;
  		iqbs.unknown39 = packet_type == ItemPacketInvalid ? 0 : 1;;
  
@@ -1093,10 +1126,10 @@ index 11130d6..8385600 100644
  	constexpr int FinishingBlowLvl                = 440; // implemented[AA] - Sets the level Finishing blow can be triggered on an NPC
  	constexpr int DistanceRemoval                 = 441; // implemented - Buff is removed from target when target moves X amount of distance away from where initially hit.
 diff --git a/utils/patches/patch_RoF2.conf b/utils/patches/patch_RoF2.conf
-index 3533aaa..b670c98 100644
+index 3533aaa..a40ba85 100644
 --- a/utils/patches/patch_RoF2.conf
 +++ b/utils/patches/patch_RoF2.conf
-@@ -749,3 +749,74 @@ OP_ChangePetName=0x5dab
+@@ -749,3 +749,77 @@ OP_ChangePetName=0x5dab
  
  OP_InvokeNameChangeImmediate=0x4fe2
  OP_InvokeNameChangeLazy=0x2f2e
@@ -1171,6 +1204,9 @@ index 3533aaa..b670c98 100644
 +OP_RealEstateSaleResult=0x66bf
 +OP_RealEstateTransferResult=0x68ba
 +OP_RealEstateTransferConsent=0x5a63
++
++# Original RoF2 housing spawn-to-item binding; canonical32 consumed-byte profile.
++OP_RealEstateBindSpawn=0x21ea
 diff --git a/world/CMakeLists.txt b/world/CMakeLists.txt
 index 1963c83..bf07b86 100644
 --- a/world/CMakeLists.txt
@@ -1666,10 +1702,10 @@ index 30e90cb..19482d1 100644
  
  				auto sp  = new ServerPacket(ServerOP_GuildTributeUpdateDonations, sizeof(GuildTributeUpdate));
 diff --git a/zone/CMakeLists.txt b/zone/CMakeLists.txt
-index ffea99f..86a321a 100644
+index ffea99f..e444965 100644
 --- a/zone/CMakeLists.txt
 +++ b/zone/CMakeLists.txt
-@@ -20,6 +20,26 @@ SET(zone_sources
+@@ -20,6 +20,31 @@ SET(zone_sources
      client_bot.cpp
      client_mods.cpp
      client_packet.cpp
@@ -1683,6 +1719,11 @@ index ffea99f..86a321a 100644
 +    client_housing_purchase.cpp
 +    client_housing_transfer.cpp
 +    housing_inventory_bridge.cpp
++    housing_service_npcs.cpp
++    housing_service_tribute.cpp
++    housing_service_bank.cpp
++    housing_service_authority.cpp
++    housing_guild_portal.cpp
 +    housing_actor_publication.cpp
 +    housing_height_scene.cpp
 +    housing_house_preload_fence.cpp
@@ -1696,7 +1737,7 @@ index ffea99f..86a321a 100644
      client_process.cpp
      combat_record.cpp
      corpse.cpp
-@@ -476,6 +496,10 @@ set_target_properties(gm_commands_zone PROPERTIES UNITY_BUILD ON UNITY_BUILD_BAT
+@@ -476,6 +501,10 @@ set_target_properties(gm_commands_zone PROPERTIES UNITY_BUILD ON UNITY_BUILD_BAT
  
  # zone combine sources and headers
  ADD_EXECUTABLE(zone ${zone_sources} ${zone_headers})
@@ -1707,7 +1748,7 @@ index ffea99f..86a321a 100644
  
  # binary output directory
  INSTALL(TARGETS zone RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-@@ -505,4 +529,3 @@ endif()
+@@ -505,4 +534,3 @@ endif()
  target_link_libraries(zone PRIVATE lua_zone perl_zone gm_commands_zone ${ZONE_LIBS})
  
  SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -1752,10 +1793,15 @@ index 0cc44ca..7df7e51 100644
  				new_bonus->NegateEffects = true;
  				break;
 diff --git a/zone/client.cpp b/zone/client.cpp
-index 5ed9edd..ab36e82 100644
+index 5ed9edd..e36da25 100644
 --- a/zone/client.cpp
 +++ b/zone/client.cpp
-@@ -16,6 +16,7 @@
+@@ -1,3 +1,4 @@
++#include "housing_guild_portal.h"
+ /*	EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.org)
+ 
+@@ -16,6 +17,7 @@
  	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
  #include "../common/global_define.h"
@@ -1763,7 +1809,7 @@ index 5ed9edd..ab36e82 100644
  #include <iostream>
  #include <string.h>
  #include <stdlib.h>
-@@ -51,6 +52,12 @@ extern volatile bool RunLoops;
+@@ -51,6 +53,12 @@ extern volatile bool RunLoops;
  #include "bot_command.h"
  #include "string_ids.h"
  #include "dialogue_window.h"
@@ -1776,7 +1822,7 @@ index 5ed9edd..ab36e82 100644
  
  #include "guild_mgr.h"
  #include "quest_parser_collection.h"
-@@ -707,16 +714,74 @@ Client::Client(EQStreamInterface *ieqs) : Mob(
+@@ -707,16 +715,75 @@ Client::Client(EQStreamInterface *ieqs) : Mob(
  	AI_Init();
  }
  
@@ -1819,6 +1865,7 @@ index 5ed9edd..ab36e82 100644
 +}
 +
  Client::~Client() {
++ Housing::GuildPortalRuntime::Forget(*this);
 +	struct PublicationCleanup {Client& client;~PublicationCleanup(){Housing::ActorPublication::Forget(client);}} publication_cleanup{*this};
 +	// First lifecycle action: no quests, save, stream release or inventory
 +	// teardown can precede durable housing reconciliation/lease closure.
@@ -1853,7 +1900,7 @@ index 5ed9edd..ab36e82 100644
  	DataBucket::DeleteCachedBuckets(DataBucketLoadType::Account, AccountID());
  	DataBucket::DeleteCachedBuckets(DataBucketLoadType::Client, CharacterID());
  
-@@ -793,6 +858,7 @@ Client::~Client() {
+@@ -793,6 +860,7 @@ Client::~Client() {
  	// we save right now, because the client might be zoning and the world
  	// will need this data right away
  	Save(2); // This fails when database destructor is called first on shutdown
@@ -1861,7 +1908,7 @@ index 5ed9edd..ab36e82 100644
  
  	safe_delete(task_state);
  	safe_delete(KarmaUpdateTimer);
-@@ -890,6 +956,8 @@ void Client::SendZoneInPackets()
+@@ -890,6 +958,8 @@ void Client::SendZoneInPackets()
  		SendLFGuildStatus();
  	}
  
@@ -1870,7 +1917,7 @@ index 5ed9edd..ab36e82 100644
  	//No idea why live sends this if even were not in a guild
  	SendGuildMOTD();
  }
-@@ -992,6 +1060,9 @@ void Client::RemoveExpendedAA(int aa_id)
+@@ -992,6 +1062,9 @@ void Client::RemoveExpendedAA(int aa_id)
  }
  
  bool Client::Save(uint8 iCommitNow) {
@@ -1880,7 +1927,7 @@ index 5ed9edd..ab36e82 100644
  	if(!ClientDataLoaded())
  		return false;
  
-@@ -1163,8 +1234,10 @@ bool Client::SendAllPackets() {
+@@ -1163,8 +1236,10 @@ bool Client::SendAllPackets() {
  	CLIENTPACKET* cp = nullptr;
  	while (!clientpackets.empty()) {
  		cp = clientpackets.front().get();
@@ -1892,7 +1939,7 @@ index 5ed9edd..ab36e82 100644
  		clientpackets.pop_front();
  	}
  	return true;
-@@ -1190,6 +1263,7 @@ void Client::QueuePacket(const EQApplicationPacket* app, bool ack_req, CLIENT_CO
+@@ -1190,6 +1265,7 @@ void Client::QueuePacket(const EQApplicationPacket* app, bool ack_req, CLIENT_CO
  		AddPacket(app, ack_req);
  	}
  	else if (eqs) {
@@ -1900,7 +1947,7 @@ index 5ed9edd..ab36e82 100644
  		eqs->QueuePacket(app, ack_req);
  	}
  }
-@@ -1202,8 +1276,10 @@ void Client::FastQueuePacket(EQApplicationPacket** app, bool ack_req, CLIENT_CON
+@@ -1202,8 +1278,10 @@ void Client::FastQueuePacket(EQApplicationPacket** app, bool ack_req, CLIENT_CON
  		return;
  	}
  	else {
@@ -2024,21 +2071,26 @@ index d5e8f3e..555c3e5 100644
  	PlayerProfile_Struct m_pp;
  	ExtendedProfile_Struct m_epp;
 diff --git a/zone/client_packet.cpp b/zone/client_packet.cpp
-index a059bef..d8aa33f 100644
+index a059bef..4a6717c 100644
 --- a/zone/client_packet.cpp
 +++ b/zone/client_packet.cpp
-@@ -43,6 +43,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+@@ -43,6 +43,15 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  #include "../common/data_verification.h"
  #include "../common/rdtsc.h"
  #include "../common/data_bucket.h"
 +#include "../common/housing/admission_guard.h"
 +#include "housing_house_reload.h"
 +#include "housing_house_runtime.h"
++#include "housing_service_npcs.h"
++#include "housing_service_tribute.h"
++#include "housing_service_bank.h"
++#include "housing_guild_portal.h"
++#include "../common/housing/guild_portal_db.h"
 +#include "housing_plot_marker.h"
  #include "dynamic_zone.h"
  #include "event_codes.h"
  #include "guild_mgr.h"
-@@ -62,6 +66,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+@@ -62,6 +71,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  #include "gm_commands/door_manipulation.h"
  #include "gm_commands/object_manipulation.h"
  #include "client.h"
@@ -2046,7 +2098,7 @@ index a059bef..d8aa33f 100644
  #include "../common/repositories/account_repository.h"
  #include "../common/repositories/character_corpses_repository.h"
  #include "../common/repositories/guild_tributes_repository.h"
-@@ -128,6 +133,36 @@ void MapOpcodes()
+@@ -128,6 +138,36 @@ void MapOpcodes()
  	ConnectedOpcodes[OP_AdventureMerchantRequest] = &Client::Handle_OP_AdventureMerchantRequest;
  	ConnectedOpcodes[OP_AdventureMerchantSell] = &Client::Handle_OP_AdventureMerchantSell;
  	ConnectedOpcodes[OP_AdventureRequest] = &Client::Handle_OP_AdventureRequest;
@@ -2083,7 +2135,7 @@ index a059bef..d8aa33f 100644
  	ConnectedOpcodes[OP_AdventureStatsRequest] = &Client::Handle_OP_AdventureStatsRequest;
  	ConnectedOpcodes[OP_AggroMeterLockTarget] = &Client::Handle_OP_AggroMeterLockTarget;
  	ConnectedOpcodes[OP_AltCurrencyMerchantRequest] = &Client::Handle_OP_AltCurrencyMerchantRequest;
-@@ -533,6 +568,7 @@ void Client::CompleteConnect()
+@@ -533,6 +573,7 @@ void Client::CompleteConnect()
  	UpdateWho();
  	client_state = CLIENT_CONNECTED;
  	SendAllPackets();
@@ -2091,7 +2143,7 @@ index a059bef..d8aa33f 100644
  	hpupdate_timer.Start();
  	autosave_timer.Start();
  	SetDuelTarget(0);
-@@ -887,6 +923,12 @@ void Client::CompleteConnect()
+@@ -887,9 +928,16 @@ void Client::CompleteConnect()
  
  	CalcItemScale();
  	DoItemEnterZone();
@@ -2103,8 +2155,13 @@ index a059bef..d8aa33f 100644
 +	SendHousingPlacedScene();
  
  	if (zone->GetZoneID() == Zones::GUILDHALL && GuildBanks)
- 		GuildBanks->SendGuildBank(this);
-@@ -1261,6 +1303,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
+-		GuildBanks->SendGuildBank(this);
++		Housing::ServiceBank::Publish(*this);
++	else Housing::ServiceNpcs::PublishGuildBank(*this);
+ 
+ 	if (ClientVersion() >= EQ::versions::ClientVersion::SoD)
+ 		entity_list.SendFindableNPCList(this);
+@@ -1261,6 +1309,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
  
  void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  {
@@ -2112,7 +2169,7 @@ index a059bef..d8aa33f 100644
  	if (app->size != sizeof(ClientZoneEntry_Struct))
  		return;
  	ClientZoneEntry_Struct *cze = (ClientZoneEntry_Struct *)app->pBuffer;
-@@ -1282,6 +1325,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1282,6 +1331,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	Client* client = entity_list.GetClientByName(cze->char_name);
  	if (!zone->GetAuth(ip, cze->char_name, &WID, &account_id, &character_id, &admin, lskey, &tellsoff)) {
  		LogClientLogin("[{}] failed zone auth check", cze->char_name);
@@ -2125,7 +2182,7 @@ index a059bef..d8aa33f 100644
  		if (nullptr != client) {
  			client->Save();
  			client->Kick("Failed auth check");
-@@ -1289,6 +1338,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1289,6 +1344,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  		return;
  	}
  
@@ -2151,7 +2208,7 @@ index a059bef..d8aa33f 100644
  	strcpy(name, cze->char_name);
  	/* Check for Client Spoofing */
  	if (client != 0) {
-@@ -1370,7 +1438,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1370,7 +1444,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	// set to full support in case they're a gm with items in disabled expansion slots...but, have their gm flag off...
  	// item loss will occur when they use the 'empty' slots, if this is not done
  	m_inv.SetGMInventory(true);
@@ -2178,7 +2235,18 @@ index a059bef..d8aa33f 100644
  	database.LoadCharacterBandolier(cid, &m_pp); /* Load Character Bandolier */
  	database.LoadCharacterBindPoint(cid, &m_pp); /* Load Character Bind */
  	database.LoadCharacterMaterialColor(cid, &m_pp); /* Load Character Material */
-@@ -4705,7 +4791,35 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
+@@ -1504,7 +1596,9 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+ 		if (guild_mgr.GetCharInfo(CharacterID(), cgi)) {
+ 			m_pp.guildrank = cgi.rank;
+ 		}
+-		if (zone->GetZoneID() == Zones::GUILDHALL) {
++		bool housing_guild_context=false;
++		try { auto scope=Housing::GuildPortal::Current(database,zone->GetZoneID(),zone->GetInstanceID(),false);housing_guild_context=scope&&scope->guild==GuildID(); } catch (...) {}
++		if (zone->GetZoneID() == Zones::GUILDHALL || housing_guild_context) {
+ 			GuildBanker = (guild_mgr.IsGuildLeader(GuildID(), CharacterID()) ||
+ 				guild_mgr.GetBankerFlag(CharacterID()) ||
+ 				ClientVersion() >= EQ::versions::ClientVersion::RoF ? true : false
+@@ -4705,7 +4799,35 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
  		);
  	}
  
@@ -2214,7 +2282,7 @@ index a059bef..d8aa33f 100644
  	if (within_distance) {
  		int quest_return = 0;
  		if (parse->PlayerHasQuestSub(EVENT_CLICK_DOOR)) {
-@@ -6470,8 +6584,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
+@@ -6470,8 +6592,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
  	return;
  }
  
@@ -2226,28 +2294,227 @@ index a059bef..d8aa33f 100644
  	if (app->size != sizeof(FindPersonRequest_Struct))
  		printf("Error in FindPersonRequest_Struct. Expected size of: %zu, but got: %i\n", sizeof(FindPersonRequest_Struct), app->size);
  	else {
-@@ -17072,8 +17189,8 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
+@@ -7671,12 +7796,11 @@ void Client::Handle_OP_GroupUpdate(const EQApplicationPacket *app)
  
- 	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
+ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+ {
+-	if (!GuildBanks) {
+-		GuildBankAck();
+-		return;
+-	}
++	const bool housing_banker=Housing::ServiceNpcs::HasNearby(*this,Housing::ServiceNpcs::Service::GuildBank);
++	if (!GuildBanks && housing_banker) GuildBanks=new GuildBankManager;
++	if (!GuildBanks) { GuildBankAck(); return; }
+ 
+-	if (zone->GetZoneID() != Zones::GUILDHALL) {
++	if (zone->GetZoneID() != Zones::GUILDHALL && !housing_banker) {
+ 		Message(Chat::Red, "The Guild Bank is not available in this zone.");
+ 		GuildBankAck();
+ 		return;
+@@ -7705,7 +7829,37 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+ 		return;
+ 	}
+ 
+-	if (!IsGuildBanker())
++	// Validate each native action before reading its typed fields.
++	size_t required=0;
++	switch(Action){
++	 case GuildBankPromote:required=sizeof(GuildBankPromote_Struct);break;
++	 case GuildBankViewItem:required=sizeof(GuildBankViewItem_Struct);break;
++	 case GuildBankPermissions:required=sizeof(GuildBankPermissions_Struct);break;
++	 case GuildBankWithdraw:case GuildBankSplitStacks:case GuildBankMergeStacks:required=sizeof(GuildBankWithdrawItem_Struct);break;
++	 case GuildBankDeposit:required=sizeof(uint32);break;
++	 default:GuildBankAck();return;
++	}
++	if(app->size<required){GuildBankAck();return;}
++	if(Action==GuildBankPromote&&reinterpret_cast<const GuildBankPromote_Struct*>(app->pBuffer)->Slot>=40){GuildBankAck();return;}
++	if(Action==GuildBankPermissions){auto*r=reinterpret_cast<const GuildBankPermissions_Struct*>(app->pBuffer);if(r->SlotID>=200||r->Permissions>3||!std::memchr(r->MemberName,0,sizeof(r->MemberName))){GuildBankAck();return;}}
++	if(Action==GuildBankViewItem){auto*r=reinterpret_cast<const GuildBankViewItem_Struct*>(app->pBuffer);if(r->Area>1||r->SlotID>=(r->Area?200:40)){GuildBankAck();return;}}
++	if(Action==GuildBankWithdraw||Action==GuildBankSplitStacks||Action==GuildBankMergeStacks){auto*r=reinterpret_cast<const GuildBankWithdrawItem_Struct*>(app->pBuffer);if(r->Area>1||r->SlotID>=(r->Area?200:40)||(Action!=GuildBankMergeStacks&&(!r->Quantity||r->Quantity>INT16_MAX))){GuildBankAck();return;}}
++	Housing::ServiceBank::Request request(*this);
++	if(!request.Ready()){
++		if(Action==GuildBankDeposit){
++			GuildBankDepositAck(true,sentAction);
++			// RoF optimistically clears the cursor on deposit. A refused stale
++			// request keeps its authoritative item; republish it without copying,
++			// moving or saving inventory outside the bank transaction.
++			if(ClientVersion()>=EQ::versions::ClientVersion::RoF)
++				if(auto* item=GetInv().GetItem(EQ::invslot::slotCursor))SendItemPacket(EQ::invslot::slotCursor,item,ItemPacketTrade);
++		}else GuildBankAck();
++		return;
++	}
++	if(housing_banker)SetGuildBanker(guild_mgr.IsGuildLeader(GuildID(),CharacterID())||guild_mgr.GetBankerFlag(CharacterID())||ClientVersion()>=EQ::versions::ClientVersion::RoF);
++
++	const bool actual_banker=guild_mgr.IsGuildLeader(GuildID(),CharacterID())||guild_mgr.GetBankerFlag(CharacterID());
++	if (!actual_banker)
+ 	{
+ 		if (Action != GuildBankDeposit && Action != GuildBankViewItem && Action != GuildBankWithdraw)
+ 		{
+@@ -7780,7 +7934,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+ 			const auto cursor_item_inst = GetInv().GetItem(EQ::invslot::slotCursor);
+ 			bool       allowed          = true;
+ 
+-			if (!cursor_item_inst) {
++			if (!cursor_item_inst || std::distance(GetInv().cursor_cbegin(),GetInv().cursor_cend())!=1) {
+ 				Message(Chat::Red, "No Item on the cursor.");
+ 				GuildBankDepositAck(true, sentAction);
+ 				return;
+@@ -7800,6 +7954,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+ 
+ 			if (!cursor_item->NoDrop ||
+ 				cursor_item_inst->IsAttuned() ||
++				cursor_item_inst->GetHousingHouseID() || cursor_item_inst->GetHousingCrateID() || cursor_item_inst->GetEvolveUniqueID() || cursor_item_inst->IsScaling() || !cursor_item_inst->GetCustomDataString().empty() ||
+ 				cursor_item_inst->IsNoneEmptyContainer() ||
+ 				cursor_item->NoRent == 0 ||
+ 				(cursor_item->LoreFlag && GuildBanks->HasItem(GuildID(), cursor_item->ID))
+@@ -7915,9 +8070,9 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+ 				gbwis->Quantity = inst->GetCharges();
+ 			}
+ 
+-			PushItemOnCursor(*inst.get());
++			if(!GuildBanks->DeleteItem(GuildID(),gbwis->Area,gbwis->SlotID,gbwis->Quantity,this)){GuildBankAck();break;}
++			if(!PushItemOnCursor(*inst.get())){Housing::ServiceBank::AbortCurrent();GuildBankAck();break;}
+ 			SendItemPacket(EQ::invslot::slotCursor, inst.get(), ItemPacketLimbo);
+-			GuildBanks->DeleteItem(GuildID(), gbwis->Area, gbwis->SlotID, gbwis->Quantity, this);
+ 
+ 			if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::GUILD_BANK_WITHDRAWAL)) {
+ 				PlayerEvent::GuildBankTransaction log{};
+@@ -11016,7 +11171,8 @@ void Client::Handle_OP_OpenGuildTributeMaster(const EQApplicationPacket *app)
+ 		StartTribute_Struct* st = (StartTribute_Struct*)app->pBuffer;
+ 		Mob* tribmast = entity_list.GetMob(st->tribute_master_id);
+ 		if (tribmast && tribmast->IsNPC() && tribmast->GetClass() == Class::GuildTributeMaster
+-			&& DistanceSquared(m_Position, tribmast->GetPosition()) <= USE_NPC_RANGE2) {
++			&& DistanceSquared(m_Position, tribmast->GetPosition()) <= USE_NPC_RANGE2
++			&& Housing::ServiceNpcs::Allows(*this,tribmast,Housing::ServiceNpcs::Service::GuildTribute)) {
+ 			st->response = 1;
+ 			QueuePacket(app);
+ 			tribute_master_id = st->tribute_master_id;
+@@ -11046,7 +11202,8 @@ void Client::Handle_OP_OpenTributeMaster(const EQApplicationPacket *app)
+ 		StartTribute_Struct* st = (StartTribute_Struct*)app->pBuffer;
+ 		Mob* tribmast = entity_list.GetMob(st->tribute_master_id);
+ 		if (tribmast && tribmast->IsNPC() && tribmast->GetClass() == Class::TributeMaster
+-			&& DistanceSquared(m_Position, tribmast->GetPosition()) <= USE_NPC_RANGE2) {
++			&& DistanceSquared(m_Position, tribmast->GetPosition()) <= USE_NPC_RANGE2
++			&& Housing::ServiceNpcs::Allows(*this,tribmast,Housing::ServiceNpcs::Service::PersonalTribute)) {
+ 			st->response = 1;
+ 			QueuePacket(app);
+ 			tribute_master_id = st->tribute_master_id;
+@@ -11989,6 +12146,7 @@ void Client::Handle_OP_PickZone(const EQApplicationPacket *app)
+ 
+ void Client::Handle_OP_PopupResponse(const EQApplicationPacket *app)
+ {
++	if (Housing::GuildPortalRuntime::HandlePopup(*this, app)) return;
+ 
+ 	if (app->size != sizeof(PopupResponse_Struct)) {
+ 		LogDebug("Size mismatch in OP_PopupResponse expected [{}] got [{}]", sizeof(PopupResponse_Struct), app->size);
+@@ -14059,6 +14217,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
+ 		tmp == 0 ||
+ 		!tmp->IsNPC() ||
+ 		tmp->GetClass() != Class::Merchant ||
++		!Housing::ServiceNpcs::AllowsMerchant(*this,tmp) ||
+ 		mp->quantity < 1 ||
+ 		DistanceSquared(m_Position, tmp->GetPosition()) > USE_NPC_RANGE2
+ 	) {
+@@ -14297,7 +14456,7 @@ void Client::Handle_OP_ShopPlayerSell(const EQApplicationPacket *app)
+ 
+ 	Mob* vendor = entity_list.GetMob(mp->npcid);
+ 
+-	if (vendor == 0 || !vendor->IsNPC() || vendor->GetClass() != Class::Merchant)
++	if (vendor == 0 || !vendor->IsNPC() || vendor->GetClass() != Class::Merchant || !Housing::ServiceNpcs::AllowsMerchant(*this,vendor))
+ 		return;
+ 
+ 	//you have to be somewhat close to them to be properly using them
+@@ -14498,7 +14657,7 @@ void Client::Handle_OP_ShopRequest(const EQApplicationPacket *app)
+ 	int tabs_to_display = None;
+ 	Mob *tmp            = entity_list.GetMob(mc->npc_id);
+ 
+-	if (tmp == 0 || !tmp->IsNPC() || tmp->GetClass() != Class::Merchant) {
++	if (tmp == 0 || !tmp->IsNPC() || tmp->GetClass() != Class::Merchant || !Housing::ServiceNpcs::AllowsMerchant(*this,tmp)) {
+ 		return;
+ 	}
+ 
+@@ -15850,7 +16009,7 @@ void Client::Handle_OP_TributeItem(const EQApplicationPacket *app)
+ 		tribute_master_id = t->tribute_master_id;
+ 		//make sure they are dealing with a valid tribute master
+ 		Mob* tribmast = entity_list.GetMob(t->tribute_master_id);
+-		if (!tribmast || !tribmast->IsNPC() || tribmast->GetClass() != Class::TributeMaster)
++		if (!tribmast || !tribmast->IsNPC() || tribmast->GetClass() != Class::TributeMaster || !Housing::ServiceNpcs::Allows(*this,tribmast,Housing::ServiceNpcs::Service::PersonalTribute))
+ 			return;
+ 		if (DistanceSquared(m_Position, tribmast->GetPosition()) > USE_NPC_RANGE2)
+ 			return;
+@@ -15877,7 +16036,7 @@ void Client::Handle_OP_TributeMoney(const EQApplicationPacket *app)
+ 		tribute_master_id = t->tribute_master_id;
+ 		//make sure they are dealing with a valid tribute master
+ 		Mob* tribmast = entity_list.GetMob(t->tribute_master_id);
+-		if (!tribmast || !tribmast->IsNPC() || tribmast->GetClass() != Class::TributeMaster)
++		if (!tribmast || !tribmast->IsNPC() || tribmast->GetClass() != Class::TributeMaster || !Housing::ServiceNpcs::Allows(*this,tribmast,Housing::ServiceNpcs::Service::PersonalTribute))
+ 			return;
+ 		if (DistanceSquared(m_Position, tribmast->GetPosition()) > USE_NPC_RANGE2)
+ 			return;
+@@ -17067,24 +17226,18 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
+ 
+ 	auto in = (GuildTributeDonateItemRequest_Struct *) app->pBuffer;
+ 
+-	const auto *inst = GetInv().GetItem(in->slot);
+-	auto favor = inst->GetItemGuildFavor() * in->quantity;
+-
+-	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
++	auto* master=entity_list.GetMob(in->tribute_master_id);
++	if(!IsInAGuild() || in->guild_id!=GuildID() || !master || !master->IsNPC() || master->GetClass()!=Class::GuildTributeMaster || DistanceSquared(m_Position,master->GetPosition())>USE_NPC_RANGE2 || !Housing::ServiceNpcs::Allows(*this,master,Housing::ServiceNpcs::Service::GuildTribute)) return;
++	const auto* source=GetInv().GetItem(in->slot);
++	if(!source) return;
++	auto inst=std::unique_ptr<EQ::ItemInstance>(source->Clone());
++	auto guild=guild_mgr.GetGuildByGuildID(GuildID());
  	if (guild) {
 -		guild->tribute.favor += favor;
 -		guild_mgr.UpdateDbGuildFavor(GuildID(), guild->tribute.favor);
-+		auto credited=guild_mgr.AdjustDbGuildFavor(GuildID(),int64(favor));
-+		if(!credited)return;guild->tribute.favor=*credited;
- 		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
+-		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
+-
+-		if (inst->IsStackable()) {
+-			if (inst->GetCharges() < (int32) in->quantity) {
+-				favor = 0;
+-			}
+-			DeleteItemInInventory(in->slot, in->quantity, false, true);
+-		}
+-		else {
+-			DeleteItemInInventory(in->slot, 0, false, true);
+-		}
++		auto receipt=Housing::ServiceTribute::DonateItem(*this,in->slot,in->quantity);
++		if(!receipt) return;
++		auto favor=receipt->favor;
++		auto member_favor=receipt->member_favor;
++		guild->tribute.favor=receipt->guild_favor;
  
- 		if (inst->IsStackable()) {
-@@ -17130,8 +17247,8 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
- 	auto favor = quantity * RuleI(Guild, TributePlatConversionRate);
- 	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
+ 		SendGuildTributeDonateItemReply(in, favor);
+ 
+@@ -17125,16 +17278,19 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
+ 
+ 	auto in = (GuildTributeDonatePlatRequest_Struct *) app->pBuffer;
+ 
+-	auto quantity = in->quantity;
+-
+-	auto favor = quantity * RuleI(Guild, TributePlatConversionRate);
+-	auto guild = guild_mgr.GetGuildByGuildID(guild_id);
++	auto* master=entity_list.GetMob(in->tribute_master_id);
++	if(!IsInAGuild() || in->guild_id!=GuildID() || !master || !master->IsNPC() || master->GetClass()!=Class::GuildTributeMaster || DistanceSquared(m_Position,master->GetPosition())>USE_NPC_RANGE2 || !Housing::ServiceNpcs::Allows(*this,master,Housing::ServiceNpcs::Service::GuildTribute)) return;
++	const auto quantity=in->quantity;
++	const auto conversion=RuleI(Guild, TributePlatConversionRate);
++	if(conversion<=0) return;
++	auto guild = guild_mgr.GetGuildByGuildID(GuildID());
  	if (guild) {
 -		guild->tribute.favor += favor;
 -		guild_mgr.UpdateDbGuildFavor(GuildID(), guild->tribute.favor);
-+		auto credited=guild_mgr.AdjustDbGuildFavor(GuildID(),int64(favor));
-+		if(!credited)return;guild->tribute.favor=*credited;
- 		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
+-		auto member_favor = guild_mgr.UpdateDbMemberFavor(GuildID(), CharacterID(), favor);
++		auto receipt=Housing::ServiceTribute::DonatePlatinum(*this,quantity,uint32_t(conversion));
++		if(!receipt) return;
++		auto favor=receipt->favor;
++		auto member_favor=receipt->member_favor;
++		guild->tribute.favor=receipt->guild_favor;
  
- 		TakePlatinum(quantity, false);
+-		TakePlatinum(quantity, false);
+ 		SendGuildTributeDonatePlatReply(in, favor);
+ 
+ 		if(PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::GUILD_TRIBUTE_DONATE_PLAT)) {
 diff --git a/zone/client_packet.h b/zone/client_packet.h
 index 0840f5e..13a4f50 100644
 --- a/zone/client_packet.h
@@ -2288,19 +2555,25 @@ index 0840f5e..13a4f50 100644
  	void Handle_Connect_OP_ApproveZone(const EQApplicationPacket *app);
  	void Handle_Connect_OP_ClientError(const EQApplicationPacket *app);
 diff --git a/zone/client_process.cpp b/zone/client_process.cpp
-index e149857..46c6097 100644
+index e149857..9decd45 100644
 --- a/zone/client_process.cpp
 +++ b/zone/client_process.cpp
-@@ -515,6 +515,8 @@ bool Client::Process() {
+@@ -1,3 +1,4 @@
++#include "housing_guild_portal.h"
+ /*	EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.net)
+ 
+@@ -515,6 +516,9 @@ bool Client::Process() {
  			ShieldAbilityFinish();
  		}
  
 +		ProcessHousingTrophyBenefits();
 +        ProcessHousingGuildTrophyBenefits();
++        Housing::GuildPortalRuntime::Process(*this);
  		SpellProcess();
  		if (endupkeep_timer.Check() && !dead) {
  			DoEnduranceUpkeep();
-@@ -578,7 +580,8 @@ bool Client::Process() {
+@@ -578,7 +582,8 @@ bool Client::Process() {
  	if (client_state == DISCONNECTED) {
  		OnDisconnect(true);
  		std::cout << "Client disconnected (cs=d): " << GetName() << std::endl;
@@ -2310,7 +2583,7 @@ index e149857..46c6097 100644
  		return false;
  	}
  
-@@ -699,6 +702,14 @@ bool Client::Process() {
+@@ -699,6 +704,14 @@ bool Client::Process() {
  
  /* Just a set of actions preformed all over in Client::Process */
  void Client::OnDisconnect(bool hard_disconnect) {
@@ -2339,18 +2612,19 @@ index 6a11f72..b7e6aa6 100644
  	int64	HP;
  	int64	HPRegen;
 diff --git a/zone/entity.cpp b/zone/entity.cpp
-index 37fa9b4..84713ff 100644
+index 37fa9b4..59e7a85 100644
 --- a/zone/entity.cpp
 +++ b/zone/entity.cpp
-@@ -32,6 +32,7 @@
+@@ -32,6 +32,8 @@
  #include "../common/guilds.h"
  
  #include "entity.h"
 +#include "inventory_session_owner.h"
++#include "housing_service_npcs.h"
  #include "dynamic_zone.h"
  #include "guild_mgr.h"
  #include "petitions.h"
-@@ -2654,7 +2655,9 @@ void EntityList::RemoveAllMobs()
+@@ -2654,7 +2656,9 @@ void EntityList::RemoveAllMobs()
  			++it;
  			continue;
  		}
@@ -2360,7 +2634,7 @@ index 37fa9b4..84713ff 100644
  		free_ids.push(it->first);
  		it = mob_list.erase(it);
  	}
-@@ -2800,7 +2803,9 @@ bool EntityList::RemoveMob(uint16 delete_id)
+@@ -2800,7 +2804,9 @@ bool EntityList::RemoveMob(uint16 delete_id)
  		else if (client_list.count(delete_id)) {
  			entity_list.RemoveClient(delete_id);
  		}
@@ -2370,6 +2644,15 @@ index 37fa9b4..84713ff 100644
  		if (!corpse_list.count(delete_id)) {
  			free_ids.push(it->first);
  		}
+@@ -5493,7 +5499,7 @@ NPC *EntityList::GetClosestBanker(Mob *sender, uint32 &distance)
+ 
+ 	auto it = npc_list.begin();
+ 	while (it != npc_list.end()) {
+-		if (it->second->GetClass() == Class::Banker) {
++		if (it->second->GetClass() == Class::Banker && (!Housing::ServiceNpcs::Managed(it->second) || (sender->IsClient() && Housing::ServiceNpcs::Allows(*sender->CastToClient(),it->second,Housing::ServiceNpcs::Service::Banker)))) {
+ 			uint32 nd = ((it->second->GetY() - sender->GetY()) * (it->second->GetY() - sender->GetY())) +
+ 				((it->second->GetX() - sender->GetX()) * (it->second->GetX() - sender->GetX()));
+ 			if (nd < distance){
 diff --git a/zone/gm_commands/invsnapshot.cpp b/zone/gm_commands/invsnapshot.cpp
 index 425c04f..b787fab 100755
 --- a/zone/gm_commands/invsnapshot.cpp
@@ -2422,10 +2705,452 @@ index 9c48b5e..ca4a35f 100644
  }
  
 diff --git a/zone/guild_mgr.cpp b/zone/guild_mgr.cpp
-index aa2d9fd..920c077 100644
+index aa2d9fd..185014e 100644
 --- a/zone/guild_mgr.cpp
 +++ b/zone/guild_mgr.cpp
-@@ -1427,6 +1427,14 @@ BaseGuildManager::GuildInfo* ZoneGuildManager::GetGuildByGuildID(uint32 guild_id
+@@ -17,6 +17,7 @@
+ */
+ 
+ #include "guild_mgr.h"
++#include "housing_service_bank.h"
+ #include "../common/emu_versions.h"
+ #include "../common/repositories/guild_bank_repository.h"
+ #include "../common/repositories/guild_ranks_repository.h"
+@@ -691,30 +692,19 @@ GuildBankManager::~GuildBankManager()
+ 
+ void GuildBankManager::Load(uint32 guild_id)
+ {
+-	auto results = GuildBankRepository::GetWhere(
+-		database,
+-		fmt::format("`guild_id` = '{}' ORDER BY `area`, `slot`", guild_id)
+-	);
+-
+-	auto bank          = std::make_shared<GuildBank>();
+-	bank->guild_id     = guild_id;
+-	int32 deposit_slot = 0;
+-	int32 main_slot    = 0;
+-
+-	for (auto &it: results) {
+-		if (it.area == GuildBankMainArea) {
+-			it.slot = deposit_slot;
+-			bank->items.main_area.emplace(deposit_slot, it);
+-			deposit_slot++;
+-		}
+-		else {
+-			it.slot = main_slot;
+-			bank->items.deposit_area.emplace(main_slot, it);
+-			main_slot++;
+-		}
+-	}
+-
+-    banks.push_back(bank);
++ auto result=database.QueryDatabase(GuildBankRepository::BaseSelect()+" WHERE guild_id="+std::to_string(guild_id)+" ORDER BY area,slot,id",false);
++ if(!result.Success()||result.RowCount()>240)return;
++ auto bank=std::make_shared<GuildBank>();bank->guild_id=guild_id;
++ try{for(auto row=result.begin();row!=result.end();++row){
++  auto it=GuildBankRepository::NewEntity();
++  it.id=std::stoul(row[0]);it.guild_id=std::stoul(row[1]);it.area=std::stoul(row[2]);it.slot=std::stoul(row[3]);it.item_id=std::stoul(row[4]);
++  it.augment_one_id=(row[5]?std::stoul(row[5]):0);it.augment_two_id=(row[6]?std::stoul(row[6]):0);it.augment_three_id=(row[7]?std::stoul(row[7]):0);it.augment_four_id=(row[8]?std::stoul(row[8]):0);it.augment_five_id=(row[9]?std::stoul(row[9]):0);it.augment_six_id=(row[10]?std::stoul(row[10]):0);
++  it.quantity=std::stol(row[11]);it.donator=row[12]?row[12]:"";it.permissions=std::stoul(row[13]);it.who_for=row[14]?row[14]:"";
++  if(!it.id||it.guild_id!=guild_id||it.area>1||it.slot>=(it.area?200u:40u)||!it.item_id||it.permissions>3)return;
++  auto& area=it.area==GuildBankMainArea?bank->items.main_area:bank->items.deposit_area;
++  if(!area.emplace(it.slot,it).second)return;
++ }}catch(...){return;}
++ banks.push_back(bank);
+ }
+ 
+ bool GuildBankManager::IsLoaded(uint32 guild_id)
+@@ -937,56 +927,14 @@ bool GuildBankManager::IsAreaFull(uint32 guild_id, uint16 area)
+ 	return NextFreeBankSlot(guild_id, area) == -1;
+ }
+ 
+-bool GuildBankManager::AddItem(GuildBankRepository::GuildBank &guild_bank_item, Client* c)
++bool GuildBankManager::AddItem(GuildBankRepository::GuildBank &item, Client* c)
+ {
+-	auto guild_bank = GetGuildBank(guild_bank_item.guild_id);
+-	if (!guild_bank) {
+-		LogError("Unable to find guild bank for guild ID [{}]", guild_bank_item.guild_id);
+-		return false;
+-	}
+-
+-	switch (guild_bank_item.area) {
+-		case GuildBankMainArea: {
+-			for (auto &[key, item]: guild_bank->items.main_area) {
+-				if (item.item_id == 0) {
+-					item.slot            = NextFreeBankSlot(guild_bank_item.guild_id, GuildBankMainArea);
+-					guild_bank_item.slot = item.slot;
+-					auto e               = GuildBankRepository::InsertOne(database, guild_bank_item);
+-					if (!e.id) {
+-						return false;
+-					}
+-
+-					guild_bank_item.id = e.id;
+-					item               = guild_bank_item;
+-					break;
+-				}
+-			}
+-			break;
+-		}
+-		case GuildBankDepositArea: {
+-			for (auto &[key, item]: guild_bank->items.deposit_area) {
+-				if (item.item_id == 0) {
+-					item.slot            = NextFreeBankSlot(guild_bank_item.guild_id, GuildBankDepositArea);
+-					guild_bank_item.slot = item.slot;
+-					auto e               = GuildBankRepository::InsertOne(database, guild_bank_item);
+-					if (!e.id) {
+-						return false;
+-					}
+-					guild_bank_item.id = e.id;
+-					item               = guild_bank_item;
+-					break;
+-				}
+-			}
+-			break;
+-		}
+-		default: {
+-			return false;
+-		}
+-	}
+-
+-	SendGuildBankItemUpdate(guild_bank_item.guild_id, guild_bank_item.slot, guild_bank_item.area, true, c);
+-
+-	return true;
++ auto bank=GetGuildBank(item.guild_id);if(!bank||item.area>1||!item.item_id)return false;
++ const int slot=NextFreeBankSlot(item.guild_id,item.area);if(slot<0)return false;
++ item.slot=slot;auto saved=GuildBankRepository::InsertOne(database,item);
++ if(!saved.id){Housing::ServiceBank::AbortCurrent();return false;}
++ item.id=saved.id;auto& area=item.area==GuildBankMainArea?bank->items.main_area:bank->items.deposit_area;area[slot]=item;
++ SendGuildBankItemUpdate(item.guild_id,item.slot,item.area,true,c);return true;
+ }
+ 
+ int GuildBankManager::Promote(uint32 guild_id, int slot_id, Client* c)
+@@ -1001,7 +949,7 @@ int GuildBankManager::Promote(uint32 guild_id, int slot_id, Client* c)
+ 	}
+ 
+ 	auto it_deposit = guild_bank->items.deposit_area.find(slot_id);
+-	if (it_deposit == std::end(guild_bank->items.deposit_area)) {
++	if (it_deposit == std::end(guild_bank->items.deposit_area) || !it_deposit->second.item_id) {
+ 		return -1;
+ 	}
+ 
+@@ -1022,7 +970,7 @@ int GuildBankManager::Promote(uint32 guild_id, int slot_id, Client* c)
+ 	new_item.who_for          = it_deposit->second.who_for;
+ 	new_item.permissions      = it_deposit->second.permissions;
+ 
+-	GuildBankRepository::UpdateOne(database, new_item);
++	if(new_item.slot>=200 || GuildBankRepository::UpdateOne(database,new_item)!=1){Housing::ServiceBank::AbortCurrent();return -1;}
+ 
+ 	SendGuildBankItemUpdate(it_deposit->second.guild_id, it_deposit->second.slot, it_deposit->second.area, false, c);
+ 	it_deposit->second                         = std::move(GuildBankRepository::NewEntity());
+@@ -1032,100 +980,23 @@ int GuildBankManager::Promote(uint32 guild_id, int slot_id, Client* c)
+ 	return new_item.slot;
+ }
+ 
+-void GuildBankManager::SetPermissions(uint32 guild_id, uint16 slot_id, uint32 permissions, const char *member_name, Client* c)
++void GuildBankManager::SetPermissions(uint32 guild_id,uint16 slot_id,uint32 permissions,const char* member_name,Client*c)
+ {
+-	auto guild_bank = GetGuildBank(guild_id);
+-	if (!guild_bank) {
+-		return;
+-	}
+-
+-	auto item         = &guild_bank->items.main_area[slot_id];
+-	item->permissions = permissions;
+-	item->who_for.clear();
+-
+-	if (permissions == GuildBankSingleMember) {
+-		item->who_for = member_name;
+-	}
+-
+-	GuildBankRepository::UpdateOne(database, *item);
+-	SendGuildBankItemUpdate(item->guild_id, item->slot, item->area, true, c);
++ auto bank=GetGuildBank(guild_id);if(!bank||slot_id>=200||permissions>3)return;
++ auto found=bank->items.main_area.find(slot_id);if(found==bank->items.main_area.end()||!found->second.item_id)return;
++ auto item=found->second;item.permissions=permissions;item.who_for=permissions==GuildBankSingleMember?(member_name?member_name:""):"";
++ if(item.permissions==found->second.permissions&&item.who_for==found->second.who_for)return;
++ if(GuildBankRepository::UpdateOne(database,item)!=1){Housing::ServiceBank::AbortCurrent();return;}
++ found->second=item;SendGuildBankItemUpdate(item.guild_id,item.slot,item.area,true,c);
+ }
+ 
+-std::unique_ptr<EQ::ItemInstance> GuildBankManager::GetItem(uint32 guild_id, uint16 area, uint16 slot_id, uint32 quantity)
++std::unique_ptr<EQ::ItemInstance> GuildBankManager::GetItem(uint32 guild_id,uint16 area,uint16 slot_id,uint32 quantity)
+ {
+-	auto guild_bank = GetGuildBank(guild_id);
+-	if (!guild_bank) {
+-		return nullptr;
+-	}
+-
+-	std::unique_ptr<EQ::ItemInstance> inst;
+-
+-	if (area == GuildBankDepositArea) {
+-		if (slot_id > guild_bank->items.deposit_area.size()) {
+-			return nullptr;
+-		}
+-
+-		inst.reset(database.CreateItem(
+-			guild_bank->items.deposit_area[slot_id].item_id,
+-			guild_bank->items.deposit_area[slot_id].quantity,
+-			guild_bank->items.deposit_area[slot_id].augment_one_id,
+-			guild_bank->items.deposit_area[slot_id].augment_two_id,
+-			guild_bank->items.deposit_area[slot_id].augment_three_id,
+-			guild_bank->items.deposit_area[slot_id].augment_four_id,
+-			guild_bank->items.deposit_area[slot_id].augment_five_id,
+-			guild_bank->items.deposit_area[slot_id].augment_six_id)
+-		);
+-
+-		if (!inst) {
+-			return nullptr;
+-		}
+-
+-		if (!inst->IsStackable()) {
+-			inst->SetCharges(guild_bank->items.deposit_area[slot_id].quantity);
+-		}
+-		else {
+-			if (quantity <= guild_bank->items.deposit_area[slot_id].quantity) {
+-				inst->SetCharges(quantity);
+-			}
+-			else {
+-				inst->SetCharges(guild_bank->items.deposit_area[slot_id].quantity);
+-			}
+-		}
+-	}
+-	else {
+-		if (slot_id > guild_bank->items.main_area.size()) {
+-			return nullptr;
+-		}
+-
+-		inst.reset(database.CreateItem(
+-			guild_bank->items.main_area[slot_id].item_id,
+-			guild_bank->items.main_area[slot_id].quantity,
+-			guild_bank->items.main_area[slot_id].augment_one_id,
+-			guild_bank->items.main_area[slot_id].augment_two_id,
+-			guild_bank->items.main_area[slot_id].augment_three_id,
+-			guild_bank->items.main_area[slot_id].augment_four_id,
+-			guild_bank->items.main_area[slot_id].augment_five_id,
+-			guild_bank->items.main_area[slot_id].augment_six_id)
+-		);
+-
+-		if (!inst) {
+-			return nullptr;
+-		}
+-
+-		if (!inst->IsStackable()) {
+-			inst->SetCharges(guild_bank->items.main_area[slot_id].quantity);
+-		}
+-		else {
+-			if (quantity <= guild_bank->items.main_area[slot_id].quantity) {
+-				inst->SetCharges(quantity);
+-			}
+-			else {
+-				inst->SetCharges(guild_bank->items.main_area[slot_id].quantity);
+-			}
+-		}
+-	}
+-
+-	return inst;
++ auto bank=GetGuildBank(guild_id);if(!bank||area>1||slot_id>=(area?200u:40u)||!quantity)return nullptr;
++ auto& items=area==GuildBankMainArea?bank->items.main_area:bank->items.deposit_area;auto found=items.find(slot_id);
++ if(found==items.end()||!found->second.item_id)return nullptr;const auto& item=found->second;
++ auto result=std::unique_ptr<EQ::ItemInstance>(database.CreateItem(item.item_id,item.quantity,item.augment_one_id,item.augment_two_id,item.augment_three_id,item.augment_four_id,item.augment_five_id,item.augment_six_id));
++ if(!result)return nullptr;if(result->IsStackable()){if(item.quantity<=0)return nullptr;result->SetCharges(std::min<uint32_t>(quantity,uint32_t(item.quantity)));}return result;
+ }
+ 
+ bool GuildBankManager::HasItem(uint32 guild_id, uint32 item_id)
+@@ -1165,157 +1036,49 @@ std::shared_ptr<GuildBank> GuildBankManager::GetGuildBank(const uint32 guild_id)
+ 	return nullptr;
+ }
+ 
+-bool GuildBankManager::DeleteItem(uint32 guild_id, uint16 area, uint16 slot_id, uint32 quantity, Client* c)
++bool GuildBankManager::DeleteItem(uint32 guild_id,uint16 area,uint16 slot_id,uint32 quantity,Client*c)
+ {
+-	auto guild_bank = GetGuildBank(guild_id);
+-	if (!guild_bank) {
+-		return false;
+-	}
+-
+-	auto item = &guild_bank->items.deposit_area[slot_id];
+-
+-	if (area == GuildBankMainArea) {
+-		item = &guild_bank->items.main_area[slot_id];
+-	}
+-
+-	if (item->item_id == 0) {
+-		return false;
+-	}
+-
+-	// delete the item
+-	if (item->quantity == quantity) {
+-		SendGuildBankItemUpdate(item->guild_id, item->slot, item->area, false, c);
+-		GuildBankRepository::DeleteOne(database, item->id);
+-
+-		item->item_id     = 0;
+-		item->id          = 0;
+-		item->guild_id    = 0;
+-		item->slot        = 0;
+-		item->quantity    = 0;
+-		item->permissions = 0;
+-		item->donator.clear();
+-		item->who_for.clear();
+-
+-		return true;
+-	}
+-
+-	//otherwise update the quantity
+-	item->quantity -= quantity;
+-	GuildBankRepository::UpdateOne(database, *item);
+-	SendGuildBankItemUpdate(item->guild_id, item->slot, item->area, true, c);
+-
+-	return true;
++ auto bank=GetGuildBank(guild_id);if(!bank||area>1||slot_id>=(area?200u:40u)||!quantity)return false;
++ auto& items=area==GuildBankMainArea?bank->items.main_area:bank->items.deposit_area;auto found=items.find(slot_id);
++ if(found==items.end()||!found->second.item_id||!found->second.id)return false;const auto before=found->second;
++ const auto* definition=database.GetItem(before.item_id);if(!definition)return false;
++ const bool full=!definition->Stackable||(before.quantity>0&&quantity==uint32_t(before.quantity));
++ if(definition->Stackable&&(before.quantity<1||quantity>uint32_t(before.quantity)))return false;
++ const std::string where=" WHERE id="+std::to_string(before.id)+" AND guild_id="+std::to_string(guild_id)+" AND area="+std::to_string(area)+" AND slot="+std::to_string(slot_id)+" AND item_id="+std::to_string(before.item_id)+" AND quantity="+std::to_string(before.quantity);
++ auto saved=database.QueryDatabase(full?"DELETE FROM guild_bank"+where:"UPDATE guild_bank SET quantity=quantity-"+std::to_string(quantity)+where,false);
++ if(!saved.Success()||saved.RowsAffected()!=1){Housing::ServiceBank::AbortCurrent();return false;}
++ if(full){SendGuildBankItemUpdate(guild_id,slot_id,area,false,c);found->second=GuildBankRepository::NewEntity();}
++ else{found->second.quantity-=quantity;SendGuildBankItemUpdate(guild_id,slot_id,area,true,c);}return true;
+ }
+ 
+-bool GuildBankManager::MergeStacks(uint32 guild_id, uint16 slot_id, Client* c)
++bool GuildBankManager::MergeStacks(uint32 guild_id,uint16 slot_id,Client*c)
+ {
+-	auto guild_bank = GetGuildBank(guild_id);
+-	if (!guild_bank) {
+-		return false;
+-	}
+-
+-	auto       merge_bank_item = &guild_bank->items.main_area[slot_id];
+-	const auto merge_item      = database.GetItem(merge_bank_item->item_id);
+-
+-	if (merge_bank_item->item_id == 0 || !merge_item) {
+-		return false;
+-	}
+-
+-	const int16                                   stack_size = merge_item->StackSize;
+-	std::vector<GuildBankRepository::GuildBank *> queue{};
+-	std::vector<std::string>                      queue_delete{};
+-	std::vector<GuildBankRepository::GuildBank>   queue_updates{};
+-
+-	for (auto &[key, item]: guild_bank->items.main_area) {
+-		if (item.item_id == merge_bank_item->item_id && item.slot != slot_id) {
+-			queue.push_back(&item);
+-		}
+-	}
+-
+-	if (queue.empty()) {
+-		return false;
+-	}
+-
+-	std::ranges::sort(queue.begin(), queue.end(), [](auto &a, auto &b) { return a->quantity < b->quantity; });
+-
+-	for (auto const &i: queue) {
+-		const int16 remaining_stack_size = stack_size - static_cast<int16>(merge_bank_item->quantity);
+-		merge_bank_item->quantity += i->quantity;
+-
+-		if (merge_bank_item->quantity <= stack_size) {
+-			i->item_id = 0;
+-			queue_delete.push_back(std::to_string(i->id));
+-			queue_updates.push_back(*i);
+-			continue;
+-		}
+-
+-		if (merge_bank_item->quantity > stack_size) {
+-			merge_bank_item->quantity = stack_size;
+-			i->quantity              -= remaining_stack_size;
+-			queue_updates.push_back(*i);
+-			queue_updates.push_back(*merge_bank_item);
+-			break;
+-		}
+-	}
+-
+-	if (merge_bank_item->quantity < stack_size) {
+-		queue_updates.push_back(*merge_bank_item);
+-		queue.push_back(merge_bank_item);
+-	}
+-
+-	GuildBankRepository::ReplaceMany(database, queue_updates);
+-	if (!queue_delete.empty()) {
+-		GuildBankRepository::DeleteWhere(
+-			database, fmt::format("`id` IN({})", Strings::Implode(",", queue_delete)).c_str()
+-		);
+-	}
+-
+-	for (auto const &i: queue_updates) {
+-		if (i.item_id == 0) {
+-			SendGuildBankItemUpdate(i.guild_id, i.slot, GuildBankMainArea, false, c);
+-			continue;
+-		}
+-
+-		SendGuildBankItemUpdate(i.guild_id, i.slot, GuildBankMainArea, true, c);
+-	}
+-
+-	return true;
++ auto bank=GetGuildBank(guild_id);if(!bank||slot_id>=200)return false;
++ auto found=bank->items.main_area.find(slot_id);if(found==bank->items.main_area.end())return false;const auto before=found->second;
++ const auto* definition=database.GetItem(before.item_id);if(!definition||!definition->Stackable||definition->StackSize<1||before.quantity<1||before.quantity>=definition->StackSize)return false;
++ auto target=before;std::vector<GuildBankRepository::GuildBank> changed;
++ for(const auto&[slot,item]:bank->items.main_area){if(slot==slot_id||item.item_id!=before.item_id||item.quantity<1||item.permissions!=before.permissions||item.who_for!=before.who_for||item.augment_one_id!=before.augment_one_id||item.augment_two_id!=before.augment_two_id||item.augment_three_id!=before.augment_three_id||item.augment_four_id!=before.augment_four_id||item.augment_five_id!=before.augment_five_id||item.augment_six_id!=before.augment_six_id)continue;
++  auto source=item;const int moved=std::min<int>(definition->StackSize-target.quantity,source.quantity);target.quantity+=moved;source.quantity-=moved;changed.push_back(source);if(target.quantity==definition->StackSize)break;
++ }
++ if(changed.empty())return false;
++ if(GuildBankRepository::UpdateOne(database,target)!=1){Housing::ServiceBank::AbortCurrent();return false;}
++ for(const auto&item:changed){const int result=item.quantity?GuildBankRepository::UpdateOne(database,item):GuildBankRepository::DeleteOne(database,item.id);if(result!=1){Housing::ServiceBank::AbortCurrent();return false;}}
++ found->second=target;SendGuildBankItemUpdate(guild_id,slot_id,GuildBankMainArea,true,c);
++ for(const auto&item:changed){if(!item.quantity){SendGuildBankItemUpdate(guild_id,item.slot,GuildBankMainArea,false,c);bank->items.main_area[item.slot]=GuildBankRepository::NewEntity();}else{bank->items.main_area[item.slot]=item;SendGuildBankItemUpdate(guild_id,item.slot,GuildBankMainArea,true,c);}}
++ return true;
+ }
+ 
+-bool GuildBankManager::SplitStack(uint32 guild_id, uint16 slot_id, uint32 quantity, Client* c)
++bool GuildBankManager::SplitStack(uint32 guild_id,uint16 slot_id,uint32 quantity,Client*c)
+ {
+-	auto guild_bank = GetGuildBank(guild_id);
+-	if (!guild_bank) {
+-		return false;
+-	}
+-
+-	if (IsAreaFull(guild_id, GuildBankMainArea)) {
+-		return false;
+-	}
+-
+-	auto       split_bank_item = &guild_bank->items.main_area[slot_id];
+-	const auto split_item      = database.GetItem(split_bank_item->item_id);
+-
+-	if (split_bank_item->item_id == 0 || !split_item) {
+-		return false;
+-	}
+-
+-	auto new_item     = GuildBankRepository::NewEntity();
+-	new_item          = *split_bank_item;
+-	new_item.id       = 0;
+-	new_item.slot     = NextFreeBankSlot(guild_id, GuildBankMainArea);
+-	new_item.quantity = quantity;
+-	split_bank_item->quantity -= quantity;
+-
+-	GuildBankRepository::UpdateOne(database, *split_bank_item);
+-	auto e                                     = GuildBankRepository::InsertOne(database, new_item);
+-	new_item.id                                = e.id;
+-	guild_bank->items.main_area[new_item.slot] = new_item;
+-
+-	SendGuildBankItemUpdate(split_bank_item->guild_id, split_bank_item->slot, split_bank_item->area, true, c);
+-	SendGuildBankItemUpdate(new_item.guild_id, new_item.slot, new_item.area, true, c);
+-
+-	return true;
++ auto bank=GetGuildBank(guild_id);if(!bank||slot_id>=200||!quantity)return false;
++ auto found=bank->items.main_area.find(slot_id);if(found==bank->items.main_area.end())return false;const auto before=found->second;
++ const auto* definition=database.GetItem(before.item_id);if(!definition||!definition->Stackable||before.quantity<1||quantity>=uint32_t(before.quantity))return false;
++ int free=NextFreeBankSlot(guild_id,GuildBankMainArea);if(free<0)return false;
++ auto source=before;source.quantity-=quantity;auto target=before;target.id=0;target.slot=free;target.quantity=quantity;
++ if(GuildBankRepository::UpdateOne(database,source)!=1){Housing::ServiceBank::AbortCurrent();return false;}
++ auto saved=GuildBankRepository::InsertOne(database,target);if(!saved.id){Housing::ServiceBank::AbortCurrent();return false;}target.id=saved.id;
++ found->second=source;bank->items.main_area[free]=target;
++ SendGuildBankItemUpdate(guild_id,slot_id,GuildBankMainArea,true,c);SendGuildBankItemUpdate(guild_id,free,GuildBankMainArea,true,c);return true;
+ }
+ 
+ int32 GuildBankManager::NextFreeBankSlot(uint32 guild_id, uint32 area)
+@@ -1427,6 +1190,14 @@ BaseGuildManager::GuildInfo* ZoneGuildManager::GetGuildByGuildID(uint32 guild_id
  }
  
  uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_name, uint32& length) {
@@ -2440,7 +3165,7 @@ index aa2d9fd..920c077 100644
  	uint8* retbuffer;
  
  	std::vector<CharGuildInfo*> members;
-@@ -1454,6 +1462,7 @@ uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_na
+@@ -1454,6 +1225,7 @@ uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_na
  	retbuffer = new uint8[length];
  
  	auto gms = (Internal_GuildMembers_Struct*)retbuffer;
@@ -2448,7 +3173,7 @@ index aa2d9fd..920c077 100644
  
  	//fill in the global header
  	strcpy(gms->player_name, prefix_name);
-@@ -1514,6 +1523,7 @@ uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_na
+@@ -1514,6 +1286,7 @@ uint8* ZoneGuildManager::MakeGuildMembers(uint32 guild_id, const char* prefix_na
  		PutField(rank);
  		PutField(time_last_on);
  		PutField(tribute_enable);
@@ -2684,6 +3409,77 @@ index 20fad6e..acb7f8d 100644
  	bool DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, float &distance) const;
  
  #ifdef USE_MAP_MMFS
+diff --git a/zone/mob.cpp b/zone/mob.cpp
+index 1302246..e814191 100644
+--- a/zone/mob.cpp
++++ b/zone/mob.cpp
+@@ -1279,6 +1279,25 @@ void Mob::CreateSpawnPacket(EQApplicationPacket* app, NewSpawn_Struct* ns) {
+ 	}
+ }
+ 
++bool Mob::SetHousingItemBinding(const std::string& guid, uint32 estate_id, uint32 item_id)
++{
++	if (guid.size() != 16 || guid.find_first_not_of("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-") != std::string::npos ||
++		!estate_id || estate_id == 0xffffffff || !item_id || item_id == 0xffffffff) {
++		return false;
++	}
++	m_housing_item_guid = guid;
++	m_housing_estate_id = estate_id;
++	m_housing_item_id = item_id;
++	return true;
++}
++
++void Mob::ClearHousingItemBinding()
++{
++	m_housing_item_guid.clear();
++	m_housing_estate_id = 0xffffffff;
++	m_housing_item_id = 0xffffffff;
++}
++
+ void Mob::FillSpawnStruct(NewSpawn_Struct* ns, Mob* ForWho)
+ {
+ 	int i;
+@@ -1315,6 +1334,10 @@ void Mob::FillSpawnStruct(NewSpawn_Struct* ns, Mob* ForWho)
+ 	ns->spawn.invis		= (invisible || hidden) ? 1 : 0;	// TODO: load this before spawning players
+ 	ns->spawn.NPC		= IsClient() ? 0 : 1;
+ 	ns->spawn.IsMercenary = IsMerc() ? 1 : 0;
++	strn0cpy(ns->spawn.housing_item_guid, m_housing_item_guid.empty() ? "0000000000000000" : m_housing_item_guid.c_str(), sizeof(ns->spawn.housing_item_guid));
++	ns->spawn.housing_estate_id = m_housing_estate_id;
++	ns->spawn.housing_item_id = m_housing_item_id;
++
+ 	ns->spawn.targetable_with_hotkey = no_target_hotkey ? 0 : 1; // opposite logic!
+ 	ns->spawn.untargetable = IsTargetable();
+ 
+diff --git a/zone/mob.h b/zone/mob.h
+index ca0abe2..1f62d98 100644
+--- a/zone/mob.h
++++ b/zone/mob.h
+@@ -1072,6 +1072,14 @@ public:
+ 	inline uint8 GetActiveLightType() { return m_Light.Type[EQ::lightsource::LightActive]; }
+ 	bool UpdateActiveLight(); // returns true if change, false if no change
+ 	uint32 GetNpcTintId() { return m_npc_tint_id; }
++	// Bind an actual service spawn to its durable housing item. Call before
++	// announcing the spawn; item authorization remains with the housing service.
++	bool SetHousingItemBinding(const std::string& guid, uint32 estate_id, uint32 item_id);
++	void ClearHousingItemBinding();
++	const std::string& GetHousingItemGuid() const { return m_housing_item_guid; }
++	uint32 GetHousingEstateId() const { return m_housing_estate_id; }
++	uint32 GetHousingItemId() const { return m_housing_item_id; }
++
+ 
+ 	EQ::LightSourceProfile* GetLightProfile() { return &m_Light; }
+ 
+@@ -1605,6 +1613,10 @@ protected:
+ 	int32 heroic_strikethrough;
+ 	bool keeps_sold_items;
+ 	uint32 m_npc_tint_id;
++	std::string m_housing_item_guid;
++	uint32 m_housing_estate_id = 0xffffffff;
++	uint32 m_housing_item_id = 0xffffffff;
++
+ 
+ 	uint32 m_PlayerState;
+ 	uint32 GetPlayerState() { return m_PlayerState; }
 diff --git a/zone/parcels.cpp b/zone/parcels.cpp
 index f1dc874..db2f9ac 100644
 --- a/zone/parcels.cpp
@@ -3026,6 +3822,26 @@ index 42078e3..ab38e84 100644
  			case SpellEffect::Translocate:
  			{
  #ifdef SPELL_EFFECT_SPAM
+diff --git a/zone/trading.cpp b/zone/trading.cpp
+index 9415c9e..36c733b 100644
+--- a/zone/trading.cpp
++++ b/zone/trading.cpp
+@@ -30,6 +30,7 @@
+ #include "client.h"
+ #include "entity.h"
+ #include "mob.h"
++#include "housing_guild_portal.h"
+ 
+ #include "quest_parser_collection.h"
+ #include "string_ids.h"
+@@ -510,6 +511,7 @@ void Client::FinishTrade(Mob* tradingWith, bool finalizer, void* event_entry, st
+ 		}
+ 	}
+ 	else if(tradingWith->IsNPC()) {
++		if (Housing::GuildPortalRuntime::HandIn(*this, tradingWith)) return;
+ 
+ 		bool quest_npc = false;
+ 		if (parse->HasQuestSub(tradingWith->GetNPCTypeID(), EVENT_TRADE)) {
 diff --git a/zone/tribute.cpp b/zone/tribute.cpp
 index f9a9e73..859af03 100644
 --- a/zone/tribute.cpp
@@ -3124,6 +3940,63 @@ index 747302e..c9d69ea 100644
  		data->time = in->member_last_donated;
  		data->command = in->command;
  
+diff --git a/zone/zone.cpp b/zone/zone.cpp
+index eea9d8a..a696e5c 100644
+--- a/zone/zone.cpp
++++ b/zone/zone.cpp
+@@ -1,3 +1,6 @@
++#include "housing_guild_portal.h"
++#include "housing_service_npcs.h"
++#include "housing_service_authority.h"
+ /*	EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.net)
+ 
+@@ -1107,6 +1110,7 @@ Zone::Zone(uint32 in_zoneid, uint32 in_instanceid, const char* in_short_name)
+ }
+ 
+ Zone::~Zone() {
++ Housing::ServiceAuthority::Clear();
+ 	LogInfo("Zone destructor called for zone [{}]", short_name);
+ 
+ 	spawn2_list.Clear();
+diff --git a/zone/zone_save_state.cpp b/zone/zone_save_state.cpp
+index f36f3ee..3a8607d 100644
+--- a/zone/zone_save_state.cpp
++++ b/zone/zone_save_state.cpp
+@@ -5,6 +5,7 @@
+ #include "corpse.h"
+ #include "zone.h"
+ #include "zone_save_state.h"
++#include "housing_service_npcs.h"
+ #include "../common/repositories/spawn2_repository.h"
+ #include "../common/repositories/criteria/content_filter_criteria.h"
+ 
+@@ -601,6 +602,17 @@ bool Zone::LoadZoneState(
+ 			continue;
+ 		}
+ 
++		// Managed housing actors are reconstructed only from current committed
++		// item custody. Generic suspension retains neither the runtime ledger
++		// nor the native item binding and would create an unauthorized duplicate.
++		// Read persisted markers independently of StateSaveEntityVariables so
++		// old snapshots cannot restore a bare service template when it is off.
++		const auto variables = GetVariablesDeserialized(s.entity_variables);
++		const auto housing_service = variables.find("housing_service_owned");
++		if (housing_service != variables.end() && housing_service->second == "1") {
++			continue;
++		}
++
+ 		auto npc_type = content_db.LoadNPCTypesData(s.npc_id);
+ 		if (!npc_type) {
+ 			LogZoneState("Failed to load NPC type data for npc_id [{}]", s.npc_id);
+@@ -737,6 +749,7 @@ void Zone::SaveZoneState()
+ 	for (auto &n: entity_list.GetNPCList()) {
+ 		// everything below here is dynamically spawned
+ 		bool ignore_npcs =
++				 Housing::ServiceNpcs::Managed(n.second) ||
+ 				 n.second->GetSpawnGroupId() > 0 ||
+ 				 n.second->GetNPCTypeID() < 100 ||
+ 				 n.second->GetNPCTypeID() == 500 || // Trap::CreateHiddenTrigger
 diff --git a/zone/zonedb.cpp b/zone/zonedb.cpp
 index 0dc1436..a753315 100644
 --- a/zone/zonedb.cpp

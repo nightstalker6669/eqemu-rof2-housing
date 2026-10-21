@@ -2,7 +2,7 @@
   "client_build": "May 10, 2013 RoF2",
   "client_sha256": "2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e",
   "documented_opcode_numbers": 67,
-  "mapped_opcode_numbers": 54,
+  "mapped_opcode_numbers": 55,
   "layout_counts": {
     "complete": 47,
     "partial": 20
@@ -202,14 +202,14 @@
     },
     {
       "opcode": "0x21ea",
-      "name": "Bind spawn to housing item",
-      "mapped": false,
+      "name": "OP_RealEstateBindSpawn",
+      "mapped": true,
       "direction": "S2C",
       "layout_status": "partial",
       "meaning_status": "complete",
       "layout": "S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+NUL@4..20;bytes21..23 unobserved on valid profile;estateID:u32@24,itemID:u32@28. Prior18-byte GUID storage wording overstated wire consumption. Malformed unbounded strlen reads are not extra valid fields.",
       "limits": [
-        "32 accessed bytes established, including unaccessed gap22..23; original full emitted length unknown"
+        "32 accessible bytes established, including unobserved gap21..23; exclusive original emitted length unknown. The server emits a canonical32-byte profile."
       ]
     },
     {

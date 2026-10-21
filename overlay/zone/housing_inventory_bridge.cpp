@@ -8,6 +8,8 @@
 #include "../common/housing/layout_inventory_coordinator_db.h"
 #include "../common/housing/layout_mixed_coordinator_db.h"
 #include "housing_inventory_bridge.h"
+#include "../common/housing/guild_portal_db.h"
+#include "../common/housing/inventory_row_db.h"
 #include "../common/housing/return_parcel_db.h"
 #include "../common/housing/return_settlement_db.h"
 #include "housing_house_surface.h"
@@ -1285,6 +1287,35 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
          auto trusted=request;trusted.level=client_.GetLevel();trusted.location.reset();if(zone)trusted.location=TrophyBenefits::SelectionLocation{{zone->GetZoneID(),uint8_t(zone->GetInstanceVersion()),uint16_t(zone->GetInstanceID())},{client_.GetY(),client_.GetX(),client_.GetZ()}};
          auto result=GuildTrophies::ExecuteUnderTransaction(*db,lease_,*this,trusted,house_policies_.scene.get(),house_policies_.room.get(),house_policies_.crates.get());if(!result){db->QueryDatabase(std::string("ROLLBACK"),false);Leave();return result;}if(!db->QueryDatabase(std::string("COMMIT"),false).Success())FreezeInvariantFailure();transaction=false;Leave();return result;
         }catch(...){if(transaction&&db)db->QueryDatabase(std::string("ROLLBACK"),false);Leave();return {{},LiveItems::Error::DatabaseFailure};}
+    }
+    LiveItems::Result<GuildPortal::Alignment> Bridge::AlignGuildPortal(const GuildPortalRuntime::Source& source,uint32_t slot,int32_t serial,const GuildPortalRuntime::Validator& validate){
+        if(!Enter())return {{},LiveItems::Error::UnheldFence};
+        std::unique_ptr<Database> db;std::unique_ptr<EQ::ItemInstance> consumed;EQ::ItemInstance* memory=nullptr;
+        bool transaction=false,committing=false,changed=false;int16_t old_charges=0;
+        try{
+            if(!validate||slot<uint32_t(EQ::invslot::TRADE_BEGIN)||slot>uint32_t(EQ::invslot::TRADE_NPC_END)||!GuildPortal::Valid(source.scope)||source.binding.item_id!=66640||source.binding.service!=ServiceNpcs::Service::TeleportMerchant||!zone||source.scope.zone!=zone->GetZoneID()||source.scope.instance!=zone->GetInstanceID()||source.binding.house_id!=source.scope.house||source.binding.estate_id!=source.scope.estate||source.binding.guild_id!=source.scope.guild||client_.GuildID()!=source.scope.guild||!Open())throw std::invalid_argument("Invalid housing portal hand-in scope");
+            memory=client_.GetInv().GetItem(int16_t(slot));if(!memory||memory->GetSerialNumber()!=serial||!GuildPortal::Purchasable(memory->GetID())||!memory->IsClassCommon()||memory->IsEvolving()||memory->IsAugmented()||!memory->GetContents()->empty()||memory->IsAttuned())throw std::invalid_argument("Unsupported housing portal stone");
+            old_charges=memory->GetCharges();if((memory->IsStackable()&&old_charges<1)||(!memory->IsStackable()&&(old_charges<0||old_charges>1)))throw std::invalid_argument("Unsupported housing portal stone quantity");
+            const auto* config=EQEmuConfig::get();if(!config)throw std::runtime_error("Missing DB configuration");db=std::make_unique<Database>();if(!db->Connect(config->DatabaseHost,config->DatabaseUsername,config->DatabasePassword,config->DatabaseDB,config->DatabasePort,"housing-guild-portal"))throw std::runtime_error("Portal connection failed");
+            auto engines=GuildPortal::Query(*db,"SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('inventory','housing_guild_portal_alignments')");if(engines.RowCount()!=2)throw std::invalid_argument("Portal transaction schema missing");for(auto engine:engines)if(!engine[0]||std::string(engine[0])!="InnoDB")throw std::invalid_argument("Portal transaction requires InnoDB");
+            GuildPortal::Query(*db,"START TRANSACTION");transaction=true;auto authenticated=LiveItems::Service::AuthenticateUnderTransaction(*db,true,lease_,*this);if(!authenticated||!authenticated.value.pending_key.empty())throw std::invalid_argument("Portal lease not current");
+            if(!validate(*db,client_,source)||!GuildPortal::SameCurrent(*db,source.scope,true))throw std::invalid_argument("Portal merchant no longer current");
+            auto rows=GuildPortal::Query(*db,std::string("SELECT ")+InventoryRowDB::Columns+" FROM inventory WHERE character_id="+std::to_string(actor_.character_id)+" AND slot_id="+std::to_string(slot)+" FOR UPDATE");if(rows.RowCount()!=1)throw std::invalid_argument("Missing portal stone row");auto row=InventoryRowDB::Decode(rows.begin());
+            if(row.values.character_id!=actor_.character_id||row.values.slot_id!=slot||memory!=client_.GetInv().GetItem(int16_t(slot))||memory->GetSerialNumber()!=serial||!Matches(row,*memory))throw std::invalid_argument("Portal stone identity changed");
+            // The canonical row (including NULL/GUID/custom/ornament fields) is
+            // matched before changing exactly one physical crystal. No source
+            // packet or merchant item template alone grants inventory authority.
+            const bool partial=memory->IsStackable()&&old_charges>1;
+            auto removed=GuildPortal::Query(*db,partial?"UPDATE inventory SET charges="+std::to_string(old_charges-1)+" WHERE character_id="+std::to_string(actor_.character_id)+" AND slot_id="+std::to_string(slot):"DELETE FROM inventory WHERE character_id="+std::to_string(actor_.character_id)+" AND slot_id="+std::to_string(slot));if(removed.RowsAffected()!=1)throw std::runtime_error("Portal stone debit failed");
+            auto alignment=GuildPortal::AlignLocked(*db,source.scope,row.values.item_id,GuildPortal::DatabaseNow(*db));
+            if(partial)memory->SetCharges(old_charges-1);else{consumed.reset(client_.GetInv().PopItem(int16_t(slot)));if(consumed.get()!=memory)FreezeInvariantFailure();}changed=true;
+            committing=true;if(!db->QueryDatabase(std::string("COMMIT"),false).Success())FreezeInvariantFailure();transaction=false;
+            Leave();return {alignment,LiveItems::Error::None};
+        }catch(...){
+            if(committing)FreezeInvariantFailure();
+            if(changed){if(consumed){if(client_.GetInv().PushItem(int16_t(slot),consumed.get())!=int16_t(slot))FreezeInvariantFailure();consumed.release();}else if(memory)memory->SetCharges(old_charges);}
+            if(transaction&&db&&!db->QueryDatabase(std::string("ROLLBACK"),false).Success())FreezeInvariantFailure();Leave();return {{},LiveItems::Error::DatabaseFailure};
+        }
     }
     std::optional<uint32_t> Bridge::CurrentFavorUnderFence(const LiveItems::Lease& lease)const noexcept{
         if(!HeldFor(lease.actor,lease.epoch,lease.session_key))return {};return client_.GetPP().tribute_points;

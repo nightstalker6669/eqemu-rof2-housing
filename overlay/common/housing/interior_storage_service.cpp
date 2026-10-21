@@ -256,7 +256,7 @@ static LiveItems::Result<TransferReceipt> TransferCurrent(Database* database_,bo
    const auto target_transform=r.placement.value_or(PlacementPolicy::Transform{0,0,0,1,{0,0,0}});std::optional<NpcNativeFrame::Frame> next_frame=r.npc_frame;
    auto npc=NpcRuntime::Current(db,stored->row.values.item_id);
    if(npc){if(!next_frame&&stored->placement->npc_frame){next_frame=NpcNativeFrame::Reframe(*stored->placement->npc_frame,target_transform);if(!next_frame)throw Failure{Error::Conflict};}(void)NpcRuntime::Geometry(*npc,next_frame,target_transform);}else if(next_frame||stored->placement->npc_frame)throw Failure{Error::Conflict};
-   if(npc){if(!fence.NpcProfileMatchesUnderTransaction(db,r.lease,*npc)||r.crate_member)throw Failure{Error::Conflict};if(!NpcRuntime::Capacity(definition.max_npc_items,NpcRuntime::Count(db,target,r.to_room?inside.house->house_id:0)))throw Failure{Error::NpcFull};}
+   if(npc){if(!fence.NpcProfileMatchesUnderTransaction(db,r.lease,*npc)||r.crate_member)throw Failure{Error::Conflict};if(!npc->service&&!NpcRuntime::Capacity(definition.max_npc_items,NpcRuntime::Count(db,target,r.to_room?inside.house->house_id:0)))throw Failure{Error::NpcFull};}
    std::optional<InteriorContent::Fingerprint> room_identity;std::optional<ContentBinding::Identity> yard_identity;
    if(r.to_room){auto input=InteriorContent::ItemInputUnderTransaction(db,*inside.room_profile,stored->row.values.item_id,{},r.to_room);if(!input)throw Failure{input.error};auto identity=InteriorContent::Build(input.value);if(!identity)throw Failure{Error::UnsupportedItem};room_identity=identity.value;}
    else{

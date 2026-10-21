@@ -1,3 +1,5 @@
+#include "housing_service_npcs.h"
+#include "housing_service_authority.h"
 #include "../common/housing/centered_wall_policy.h"
 #include "housing_plot_marker.h"
 #include "../common/housing/plot_find_wire.h"
@@ -744,6 +746,9 @@ std::optional<FurnitureScene> FurnitureReadCrateScene(Client* c,Session& session
 }
 std::optional<FurnitureScene> FurnitureReadRoomScene(Client* c,Session& session,const Housing::Scene::InteriorSnapshot& snapshot,bool render_world=true){
  if(!snapshot.house||!snapshot.house->interior||!snapshot.room_profile||!snapshot.profile_revision||snapshot.room_profile->house_id!=snapshot.house->house_id||snapshot.room_profile->native_estate_id!=snapshot.house->interior->native_estate_id)return {};
+ // Real service entities follow committed custody independently of whether
+ // an unrelated furniture/vault presentation can be serialized for this view.
+ if(render_world&&!Housing::ServiceAuthority::Reconcile(*c,snapshot))return {};
  FurnitureScene scene;scene.estate=snapshot.house->interior->native_estate_id;std::map<uint32_t,Housing::Scene::InteriorContent> next_cache;
  for(const auto& entry:snapshot.contents){const auto& row=entry.stored;if(!row.placement)continue;
   if(!entry.room||row.placement->reservation.native_estate_id!=scene.estate||entry.room->house_id!=snapshot.house->house_id)return {};
@@ -752,7 +757,7 @@ std::optional<FurnitureScene> FurnitureReadRoomScene(Client* c,Session& session,
   if(!cached->second||!Housing::SceneProjection::SynchronizeCharges(row.row,*cached->second))return {};
   if(entry.crate&&!Housing::CratePresentation::Project(entry,snapshot.house->house_id,scene.estate,*cached->second))return {};
   auto bytes=FurnitureEntry(c,row,*cached->second,&entry.creator_name,nullptr,snapshot.access.owner_kind==Housing::OwnerKind::Character&&snapshot.access.owner_id==c->CharacterID());if(bytes.size()>65523||!scene.entries.emplace(id,bytes).second)return {};
-  if(render_world&&!row.stowed)scene.worlds.emplace(id,Session::World{FurnitureGuid(*cached->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cached->second,*row.placement))});next_cache.emplace(id,entry);
+  if(render_world&&!row.stowed&&!Housing::ServiceItemBindings::Lookup(row.row.values.item_id))scene.worlds.emplace(id,Session::World{FurnitureGuid(*cached->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cached->second,*row.placement))});next_cache.emplace(id,entry);
  }
  if(!FurnitureVaultEntries(session,scene,snapshot.vault_items))return {};
  FurnitureFinalizeList(scene);
@@ -790,6 +795,7 @@ void FurnitureSendScene(Client* c,Session& session,const FurnitureScene& scene,s
  for(auto prior=sent.begin();prior!=sent.end();){auto now=scene.worlds.find(prior->first);
   if(now==scene.worlds.end()||now->second.packet!=prior->second.packet){SendEstatePayload(c,OP_RealEstateWorldRemove,FurnitureRemoval(scene.estate,prior->first,prior->second.guid));if(now==scene.worlds.end()&&!scene.entries.count(prior->first)&&!session.contained_items.count(prior->first))session.presentations.erase(prior->first);prior=sent.erase(prior);}else ++prior;}
  for(const auto& world:scene.worlds)if(!sent.count(world.first)){SendEstatePayload(c,OP_RealEstateWorldItem,world.second.packet);sent.emplace(world.first,world.second);}
+ Housing::ServiceAuthority::PublishBindings(*c,scene.estate,[&](uint32_t id)->std::string{auto item=session.presentations.find(id);return item!=session.presentations.end()&&item->second?FurnitureGuid(*item->second):std::string{};});
 }
 void FurniturePurgeScene(Client* c,Session& session,uint32_t estate){
  FurnitureScene empty;empty.estate=estate;Housing::NeighborhoodWire::Detail::Write32(empty.list,estate);Housing::NeighborhoodWire::Detail::Write32(empty.list,0);
@@ -1889,7 +1895,7 @@ void Client::Handle_OP_RealEstatePickup(const EQApplicationPacket* app){
    }
    if(!prior->second.crate_member||!prior->second.crate_item||GetInv().CursorSize()!=0||GetInv().GetItem(EQ::invslot::slotCursor)){FurnitureResult(this,1);return;}
    auto result=prior->second.room_item&&prior->second.room_context?crate_bridge->ReturnInterior(prior->second.key,*prior->second.room_item,*prior->second.room_context,EQ::invslot::slotCursor,prior->second.room_exterior_source,prior->second.crate_member,request.opaque):crate_bridge->ReturnCrateMember(prior->second.key,*prior->second.crate_item,*prior->second.crate_member,EQ::invslot::slotCursor,prior->second.house_identity,request.opaque);if(!result){FurnitureResult(this,1);return;}
-   durable_success=true;prior->second.completed=true;auto* item=GetInv().GetItem(EQ::invslot::slotCursor);prior->second.returned_serial=item?item->GetSerialNumber():0;if(item)SendItemPacket(EQ::invslot::slotCursor,item,ItemPacketTrade);if(!prior->second.partition)session.presentations.erase(request.item_id);FurnitureResult(this,0);FurnitureBroadcastScenes();return;
+   durable_success=true;prior->second.completed=true;if(!result.value.partition)Housing::ServiceNpcs::Revoke(prior->second.custody);auto* item=GetInv().GetItem(EQ::invslot::slotCursor);prior->second.returned_serial=item?item->GetSerialNumber():0;if(item)SendItemPacket(EQ::invslot::slotCursor,item,ItemPacketTrade);if(!prior->second.partition)session.presentations.erase(request.item_id);FurnitureResult(this,0);FurnitureBroadcastScenes();return;
   }
   const Housing::Scene::InteriorSnapshot* attached=nullptr;
   if(!view->interior){auto found=session.attached_rooms.find(request.estate_id);if(found!=session.attached_rooms.end()&&FurniturePlot(this,*view,*presentation,found->second.context.native_plot_id))attached=&found->second;}
@@ -1901,7 +1907,7 @@ void Client::Handle_OP_RealEstatePickup(const EQApplicationPacket* app){
    // A denied current Enter view cannot hide a known completed Return. It
    // permits no new inventory action and never replays historical world state.
    if(!prior->second.partition&&current&&std::any_of(current->items.begin(),current->items.end(),[&](const auto& entry){return entry.stored.placement&&entry.stored.placement->reservation.native_item_id==request.item_id;})){FurnitureResult(this,1);return;}
-   if(!prior->second.partition){SendEstatePayload(this,OP_RealEstateWorldRemove,FurnitureRemoval(request.estate_id,request.item_id,FurnitureGuid(*presentation)));
+   if(!prior->second.partition){Housing::ServiceNpcs::Revoke(prior->second.custody);SendEstatePayload(this,OP_RealEstateWorldRemove,FurnitureRemoval(request.estate_id,request.item_id,FurnitureGuid(*presentation)));
    session.sent_worlds[request.estate_id].erase(request.item_id);}
    // Replays never move custody again or overwrite a later cursor item.
    auto* returned=GetInv().GetItem(EQ::invslot::slotCursor);
@@ -1932,6 +1938,7 @@ void Client::Handle_OP_RealEstatePickup(const EQApplicationPacket* app){
   else returned=bridge->Return(prior->second.key,prior->second.estate,prior->second.custody,EQ::invslot::slotCursor,prior->second.house_identity,prior->second.crate_identity,request.opaque);
   if(!returned){FurnitureResult(this,1);return;}
   durable_success=true;prior->second.completed=true;prior->second.partition=bool(returned.value.partition);
+  if(!prior->second.partition)Housing::ServiceNpcs::Revoke(prior->second.custody);
   auto* inventory_item=GetInv().GetItem(EQ::invslot::slotCursor);
   prior->second.returned_serial=inventory_item?inventory_item->GetSerialNumber():0;
   if(!returned.value.partition){SendEstatePayload(this,OP_RealEstateWorldRemove,removal);session.sent_worlds.at(request.estate_id).erase(request.item_id);session.presentations.erase(request.item_id);}

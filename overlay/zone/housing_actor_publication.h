@@ -6,6 +6,7 @@
 #include <optional>
 class Client;
 class EQApplicationPacket;
+namespace Housing::NpcRuntime {struct Profile;}
 namespace Housing::ActorPublication {
 // Per-recipient ledger of packets actually handed to the stream, after delayed
 // packet/filter handling. A spawn-ID reuse obtains a new publication generation.
@@ -36,5 +37,10 @@ const Ledger& Publication(const Client&) noexcept;
 void Observe(const Client&,const EQApplicationPacket*) noexcept;
 void Forget(const Client&) noexcept;
 std::optional<PlacedHeightFilters::Actor> ProjectHeightActor(Client&,uint16_t) noexcept;
+// A source-linked real network NPC, never the noninteractive CPlacedNPC local
+// construction. Caller binds fresh SQL metadata/cache/pose and service authority
+// under its existing custody transaction before using this projection.
+std::optional<PlacedHeightFilters::Actor> ProjectServiceHeightActor(Client&,uint16_t,
+ const NpcRuntime::Profile&,uint64_t custody_id,uint32_t native_estate_id,uint32_t native_item_id) noexcept;
 }
 #endif

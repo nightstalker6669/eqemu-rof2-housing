@@ -124,13 +124,16 @@ C2S exact24: FFFFFFFF@0, zero@4, current placed house estateID/itemID@8/12, sele
 
 Remaining limits: Roles of initial constants FFFFFFFF and zero remain unnamed; both house identity pairs are recovered.; Replacement source/custody and response ordering unresolved
 
-## 0x21ea — Bind spawn to housing item
+## 0x21ea — OP_RealEstateBindSpawn
 
-Direction: S2C. Mapped: no. Layout: partial; meaning: complete.
+Direction: S2C. Mapped: yes. Layout: partial; meaning: complete.
 
 S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+NUL@4..20;bytes21..23 unobserved on valid profile;estateID:u32@24,itemID:u32@28. Prior18-byte GUID storage wording overstated wire consumption. Malformed unbounded strlen reads are not extra valid fields.
 
-Remaining limits: 32 accessed bytes established, including unaccessed gap22..23; original full emitted length unknown
+Remaining limits: 32 accessed bytes established, including unobserved gap21..23; original full emitted length unknown
+
+
+The implemented per-viewer publisher emits canonical 32 bytes with gap21..23 zero-filled after the housing item list. This integration reuses the recovered number. Representative Grand hall service placement and transactions passed; see [service acceptance](../docs/SERVICE-NPCS-2026-10-21.md) for remaining boundaries.
 
 ## 0x21ec — OP_RealEstateItemMenu
 

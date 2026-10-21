@@ -1,6 +1,6 @@
 # Housing opcode inventory
 
-Snapshot: October 18, 2026. Target: May 10, 2013 RoF2. **54 active mappings (48 real-estate and6 guild-trophy);67 documented opcode numbers.** Mapping does not establish working gameplay or full original protocol coverage.
+Snapshot: October 21, 2026. Target: May 10, 2013 RoF2. **55 active mappings (49 real-estate and 6 guild-trophy);67 documented opcode numbers.** Mapping does not establish working gameplay or full original protocol coverage.
 
 | Opcode | Mapping | Direction |
 |---|---|---|
@@ -58,7 +58,10 @@ Snapshot: October 18, 2026. Target: May 10, 2013 RoF2. **54 active mappings (48 
 | 0x66bf | OP_RealEstateSaleResult | S2C |
 | 0x68ba | OP_RealEstateTransferResult | S2C |
 | 0x5a63 | OP_RealEstateTransferConsent | S2C+C2S |
+| 0x21ea | OP_RealEstateBindSpawn | S2C |
 
-All67 recovered layouts and explicit unknown fields are in [STRUCTS.md](STRUCTS.md) and [recovered-layouts.json](recovered-layouts.json). Detailed shared schemas remain in [housing-wire-reference.json](housing-wire-reference.json). Production serialization/decoding implementations are in [overlay/common/housing](../overlay/common/housing). Native/internal EQEmu roster fields are distinguished from client wire layouts in the integration patch.
+All 67 recovered layouts and explicit unknown fields are in [STRUCTS.md](STRUCTS.md) and [recovered-layouts.json](recovered-layouts.json). Detailed shared schemas remain in [housing-wire-reference.json](housing-wire-reference.json). Production serialization/decoding implementations are in [overlay/common/housing](../overlay/common/housing). Native/internal EQEmu roster fields are distinguished from client wire layouts in the integration patch.
 
 Project opcode names are integration labels. Internal ServerOP_Housing messages are emulator coordination, not original-client discoveries.
+
+The service integration activates previously recovered `0x21ea`; it adds no new recovered number. The canonical server profile is 32 bytes with a 16-character GUID plus NUL and a zero-filled unobserved gap. The original exclusive emitted length remains unknown. Representative Grand hall service placement and transactions passed; see [service acceptance](../docs/SERVICE-NPCS-2026-10-21.md) for remaining boundaries.

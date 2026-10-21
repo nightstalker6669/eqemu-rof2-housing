@@ -1,10 +1,13 @@
 #include "housing_actor_publication.h"
 #include "client.h"
 #include "entity.h"
+#include "housing_service_npcs.h"
+#include "../common/housing/npc_exit_collision.h"
 #include "../common/classes.h"
 #include "../common/eq_packet.h"
 #include "../common/housing/ordinary_character_profiles.h"
 #include <cmath>
+#include <bit>
 #include <cstring>
 #include <limits>
 namespace Housing::ActorPublication {
@@ -55,6 +58,16 @@ void Ledger::Observe(const EQApplicationPacket* p)noexcept{
    ordinary=ordinary&&std::isfinite(s.size)&&s.size>=0&&s.size<=256;
    records_[s.spawnId]={s,revision_,ordinary};
   }break;
+ }
+ case OP_RealEstateBindSpawn:{
+  // Original5b26fa binds only an already resolved PlayerClient. The canonical
+  // consumed profile has GUID16+NUL at4..20 and IDs at24/28;21..23 unobserved.
+  if(p->size!=32){valid_=false;return;}
+  const auto word=[&](size_t at){uint32_t value=0;for(size_t n=0;n<4;++n)value|=uint32_t(p->pBuffer[at+n])<<(8*n);return value;};
+  const auto id=word(0);auto found=records_.find(id);if(found==records_.end())break;
+  const std::string guid(reinterpret_cast<const char*>(p->pBuffer+4),16);const auto estate=word(24),item=word(28);
+  if(p->pBuffer[20]||guid.find_first_not_of("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-")!=std::string::npos||!estate||estate==UINT32_MAX||!item||item==UINT32_MAX){valid_=false;return;}
+  Advance();std::memcpy(found->second.spawn.housing_item_guid,guid.data(),16);found->second.spawn.housing_item_guid[16]=0;found->second.spawn.housing_estate_id=estate;found->second.spawn.housing_item_id=item;found->second.generation=revision_;break;
  }
  case OP_DeleteSpawn:{if(p->size<4){valid_=false;return;}uint32_t id;std::memcpy(&id,p->pBuffer,4);Advance();records_.erase(id);break;}
  case OP_Illusion:case OP_ChangeSize:{if(p->size<4){valid_=false;return;}uint32_t id;std::memcpy(&id,p->pBuffer,4);LogInfo("Housing actor publication dirty spawn [{}] opcode [{}]",id,unsigned(p->GetOpcode()));Dirty(id);break;}
@@ -108,5 +121,22 @@ std::optional<PlacedHeightFilters::Actor> ProjectHeightActor(Client&client,uint1
   // or a claimed measured native radius. No consumer may use it as a bound.
   actor.radius=1.f;return actor;
  }catch(...){LogInfo("Housing actor projection refused spawn [{}] reason [exception]",id);return {};}
+}
+std::optional<PlacedHeightFilters::Actor> ProjectServiceHeightActor(Client&client,uint16_t id,
+ const NpcRuntime::Profile&profile,uint64_t custody,uint32_t estate,uint32_t item)noexcept{
+ try{
+  const auto*record=Publication(client).Find(id);auto*mob=entity_list.GetMob(id);
+  if(!record||!record->ordinary||!mob||!mob->IsNPC()||!profile.service||!NpcExitCollision::SphereMode(profile))return {};
+  auto binding=ServiceNpcs::LiveBinding(mob);const auto*policy=ServiceItemBindings::Lookup(profile.item_id);
+  if(!binding||!policy||binding->custody_id!=custody||binding->native_estate_id!=estate||binding->native_item_id!=item||binding->item_id!=profile.item_id||binding->npc_type_id!=policy->npc_type_id)return {};
+  const auto&s=record->spawn;const std::string guid(s.housing_item_guid,16);
+  if(s.housing_item_guid[16]||guid.find_first_not_of("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-")!=std::string::npos||s.housing_estate_id!=estate||s.housing_item_id!=item||s.NPC!=1||s.race!=policy->race||s.gender!=policy->gender||s.race!=mob->GetRace()||s.gender!=mob->GetGender()||s.bodytype!=uint32_t(mob->GetBodyType())||s.class_!=mob->GetClass()||s.size!=mob->GetSize()||std::bit_cast<uint32_t>(s.size)!=policy->default_size_bits||mob->GetRace()!=mob->GetBaseRace()||mob->GetGender()!=mob->GetBaseGender()||mob->GetOwnerID())return {};
+  // Same ordinary network decoder/factory boundary as ProjectHeightActor:
+  // singleton ordinary body property, no special/rider/pet construction.
+  // Reviewed719-prefix hierarchy+physicalbit0 authority includes I28. Its
+  // positive raw size/ROffset/control multipliers prove nonzero native radius;
+  // this is no exact physical radius or blanket movement nonblocking claim.
+  PlacedHeightFilters::Actor actor;actor.application_identity=item;actor.type=1;actor.restriction_mask=6;actor.volume=2;actor.radius=1.f;return actor;
+ }catch(...){return {};}
 }
 }

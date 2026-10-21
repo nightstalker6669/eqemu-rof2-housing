@@ -1,6 +1,6 @@
 # Remaining housing protocol boundaries
 
-The current implementation uses 54 mapped values from a catalogue of 67 documented housing-related opcode numbers. These counts describe the reviewed reference; they do not prove that every original message exists in it. Rechecking the retained matching-client traces identified no justified new mapping or operation effect.
+The current implementation uses 55 mapped values from a catalogue of 67 documented housing-related opcode numbers. These counts describe the reviewed reference; they do not prove that every original message exists in it. The service implementation activates the already recovered0x21ea binding, without adding a newly recovered opcode number. Its exclusive original emitted length remains unresolved.
 
 | Message | Recovered evidence | Current path and remaining boundary |
 |---|---|---|

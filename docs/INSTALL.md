@@ -214,3 +214,18 @@ sizing policy. Audit retained item custody with the versioned codec first.
 Build and deploy matching shared-memory/common/world/zone/UCS tools, seed only
 the reviewed tuple, regenerate the actual shared-item prefix, select it after
 generation, and cold-start. Other unproved item-to-model bindings stay disabled.
+
+
+### Purchased guild-hall services and entrance merchants
+
+Follow [service acquisition and installation](SERVICE-NPCS-2026-10-21.md#acquisition-and-installation) for the complete prerequisites and scoped policies. With all housing and shared-item writers stopped, apply these optional migrations after the NPC metadata/runtime and capacity schemas:
+
+1. [2026_10_21_housing_service_contracts.sql](../overlay/utils/sql/optional/2026_10_21_housing_service_contracts.sql): authenticated contract metadata and the additional personal-tribute/device NPC templates.
+2. [2026_10_21_housing_guild_portal_alignment.sql](../overlay/utils/sql/optional/2026_10_21_housing_guild_portal_alignment.sql): transactional per-current-hall crystal alignment.
+3. [2026_10_21_housing_service_vendor.sql](../overlay/utils/sql/optional/2026_10_21_housing_service_vendor.sql): guarded Brent Harnak acquisition stock, including the explicitly labelled direct-device server policy.
+
+Each migration refuses conflicting source rows or reserved identities. Existing standard PEQ neighbourhood merchants and Banker Fraener are reused; do not duplicate their spawns. Their stock depends on the operator's corresponding PEQ content. Unreviewed effects, crafting-station interactions and unbound pet models are not enabled by this installation.
+
+Rebuild and deploy matching common/world/zone and shared-memory binaries together: the canonical spawn structure and Mob binding fields change the server ABI. Regenerate the selected shared-item dataset after seeding and make every process use that same completed cache prefix. Install the RoF2 mapping `OP_RealEstateBindSpawn=0x21ea` in the actual opcode directory configured by the running server; a similarly named unused copy does not activate the message. Cold-start the affected matching processes. This reuses an already recovered opcode number. Representative native Grand hall placement, purchases, banking, tribute and paid portal travel passed; see the service document for completed representative pickup/revocation and separately accepted Standard geode path, together with the remaining wider acceptance limits.
+
+Existing neighbourhood instances can retain a persisted spawn-state snapshot from before the Brent migration. After installing the new spawn content, use the server's normal administrative repop or reviewed spawn-state refresh procedure for those instances; a process restart alone may restore the older snapshot. Newly created instances read the new seed. Do not delete housing estates, item custody or placement records to refresh ordinary NPC spawns.
