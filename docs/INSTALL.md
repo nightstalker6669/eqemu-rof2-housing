@@ -110,3 +110,45 @@ Optional numbered content migration038 enables the existing `OBJ_GUILD_DOOR` row
 
 
 Original collision geometry: follow [original geometry installation](INSTALL-ORIGINAL-GEOMETRY.md) after applying the overlay. The runtime reads private authenticated resources from `housing-original-meshes` under the server working directory, or `EQEMU_HOUSING_ORIGINAL_ASSETS`. No client assets are included in this repository.
+
+
+## Verified trophy profile, October 20
+
+Use the [trophy scope](TROPHIES-2026-10-20.md) to distinguish reconstructed
+content, implemented placement admission and native acceptance. This optional
+profile enables Giant, Landing and guild Hardened Steel only. Verify the
+referenced hidden stat items and keys in your own item database before use.
+
+1. Back up content and state, stop world and **all zone processes**, and exclude
+   other database writers. Deploy matching rebuilt world/zone/common binaries.
+2. For a fresh profile, review `common/housing/trophy_supported_catalogue.sql`
+   after the trophy, billing and guild schemas. Do not rerun this fresh insert
+   script over existing keys. For an installation containing the earlier ten
+   level1 tradeskill seeds, instead apply
+   `common/housing/trophy_verified_catalogue_correction_20261020.sql`. The
+   correction requires seven reference tables using InnoDB, accepts only exact
+   old triplets or wholly absent triplets, and refuses affected selections or
+   customized/partial rows. Resolve such conflicts explicitly; do not clear user
+   state to force the correction.
+3. Optionally apply
+   `utils/sql/optional/2026_10_20_housing_verified_personal_trophy_placement.sql`
+   for Landing68727/Giant68730. It requires InnoDB items, exact identities/models
+   and empty or already-reviewed placement fields; a conflict rolls back both
+   repairs. Unknown rotation/free-placement flags are not supplied. Review the
+   [placement evidence](../overlay/common/housing/personal_trophy_placement.md).
+4. Regenerate shared item data with the matching build for the **actual active
+   prefix** selected by `variables.hotfix_name`, including a nonempty prefix if
+   one is active. Confirm which item database supplies that generation and
+   verify the reviewed item metadata is present there. Keep all zones stopped
+   while replacing the dataset. Restart world and zones, then verify the running
+   processes attach the intended regenerated dataset.
+
+Do not substitute `#hotfix` alone for step4. In this upstream code, the shared
+item generation/hotfix path can load through `content_db`, while normal zone
+startup attaches items through `database`; a hotfix success message and SQL
+readback do not prove the cold-start inventory cache uses the repaired metadata.
+
+No guessed tradeskill minimum levels are retained, and evolving physical trophy
+placement remains disabled until its separate identity/progression can survive
+custody, relog, recovery, containment and retirement. Unknown catalogue entries
+remain excluded. The repository supplies no client assets or complete item seed.

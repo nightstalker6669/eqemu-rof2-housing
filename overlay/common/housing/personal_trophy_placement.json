@@ -1,0 +1,83 @@
+{
+  "source_url": "https://items.sodeq.org/downloads/items.txt.gz",
+  "source_compressed_sha256": "ec0699f4f0e7f070b2e99297f521e9a266b13010b41b0b443216da2be2865302",
+  "source_authority": "Retained later collected metadata; not authenticated May2013 item packets",
+  "original_client_sha256": "2a8702ad9f722704f01355c0750be7d6f164a8b9c9128ba0cf286ea32b405b0e",
+  "original_renderer_sha256": "ade556b68e98f6f39c5578f70431e11c0b9babcc15b8571eb22cf1e2b654417e",
+  "model": "IT11223",
+  "archive": "sofequip.eqg",
+  "archive_sha256": "d0e5594d922afb1d38bbee6cb70e5b765be73d3e310403249b3ce446d867d949",
+  "member": "it11223.mod",
+  "member_sha256": "131a575ce500e907fe67237107b282a8cd7ff72c0ceab095ff94f69c83fb337b",
+  "metadata": {
+    "mask": 12,
+    "ignore_collisions": 0,
+    "placement_type": 0,
+    "definition_id": 0,
+    "minimum_scale_bits": 1036831949,
+    "maximum_scale_bits": 1075838976,
+    "upkeep_id": 4,
+    "max_per_estate": 1
+  },
+  "geometry": {
+    "min": [
+      -1.255450963973999,
+      -0.32190853357315063,
+      -0.9943362474441528
+    ],
+    "max": [
+      0.3570575416088104,
+      0.3237784504890442,
+      0.07775389403104782
+    ],
+    "center": [
+      -0.4491966962814331,
+      0.0009349584579467773,
+      -0.4582911729812622
+    ],
+    "extents": [
+      0.8062542676925659,
+      0.3228434920310974,
+      0.5360450744628906
+    ],
+    "degenerate_triangles": 0,
+    "referenced_vertices": 299,
+    "scope": "Native100c5270 ordinary static/non-special-name triangle box; LOD and actor scale factors require independent validation"
+  },
+  "geometry_policy_revision": 2,
+  "unknown_flags_not_seeded": [
+    "housing_disable_rotation",
+    "housing_disable_free_placement"
+  ],
+  "sources": [
+    {
+      "item_id": 68727,
+      "name": "Trophy of the Landing",
+      "source_line": 60440,
+      "raw_row_sha256": "e3ce5d836d7d98d50fb18af270aca26a1e16d611e7f1d9ae3e1e91adf4ac44c1",
+      "updated": "2021-09-18 12:55:45",
+      "collectversion": "2.5.2.3"
+    },
+    {
+      "item_id": 68730,
+      "name": "Trophy of the Giant",
+      "source_line": 60443,
+      "raw_row_sha256": "79f1ab7e8eb38723e140f792c27b54940446a8f494ac08a2dbf1363f2ea42a00",
+      "updated": "2021-09-18 12:55:45",
+      "collectversion": "2.5.2.3"
+    }
+  ],
+  "metadata_comparison_reference_item": 57681,
+  "metadata_comparison_fields": [
+    "placeablebitfield",
+    "UNKNOWN38",
+    "UNKNOWN39",
+    "UNKNOWN40",
+    "UNKNOWN41",
+    "UNKNOWN42",
+    "UNKNOWN43",
+    "UNKNOWN44",
+    "placeablenpcname",
+    "UNKNOWN46"
+  ]
+}

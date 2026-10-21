@@ -2,7 +2,43 @@
 #define EQEMU_HOUSING_GUILD_TROPHY_BILLING_DB_H
 #include "guild_trophies_db.h"
 #include "current_estate_access.h"
+#include "house_inventory_transition.h"
 namespace Housing::GuildTrophies {
+// Zone authentication locks identity, lease and pending-house rows before the
+// guild row. Billing must acquire that same prefix before shared guild state:
+// guild -> source-house conflicts with zone pending-house -> guild otherwise.
+// Lock characters and accounts in separate sorted phases: two online alts may
+// share an account, so interleaving character/account pairs can itself deadlock.
+inline void LockBillingInputsUnderTransaction(Database& db,
+ const std::map<uint32_t,std::pair<uint32_t,uint32_t>>& online_levels,
+ const std::optional<AuthenticatedPurchaser>& actor){
+ std::map<uint32_t,uint32_t> identities;
+ for(const auto& [character,audience]:online_levels){
+  if(!character||!audience.first||!audience.second||audience.second>255)throw Failure{Error::InvalidArgument};
+  identities.emplace(character,audience.first);
+ }
+ if(actor){
+  if(!actor->character_id||!actor->account_id)throw Failure{Error::InvalidArgument};
+  auto [it,inserted]=identities.emplace(actor->character_id,actor->account_id);
+  if(!inserted&&it->second!=actor->account_id)throw Failure{Error::Unauthorized};
+ }
+ std::set<uint32_t> accounts;
+ for(const auto& [character,account]:identities){
+  Q(db,"SELECT id FROM character_data WHERE id="+std::to_string(character)+" FOR UPDATE");
+  accounts.insert(account);
+ }
+ for(auto account:accounts)Q(db,"SELECT id FROM account WHERE id="+std::to_string(account)+" FOR UPDATE");
+ for(const auto& [character,account]:identities)
+  Q(db,"SELECT character_id FROM housing_live_item_leases WHERE character_id="+std::to_string(character)+" FOR UPDATE");
+ for(const auto& [character,account]:identities){
+  auto pending=HouseInventory::InspectPending(db,character,true);
+  if(pending!=HouseInventory::PendingState::Clear)
+   throw Failure{pending==HouseInventory::PendingState::Pending?Error::PendingApplication:Error::DatabaseFailure};
+ }
+ // Even an empty online audience must take the source-house lock before guild
+ // state; the zone's pending proof currently scans this same primary index.
+ Q(db,"SELECT house_id FROM housing_house_instances ORDER BY house_id FOR UPDATE");
+}
 struct BillingView {State state;uint32_t favor=0,remaining_ms=0,charged=0;bool insufficient=false,billing_unavailable=false,changed=false;};
 // Invoked only by the existing WorldGuildManager. Online levels are taken from
 // genuine InZone ClientList entries for this guild, never a client packet/count.
@@ -10,6 +46,7 @@ struct BillingView {State state;uint32_t favor=0,remaining_ms=0,charged=0;bool i
 inline LiveItems::Result<BillingView> BillUnderTransaction(Database& db,uint32_t guild,TrophyBenefits::BillAction action,const std::map<uint32_t,std::pair<uint32_t,uint32_t>>& online_levels,const std::optional<AuthenticatedPurchaser>& actor={}){try{
  auto tx=Q(db,"SELECT @@in_transaction");if(tx.RowCount()!=1||Number(tx.begin()[0])!=1||!guild||guild==UINT32_MAX)return {{},Error::InvalidArgument};
  auto engine=Q(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_name IN ('guilds','guild_members','guild_permissions','housing_guild_trophy_state','housing_guild_trophy_selections','housing_guild_trophy_billing_policy','housing_guild_trophy_favor_charges')");if(engine.RowCount()!=1||Number(engine.begin()[0])!=7)return {{},Error::DatabaseFailure};
+ LockBillingInputsUnderTransaction(db,online_levels,actor);
  auto owner=Q(db,"SELECT favor FROM guilds WHERE id="+std::to_string(guild)+" FOR UPDATE");if(owner.RowCount()!=1)return {{},Error::Unauthorized};uint32_t before_favor=Number(owner.begin()[0]);
  if(action==TrophyBenefits::BillAction::Enable||action==TrophyBenefits::BillAction::Disable){if(!actor)return {{},Error::Unauthorized};auto member=MemberUnderTransaction(db,*actor);if(member.guild!=guild||!PermissionUnderTransaction(db,member,25))return {{},Error::Unauthorized};}
  auto definitions=DefinitionsUnderTransaction(db);BillingView out;out.favor=before_favor;out.state=StateUnderTransaction(db,guild);const auto before=out.state;bool unreviewed=false;bool dirty=PruneUnderTransaction(db,guild,out.state,definitions,&unreviewed);if(unreviewed&&action!=TrophyBenefits::BillAction::Disable&&action!=TrophyBenefits::BillAction::Invalidate)return {{},Error::UnsupportedItem};bool any=false,paid=false;

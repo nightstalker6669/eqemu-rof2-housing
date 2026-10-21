@@ -25,6 +25,7 @@ inline constexpr Record Records[]={
  {54573,23240,"IT23240",{23240,{0.0,0.00593218207359314,1.999120831489563},{0.8187458515167236,0.7710634171962738,1.999120831489563},true,3.973643e-7},"pfpremium01.eqg","bb7227361b55a0f12b3630c17b88d6d9d38e68b27947518ffdc4962d8a25366d","7102e1e5b903acc0b00ec2675a2aabf2cf9cbf216521b90481425af59c119da3",Evidence::LegacyChairAccepted,1},
 #include "static_furniture_class.inc"
 #include "static_furniture_rigid_extension.inc"
+#include "static_furniture_personal_trophies.inc"
 #include "anchor_geometry.inc"
 #include "static_furniture_mounts.inc"
 };
@@ -36,6 +37,8 @@ inline const Record* Candidate(uint32_t id){for(const auto& r:Records)if(r.item_
 inline bool AnchorItem(uint32_t id){return id==50874||id==52584||id==52585;}
 inline bool NativeProfile(uint32_t id,uint32_t mask,uint32_t ignore,uint32_t definition,
  float minimum,float maximum,uint32_t upkeep,int32_t max_per_estate){
+ if(id==68727||id==68730)return mask==12&&!ignore&&!definition&&
+  minimum==0.10000000149011612f&&maximum==2.5f&&upkeep==4&&max_per_estate==1;
  if(!AnchorItem(id))return !definition&&!ignore;
  return mask==(id==50874?130u:142u)&&ignore==1&&!definition&&
   minimum==0.10000000149011612f&&maximum==2.0f&&!upkeep&&max_per_estate==-1;

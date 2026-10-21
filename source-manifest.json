@@ -21,8 +21,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 12164,
-      "sha256": "f1d33d24b9794e6918ef0c01a31c3283366407247233ef1039fd1ed4eb103cef"
+      "bytes": 12526,
+      "sha256": "22752caaca66b698c2d2330c44474a9ead0ad32aad1247134c6227af97d421c2"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -81,8 +81,8 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 11160,
-      "sha256": "ea0c09ed979efd42fdb354d4f5d6958ea4a4c00cd54a42eb9392af742b07cd82"
+      "bytes": 13794,
+      "sha256": "c21041baad191e9b6369817874a630f9687508cf624402b2747659686bc8b53f"
     },
     {
       "path": "docs/INTERIOR-ACCESS-2026-10-19.md",
@@ -91,8 +91,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 10696,
-      "sha256": "933ebf0f7544caf831a626edb6cde2857c37d2630906600dbd8eecb50f35f759"
+      "bytes": 12404,
+      "sha256": "1a09fb6f3ecd1dc647ccedab9c522f75889f4a5088a680b1c170a01284e5ef37"
     },
     {
       "path": "docs/MIXED-RETURNS-2026-10-18.md",
@@ -136,13 +136,18 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 20614,
-      "sha256": "44da134d02e5fe9957fa776ae165b6c1be193d58e0b0547ee371b8b3ae9b9859"
+      "bytes": 21613,
+      "sha256": "fd4e389e7225913f2d4a19cb3df87ba53dadd4affe25b416eef0de444b814630"
     },
     {
       "path": "docs/STORED-HOUSE-LAYOUT-2026-10-19.md",
       "bytes": 2374,
       "sha256": "a99eb72d6aa33746d5c3ba6de11f338841536166e0cfd1056cc74b937be433a3"
+    },
+    {
+      "path": "docs/TROPHIES-2026-10-20.md",
+      "bytes": 5532,
+      "sha256": "0669e1b637bbc68e24f8c0caad309d10c885d5162ce9902acd67c74f4cdec400"
     },
     {
       "path": "docs/UPDATES-2026-10-18.md",
@@ -365,6 +370,11 @@
       "sha256": "410f8a82df29e03084ed9ea565570526532f9f99b764523be85796096bd64bb0"
     },
     {
+      "path": "overlay/common/housing/evolving_trophy_custody.md",
+      "bytes": 7535,
+      "sha256": "9f29f41762fd5f3ddec0b3451da6fd985fd7cde08195a6b21027fde9f7d426e0"
+    },
+    {
       "path": "overlay/common/housing/exterior_exit_geometry.h",
       "bytes": 6619,
       "sha256": "e0208ed2e6f7052f6d3450fb9d004936ca95855fa346092393abe23226c597cc"
@@ -373,6 +383,11 @@
       "path": "overlay/common/housing/foreign_furniture_return_policy.h",
       "bytes": 2184,
       "sha256": "0eff4c545011af4bcae0529fc05e93c09962922e91e4b643a3a48d4d227b4799"
+    },
+    {
+      "path": "overlay/common/housing/furniture_estate_limit.h",
+      "bytes": 2993,
+      "sha256": "3f0fcd5934ff5aa2d48295c17816c1537194dc8fcd5828505fdd0f302aff6ddb"
     },
     {
       "path": "overlay/common/housing/global_myplots_db.h",
@@ -416,8 +431,8 @@
     },
     {
       "path": "overlay/common/housing/guild_trophy_billing_db.h",
-      "bytes": 6231,
-      "sha256": "24a84f0841cd8b44591543b61a1cf9488ea465ba9877ba0a28e9adb78bb386fb"
+      "bytes": 8439,
+      "sha256": "a5f0af939d4519df9822a7369d682d5875ff66d9f1045227b698087c8820a3b5"
     },
     {
       "path": "overlay/common/housing/guild_trophy_member_flag.h",
@@ -836,8 +851,8 @@
     },
     {
       "path": "overlay/common/housing/live_item_service.cpp",
-      "bytes": 228783,
-      "sha256": "8cd6dc91d866308452b90be830d918a9b95ee27b48aa41d0c6c0579c31ef0d8f"
+      "bytes": 229372,
+      "sha256": "524dd69d34f6cefeef413638a41da223252d6c20fd2079b0698aaf4e707601c2"
     },
     {
       "path": "overlay/common/housing/live_item_service.h",
@@ -1235,6 +1250,16 @@
       "sha256": "63a340722605c9d29ae47ea51e4eefaec88cb9c3f5d596d893d67222f2655614"
     },
     {
+      "path": "overlay/common/housing/personal_trophy_placement.json",
+      "bytes": 2537,
+      "sha256": "fb6d41523f9f666674b67a52bf9e3d07c5ac493c2ca67fc6d3e43869dccd2191"
+    },
+    {
+      "path": "overlay/common/housing/personal_trophy_placement.md",
+      "bytes": 2735,
+      "sha256": "a206d26f4551bc08e8d3acc53bb7c00eadf01bbfbf6d681f20b15abbee69571c"
+    },
+    {
       "path": "overlay/common/housing/placed_height_filters.h",
       "bytes": 4221,
       "sha256": "b6e07019e1029a1bd904785f957f26fcd5570124f3fa801dd079f3d9f2b63324"
@@ -1375,9 +1400,14 @@
       "sha256": "0611f7a77a46ce7cde76f1d28f15d401b9078793506109dadaeb3ec15cf4c1bd"
     },
     {
+      "path": "overlay/common/housing/static_furniture_personal_trophies.inc",
+      "bytes": 898,
+      "sha256": "901d8d51dcce8b0d5b09553cee2a6a2d8f6f75d522ea6fa12d1cffb6656e7028"
+    },
+    {
       "path": "overlay/common/housing/static_furniture_registry.h",
-      "bytes": 3915,
-      "sha256": "cc2c0fa5ebdbd3e81cf6307ac62d67cee05ae2767025b1d8deb65a726c5c579d"
+      "bytes": 4108,
+      "sha256": "3a2ed6b55bd4c1e1206cb0d9504f923ae465de08c0788bc5007c0e5b0bc179f3"
     },
     {
       "path": "overlay/common/housing/static_furniture_rigid_extension.inc",
@@ -1450,9 +1480,24 @@
       "sha256": "be1d675e9cb576384a602e8a03648bf334ff82e16222741ba511e14988d6c8ed"
     },
     {
+      "path": "overlay/common/housing/trophy_supported_catalogue.json",
+      "bytes": 4779,
+      "sha256": "93356a2acc6c914161115654459aacc5065a1baf9f11166a47e07d50e8236ae0"
+    },
+    {
+      "path": "overlay/common/housing/trophy_supported_catalogue.md",
+      "bytes": 4012,
+      "sha256": "b68dd090fdc88b6c4fa8076c085a594acbe9b4f43a5ece973a642235617b8c15"
+    },
+    {
       "path": "overlay/common/housing/trophy_supported_catalogue.sql",
-      "bytes": 7961,
-      "sha256": "32f6413ba938d436bbbf9fb79418eb4d5f2b9220db29003b11e07a84e77239da"
+      "bytes": 2432,
+      "sha256": "ac4224197930c95643b4d44f4cd813c837113ee891825c46e09bb71dddb434b5"
+    },
+    {
+      "path": "overlay/common/housing/trophy_verified_catalogue_correction_20261020.sql",
+      "bytes": 22253,
+      "sha256": "accf6067a7c5e0e2f131069c7333a7903253d56563d1ea84a07975b289450301"
     },
     {
       "path": "overlay/common/housing/upkeep_catchup.md",
@@ -1823,6 +1868,11 @@
       "path": "overlay/utils/sql/optional/2026_10_19_housing_catalog_pricing_upgrade.sql",
       "bytes": 554,
       "sha256": "5b112d89e1f4d99facc49f4839385624160342f6f3c2dd546ab08ec1b1ac5e65"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_20_housing_verified_personal_trophy_placement.sql",
+      "bytes": 1995,
+      "sha256": "cf35a6d1a8f0f214eeaaac3c81d8833d28c876fba7a2f1c18c989b4985ca9051"
     },
     {
       "path": "overlay/utils/sql/optional/housing_occupied_refund_review_policy.sql",

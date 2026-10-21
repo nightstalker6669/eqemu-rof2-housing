@@ -63,3 +63,31 @@ The [original scene integration libraries](ORIGINAL-SCENE-INTEGRATION-2026-10-20
 ## Guild lifecycle completion scope
 
 The [guild/delegated lifecycle update](GUILD-DELEGATED-LIFECYCLE-2026-10-20.md) supersedes earlier unaccepted labels for its representative Standard hall, visitor-owned crate and return-history paths. Fresh unbound house minting through Load Yard remains unsupported; use native cursor placement first. The native Access edit packet has no recovered ACL revision echo, so simultaneous still-authorized editor lost updates are not certified. Neither this update nor the transaction checks establish every original hall model, capacity, historical retirement rule or UI concurrency behavior.
+
+
+## Trophy catalogue and custody, October20
+
+Only three researched reconstructed definitions are enabled: Giant, Landing and
+guild Hardened Steel. They do not authenticate a complete May2013 catalogue.
+Unknown or conflicting ranks, minimum levels, costs and stat associations remain
+excluded; the earlier ten tradeskill minimum-level defaults are withdrawn through
+a guarded correction. Evolving physical trophies still lack durable progression
+custody and remain rejected.
+
+The representative native guild workflow now includes paid activation, bonus
+removal, cold-restart persistence and source-pickup invalidation. Personal
+placement metadata, shared original IT11223 geometry and yard per-item limits
+are implemented. Native Giant placement and selection survived relog, and
+activation charged75 favor with +400HP/endurance. Disable restored baseline
+stats, paused paid time survived logout/relog, resume added no duplicate debit,
+and native pickup returned the item and cleared selection/activation/paid time.
+The zero-favor Activate button was disabled in the client UI; a server
+insufficient-favor packet check remains outside this evidence. Landing shares
+reviewed model/class coverage without an individual native cycle. Wider recipient/roster
+combinations and historical pause/offline billing semantics remain outside this
+evidence. See [current trophy scope](TROPHIES-2026-10-20.md).
+
+Item cache deployment requires a cold restart and regeneration of the actual
+active shared-item prefix from the correct database. The upstream hotfix/content
+database path can leave normal zone startup using stale item metadata; SQL
+readback or a successful hotfix message alone does not establish runtime use.

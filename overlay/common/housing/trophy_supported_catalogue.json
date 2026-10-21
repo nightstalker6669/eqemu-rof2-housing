@@ -1,0 +1,150 @@
+{
+  "classification": "Evidence-supported reconstructed catalogue; no guessed content values; not authenticated original May2013 definitions",
+  "original_catalogue_recovered": false,
+  "sources": [
+    "https://www.bonzz.com/tribute.htm",
+    "https://www.eqtraders.com/articles/article_page.php?article=g178",
+    "https://items.sodeq.org/download.php"
+  ],
+  "billing_policy": {
+    "period_ms": 600000,
+    "policy": 1,
+    "basis": "Original RoF2 help specifies ten-minute trophy cycles. Existing server policy pauses paid time on explicit disable, invalidates edits/withdrawals, and does not renew offline; those details are emulator policy."
+  },
+  "entries": [
+    {
+      "id": 216,
+      "source_item": 68730,
+      "name": "Trophy of the Giant",
+      "isguild": 0,
+      "level": 95,
+      "cost": 75,
+      "stat_item": 68736,
+      "classification": "documented later cost/level/effect; reconstructed stat association"
+    },
+    {
+      "id": 213,
+      "source_item": 68727,
+      "name": "Trophy of the Landing",
+      "isguild": 0,
+      "level": 95,
+      "cost": 250,
+      "stat_item": 68733,
+      "classification": "documented later cost/level/effect; reconstructed stat association"
+    },
+    {
+      "id": 111,
+      "source_item": 66750,
+      "name": "Trophy of Hardened Steel",
+      "isguild": 1,
+      "level": 90,
+      "cost": 225,
+      "stat_item": 66571,
+      "classification": "documented later cost/level/effect; reconstructed stat association"
+    }
+  ],
+  "source_sha256": "f4eee966b4ce20a590be206f1e523330b4516c7aac9d2e265436916a4075d0e1",
+  "excluded_entries": [
+    {
+      "id": 313,
+      "source_item": 95014,
+      "name": "Denmother's Rolling Pin",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57724,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 320,
+      "source_item": 95021,
+      "name": "Brewmaster's Mug",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57731,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 327,
+      "source_item": 95028,
+      "name": "Fletcher's Arrow",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57738,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 334,
+      "source_item": 95035,
+      "name": "Intricate Jewelers Glass",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57745,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 341,
+      "source_item": 95042,
+      "name": "Peerless Pestle",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57752,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 348,
+      "source_item": 95049,
+      "name": "Clay Flinger's Loop",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57759,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 355,
+      "source_item": 95056,
+      "name": "Blacksmith's Adamantine Hammer",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57766,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 362,
+      "source_item": 95063,
+      "name": "Ethereal Quill",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57773,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 369,
+      "source_item": 95070,
+      "name": "Mystical Bolt",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57780,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    },
+    {
+      "id": 376,
+      "source_item": 95077,
+      "name": "Hovering Contraption",
+      "isguild": 0,
+      "level": null,
+      "cost": 0,
+      "stat_item": 57787,
+      "classification": "Excluded: historical housing benefit minimum level not established; prior level1 policy withdrawn"
+    }
+  ],
+  "correction": "2026-10-20: remove ten unverified level1 tradeskill benefit seeds. Physical items and evolution records are unchanged."
+}

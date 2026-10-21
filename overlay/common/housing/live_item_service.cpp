@@ -8,6 +8,7 @@
 #include "crate_stack_partition.h"
 #include "layout_inventory_units.h"
 #include "crate_member_scope_db.h"
+#include "furniture_estate_limit.h"
 #include "interior_placement_review.h"
 #include "vault_storage_db.h"
 #include "inventory_row_db.h"
@@ -372,7 +373,7 @@ namespace Housing::LiveItems {
             const EstateWire::Definition *definition=nullptr,*root=nullptr;for(const auto& d:bundle.definitions){if(d.id==std::stoul(m[0]))definition=&d;if(d.id==std::stoul(m[2]))root=&d;}
             if(!definition||!root||((access.owner_kind==OwnerKind::Character&&definition->type!=4)||(access.owner_kind==OwnerKind::Guild&&definition->type!=8))||root->type!=5||root->zone_id!=std::stoul(m[3])||std::find(root->children.begin(),root->children.end(),definition->id)==root->children.end())throw Failure{Error::UnsupportedItem};
             const RegionWire::Region* region=nullptr;for(const auto& r:bundle.regions)if(r.id==definition->area_id)region=&r;if(!region)throw Failure{Error::UnsupportedItem};
-            auto meta=Q(db,"SELECT idfile,UNK224,UNK228,UNK229,UNK227 FROM items WHERE id="+std::to_string(row.values.item_id)+" FOR UPDATE");const auto* supported=!npc&&!house&&!crate&&meta.RowCount()==1&&meta.begin()[0]?StaticFurniture::Lookup(row.values.item_id,std::string(meta.begin()[0])):nullptr;
+            auto meta=Q(db,"SELECT idfile,UNK224,UNK228,UNK229,UNK227,UNK231 FROM items WHERE id="+std::to_string(row.values.item_id)+" FOR UPDATE");const auto* supported=!npc&&!house&&!crate&&meta.RowCount()==1&&meta.begin()[0]?StaticFurniture::Lookup(row.values.item_id,std::string(meta.begin()[0])):nullptr;
             const auto* crate_model=crate&&meta.RowCount()==1&&meta.begin()[0]&&meta.begin()[4]?CrateGeometry::Lookup(row.values.item_id,uint32_t(std::stoul(meta.begin()[4])),meta.begin()[0]):nullptr;
             if(house){if(meta.RowCount()!=1||!meta.begin()[0]||!meta.begin()[1]||!meta.begin()[2]||!meta.begin()[3]||!meta.begin()[4]||std::string(meta.begin()[0])!=house->model)throw Failure{Error::UnsupportedItem};}
             else if(!npc&&(crate?!crate_model:!supported))throw Failure{Error::UnsupportedItem};
@@ -415,6 +416,11 @@ namespace Housing::LiveItems {
                 if(!crate_profile||crate_profile->definition_id!=id||crate_profile->content_manifest_sha256!=Hex(Bytes(digest.begin(),digest.end())))throw Failure{Error::Unauthorized};
             }
             if(p.content_binding||bind_new){auto identity=ContentBinding::Current(db,p.catalog_key,bundle,p.native_estate_id,{uint32_t(std::stoul(m[3])),uint8_t(std::stoul(m[4])),uint16_t(std::stoul(m[5]))},row.values.item_id,house_route?&*house_route:nullptr,crate_profile?&*crate_profile:nullptr);if(p.content_binding&&!ContentBinding::Same(*p.content_binding,identity))throw Failure{Error::Conflict};if(bind_new)*bind_new=identity;}
+            if(capacity&&operation==PlacementPolicy::Operation::Add&&!house&&!crate){
+                if(!meta.begin()[5])throw Failure{Error::UnsupportedItem};size_t parsed=0;const std::string raw=meta.begin()[5];const auto maximum=std::stoll(raw,&parsed);
+                if(parsed!=raw.size()||maximum<INT32_MIN||maximum>INT32_MAX)throw Failure{Error::UnsupportedItem};
+                if(!FurnitureEstateLimit::AvailableUnderTransaction(db,p.native_estate_id,row.values.item_id,int32_t(maximum)))throw Failure{Error::Conflict};
+            }
             if(npc){if(pose)geometry=NpcRuntime::Geometry(*npc,npc_frame,*pose);else if(stage!=HouseBinding::PlacementStage::Preview&&!npc->legacy_fixed_eye&&!npc_frame)throw Failure{Error::UnsupportedItem};}else if(npc_frame)throw Failure{Error::InvalidArgument};
             if(pose){PlacementPolicy::Context c{p.native_estate_id,definition->type,region->id,access.effective,true};if(geometry.mounting_type){if(stage==HouseBinding::PlacementStage::Read)c.geometry_only=true;else c.mount_contact_verified=lease&&fence.MountSurfaceWithSubjectUnderTransaction(db,*lease,row,*pose,p.native_estate_id,stage==HouseBinding::PlacementStage::Move?mount_subject:MountSubject::NewSource(p.native_item_id));}if(!PlacementPolicy::Check(c,metadata,geometry,*region,*pose,operation))throw Failure{Error::UnsupportedItem};}
             auto used=Q(db,"SELECT COUNT(*) FROM housing_live_placed_items p JOIN housing_live_placement_reservations r ON r.native_item_id=p.native_item_id WHERE r.native_estate_id="+std::to_string(p.native_estate_id)+" AND r.state=1"+(CrateMemberScope::Installed(db)?" AND NOT EXISTS (SELECT 1 FROM housing_crate_members packed WHERE packed.custody_id=p.custody_id)":"")+" FOR UPDATE");if((!house&&!crate||house_storage)&&capacity&&(!definition->max_items||std::stoull(used.begin()[0])+(VaultStorage::Installed(db)?VaultStorage::Count(db,p.native_estate_id):0)>=definition->max_items))throw Failure{Error::Conflict};if(npc&&capacity&&!NpcRuntime::Capacity(definition->max_npc_items,NpcRuntime::Count(db,p.native_estate_id)))throw Failure{Error::NpcFull};return std::stoull(cat.begin()[0]);
