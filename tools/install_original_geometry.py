@@ -16,6 +16,9 @@ import struct
 import sys
 import tempfile
 import zlib
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from housing_platform import WINDOWS, read_utf8, private_directory, link_info
 
 MAX_ARCHIVE = 512 * 1024 * 1024
 MAX_MEMBER = 64 * 1024 * 1024
@@ -36,7 +39,7 @@ def require(condition, message):
 
 
 def digest_file(path, maximum=MAX_ARCHIVE):
-    require(path.is_file() and not path.is_symlink(), f'Not a regular source file: {path.name}')
+    require(path.is_file() and not link_info(path), f'Not a regular source file: {path.name}')
     require(0 < path.stat().st_size <= maximum, f'File outside size limit: {path.name}')
     value = hashlib.sha256()
     with path.open('rb') as stream:
@@ -173,7 +176,7 @@ def catalog(overlay):
     for name in CATALOGS:
         source = directory / name
         require(source.is_file() and source.stat().st_size <= 4 * 1024 * 1024, f'Missing/oversized catalog: {name}')
-        text = source.read_text(encoding='utf-8')
+        text = read_utf8(source)
         # These two reviewed tables preserve their older entries and append
         # immutable variant records through a single bounded local include.
         include = {
@@ -186,7 +189,7 @@ def catalog(overlay):
             part = directory / include
             require(part.is_file() and not part.is_symlink() and part.stat().st_size <= 4 * 1024 * 1024,
                     f'Missing/oversized variant catalog: {include}')
-            extra = part.read_text(encoding='utf-8')
+            extra = read_utf8(part)
             require('#include' not in extra, 'Nested variant catalog include refused')
             text = text.replace(marker, extra)
         rows = ROW.findall(text)
@@ -216,7 +219,7 @@ def child(directory, name):
 def client_profile(client, overlay):
     registry = overlay / 'common' / 'housing' / 'static_furniture_registry.h'
     require(registry.is_file() and registry.stat().st_size <= 4 * 1024 * 1024, 'Missing reviewed original client profile')
-    text = registry.read_text(encoding='utf-8')
+    text = read_utf8(registry)
     resources = child(client, 'Resources')
     require(resources.is_dir(), 'Missing original resource directory')
     for field, path in (
@@ -260,9 +263,9 @@ def install(client, server, overlay):
             break
     require(wanted <= archives.keys(), f'Wrong/incomplete client: {len(wanted - archives.keys())} required original archives missing')
     target = server / 'housing-original-meshes'
-    require(not target.is_symlink() and (not target.exists() or target.is_dir()), 'Asset destination is not a regular directory')
+    require(not link_info(target) and (not target.exists() or target.is_dir()), 'Asset destination is not a regular directory')
     stage = Path(tempfile.mkdtemp(prefix='.housing-original-stage-', dir=server))
-    os.chmod(stage, 0o700)
+    private_directory(stage)
     try:
         grouped = {}
         for sha, record in required.items():
@@ -275,7 +278,7 @@ def install(client, server, overlay):
                 sidecar = mesh_sidecar(archive.member(model, member_sha), archive_sha, member_sha)
                 require(hashlib.sha256(sidecar).hexdigest() == sha, f'Generated geometry hash mismatch: {model}')
                 with (stage / (sha + '.mesh')).open('xb') as stream:
-                    os.fchmod(stream.fileno(), 0o600)
+                    if not WINDOWS:os.fchmod(stream.fileno(), 0o600)
                     stream.write(sidecar)
                     stream.flush()
                     os.fsync(stream.fileno())
@@ -286,19 +289,21 @@ def install(client, server, overlay):
             if existing.exists() or existing.is_symlink():
                 require(digest_file(existing, MAX_MEMBER) == sha, 'Existing private geometry differs from compiled identity')
         target.mkdir(mode=0o700, exist_ok=True)
-        os.chmod(target, 0o700)
+        private_directory(target)
         for sha in required:
             existing = target / (sha + '.mesh')
             try:
-                os.link(stage / existing.name, existing)
+                if WINDOWS:os.rename(stage / existing.name, existing)
+                else:os.link(stage / existing.name, existing)
             except FileExistsError:
                 require(digest_file(existing, MAX_MEMBER) == sha, 'Concurrent private geometry mismatch')
-            os.chmod(existing, 0o600, follow_symlinks=False)
-        descriptor = os.open(target, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
-        try:
-            os.fsync(descriptor)
-        finally:
-            os.close(descriptor)
+            if not WINDOWS:os.chmod(existing, 0o600, follow_symlinks=False)
+        if not WINDOWS:
+            descriptor = os.open(target, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
     finally:
         shutil.rmtree(stage)
     print(f'Installed {len(required)} authenticated private geometry files in {target}')

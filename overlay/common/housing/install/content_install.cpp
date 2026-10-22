@@ -1,3 +1,4 @@
+#include "../offline_process_guard.h"
 #include "../crate_content_manifest.h"
 // Administrative provisioning of fresh reconstructed content; no player ownership.
 #include "../sunrise_neighborhood_defaults.h"
@@ -24,7 +25,7 @@ EstateWire::Definition Definition(const Json::Value&j){EstateWire::Definition d;
 Catalog::Bundle Content(const Json::Value&j){Catalog::Bundle b;for(const char*field:{"house_definitions","child_estate_definitions"}){Require(j[field].isArray(),"Content definitions missing");for(auto&d:j[field])b.definitions.push_back(Definition(d));}return b;}
 std::unique_ptr<Database> Connect(){const auto*c=EQEmuConfig::get();Require(c,"Server configuration unavailable");auto d=std::make_unique<Database>();Require(d->Connect(c->DatabaseHost,c->DatabaseUsername,c->DatabasePassword,c->DatabaseDB,c->DatabasePort,"housing-content-install"),"Database connection failed");return d;}
 template<class T>T Value(Result<T>r){Require(bool(r),"Production housing allocator/import refused content");return std::move(r.value);}
-void Stopped(){for(const auto&e:std::filesystem::directory_iterator("/proc")){auto n=e.path().filename().string();if(n.empty()||n.find_first_not_of("0123456789")!=std::string::npos)continue;std::error_code ec;auto p=std::filesystem::read_symlink(e.path()/"exe",ec);if(ec)continue;n=p.filename().string();Require(n!="world"&&n!="zone"&&n!="world (deleted)"&&n!="zone (deleted)","Stop all server writers before content installation");}}
+void Stopped(){Housing::OfflineProcessGuard::RequireWorldAndZoneStopped();}
 Json::Value Describe(const Catalog::Bundle&b,const std::string&hash){Json::Value j;j["schema"]="housing-content-install-result-v1";j["catalog_key"]=b.key;j["source_sha256"]=hash;j["original_live_catalogue"]=false;j["personal_plots"]=71;j["guild_plots"]=4;j["fake_player_ownership_created"]=false;j["guild_exterior_limits_policy"]="200 items / 6 NPCs; labelled server default";j["guild_minimum_members_policy"]=1;j["inferred_103_betwixt_address"]=true;j["local_vertical_policy"]="collision minimum minus10 to maximum plus200";j["definition_count"]=Json::UInt(b.definitions.size());j["region_count"]=Json::UInt(b.regions.size());return j;}
 std::string FileHash(const std::filesystem::path&path){std::ifstream f(path,std::ios::binary);Require(bool(f),"Original private runtime resource missing");SHA256_CTX state;SHA256_Init(&state);char chunk[65536];while(f.read(chunk,sizeof chunk)||f.gcount())SHA256_Update(&state,chunk,size_t(f.gcount()));Require(!f.bad(),"Private resource read failed");unsigned char out[32];SHA256_Final(out,&state);return Hex(std::vector<uint8_t>(out,out+32));}
 void CrateConfiguration(Database&db,const Catalog::Export&e){

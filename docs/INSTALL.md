@@ -1,6 +1,22 @@
-# Complete housing installation
+# Complete housing installation and upgrades
 
 `tools/install_housing.py` installs the production housing package as one ordered operation. Manual SQL filename sorting and separate feature activation are not required.
+
+## Choose your server
+
+| Your server | Start here |
+| --- | --- |
+| Linux, installed directly | Continue with this guide |
+| AkkStack / Docker Compose | [AkkStack upgrade steps](UPGRADE-AKK-STACK.md) |
+| Native Windows `.exe` server | [Windows upgrade steps and validation limits](UPGRADE-WINDOWS.md) |
+
+All paths use the complete housing package. Choose the guide for where the **server runs**, not where you play EverQuest.
+
+## Source compatibility before you upgrade
+
+The installer builds a separate clean source checkout at upstream commit `8175ae61874cbf20d7b05102821f6f8a4f4d1c39` plus this housing overlay. It preserves your original source directory, but **does not merge your custom C++ code or other upstream changes into the deployed binaries**. Compare your server revision and review custom features first. Merge work needs a deliberate source integration; this is not a binary drop-in for every EQEmu revision.
+
+The plan reports your source HEAD and local changes. With `--apply`, a different or modified original checkout requires `--accept-pinned-server-build` before database work. That flag acknowledges the pinned rebuild; it is not a compatibility certification. Custom quest conflicts are separately refused. Take a rehearsal copy of a customized server/database before upgrading it.
 
 ## Supported prerequisites
 

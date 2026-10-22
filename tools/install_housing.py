@@ -21,8 +21,11 @@ import uuid
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+BASE = '8175ae61874cbf20d7b05102821f6f8a4f4d1c39'
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import housing_schema_contract as schema_contract
+from housing_platform import (WINDOWS, TARGETS, read_utf8, write_utf8, package_files,
+                              stopped, executable, build_executable, windows_cohort, private_directory, link_info)
 CREATED_JOURNAL = None
 IDENT = r'`?([A-Za-z_][A-Za-z_0-9]*)`?'
 BASE_ENGINES = ('account','character_data','character_currency','inventory','character_evolving_items',
@@ -125,7 +128,7 @@ def contracts(migrations):
 
 class Database:
     def __init__(self, server):
-        config=json.loads((server/'eqemu_config.json').read_text())['server']
+        config=json.loads(read_utf8(server/'eqemu_config.json'))['server']
         self.config=config;self.settings=config['database']; self.name=self.settings['db']
         content=config.get('content_database', self.settings)
         require(all(str(content.get(k,''))==str(self.settings.get(k,'')) for k in ('host','port','db')),
@@ -135,13 +138,15 @@ class Database:
         self.dump=shutil.which('mariadb-dump') or shutil.which('mysqldump')
         require(self.client and self.dump,'Install MariaDB client and dump utilities first.')
         self.temp=tempfile.TemporaryDirectory(prefix='housing-db-')
+        private_directory(Path(self.temp.name))
         self.option=Path(self.temp.name)/'client.cnf'
         def escape(s): return '"'+str(s).replace('\\','\\\\').replace('"','\\"').replace('\n','\\n')+'"'
-        self.option.write_text('[client]\n'+''.join(k+'='+escape(self.settings[v])+'\n' for k,v in
+        write_utf8(self.option, '[client]\n'+''.join(k+'='+escape(self.settings[v])+'\n' for k,v in
                                (('host','host'),('port','port'),('user','username'),('password','password'))))
         self.option.chmod(0o600)
-        self.errors=tempfile.TemporaryFile(mode='w+t')
-        self.process=subprocess.Popen([self.client,'--defaults-extra-file='+str(self.option),'--batch','--raw','--skip-column-names','--unbuffered',self.name],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=self.errors,text=True,bufsize=1)
+        self.errors=tempfile.TemporaryFile(mode='w+t',encoding='utf-8')
+        self.process=subprocess.Popen([self.client,'--defaults-extra-file='+str(self.option),'--batch','--raw','--skip-column-names','--unbuffered','--default-character-set=utf8mb4',self.name],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=self.errors,text=True,encoding='utf-8',bufsize=1)
+        self.process.stdin.reconfigure(newline='\n')
 
     def query(self, sql):
         marker='HOUSING_END_'+uuid.uuid4().hex
@@ -164,7 +169,7 @@ class Database:
         return {r[0]:dict(type=normalized_type(r[1]),nullable=r[2]=='YES',expression=re.sub(r'[\s`()]','',r[3]).lower()) for r in rows}
     def backup(self, path):
         with path.open('wb') as out:
-            r=subprocess.run([self.dump,'--defaults-extra-file='+str(self.option),'--single-transaction','--routines','--triggers','--hex-blob',self.name],stdout=out,stderr=subprocess.PIPE)
+            r=subprocess.run([self.dump,'--defaults-extra-file='+str(self.option),'--single-transaction','--routines','--triggers','--hex-blob','--default-character-set=utf8mb4',self.name],stdout=out,stderr=subprocess.PIPE)
         path.chmod(0o600);require(r.returncode==0 and path.stat().st_size>100,'Database backup failed; no migration applied.')
     def close(self):
         if self.process.poll() is None:
@@ -217,12 +222,6 @@ def adapt(sql, db, final_constraints):
 def frame(sql):
     return 'DELIMITER $$\n'+sql+'\n$$\nDELIMITER ;\n' if re.match(r'CREATE\s+PROCEDURE',sql,re.I) else sql+';\n'
 
-def stopped():
-    for item in Path('/proc').iterdir():
-        if not item.name.isdigit(): continue
-        try: name=(item/'comm').read_text().strip()
-        except OSError: continue
-        require(name not in ('world','zone'),'Stop world and every zone before applying housing.')
 
 def metadata_seed(sql,db):
     m=re.match(r'INSERT\s+INTO\s+'+IDENT+r'\s*\((.*?)\)\s*VALUES\s*\((.*)\)\s*$',sql,re.I|re.S)
@@ -241,7 +240,7 @@ def metadata_seed(sql,db):
 def migrate(db, manifest, backup):
     migrations=[]
     for entry in manifest['migrations']:
-        path=ROOT/entry['path'];require(path.is_file() and sha(path)==entry['sha256'],'Migration source hash mismatch: '+entry['path']);migrations.append((entry,path.read_text()))
+        path=ROOT/entry['path'];require(path.is_file() and sha(path)==entry['sha256'],'Migration source hash mismatch: '+entry['path']);migrations.append((entry,read_utf8(path)))
     expected,final_constraints=contracts(migrations)
     db.query('CREATE TABLE IF NOT EXISTS housing_install_migrations (migration_key VARCHAR(192) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,source_sha256 CHAR(64) NOT NULL,installed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB;')
     for entry,raw in migrations:
@@ -255,7 +254,7 @@ def migrate(db, manifest, backup):
                 for statement in adapt(sql,db,final_constraints):
                     transformed.append(statement)
                     db.query(frame(statement))
-        (backup/('migration-'+Path(key).name)).write_text(''.join(frame(s) for s in transformed))
+        write_utf8(backup/('migration-'+Path(key).name), ''.join(frame(s) for s in transformed))
         db.query('INSERT INTO housing_install_migrations(migration_key,source_sha256) VALUES('+q(key)+','+q(entry['sha256'])+');')
         print('Installed/adopted '+Path(key).name,flush=True)
     for table,fields in expected.items():
@@ -269,10 +268,10 @@ def migrate(db, manifest, backup):
 
 def record_created(target):
     if CREATED_JOURNAL is None:return
-    rows={row['path']:row for row in json.loads(CREATED_JOURNAL.read_text())} if CREATED_JOURNAL.exists() else {}
+    rows={row['path']:row for row in json.loads(read_utf8(CREATED_JOURNAL))} if CREATED_JOURNAL.exists() else {}
     path=str(target.absolute())
-    rows[path]=dict(path=path,kind='symlink',link=os.readlink(target)) if target.is_symlink() else dict(path=path,kind='file',sha256=sha(target))
-    CREATED_JOURNAL.write_text(json.dumps(list(rows.values()),indent=2)+'\n')
+    rows[path]=dict(path=path,kind='symlink',link=link_info(target)['link']) if link_info(target) else dict(path=path,kind='file',sha256=sha(target))
+    write_utf8(CREATED_JOURNAL, json.dumps(list(rows.values()),indent=2)+'\n')
 
 def private_files(roots):
     result=set()
@@ -309,30 +308,35 @@ def deployment_paths(a,config):
     dirs=config.get('directories',{})
     def path(value):
         p=Path(value);return (p if p.is_absolute() else a.server/p).resolve()
+    configured_links=[p for p in (a.bin_dir,a.opcode_dir,a.quests_dir,a.maps_dir) if p is not None]
     if a.bin_dir:a.bin_dir=a.bin_dir.resolve()
-    elif (a.server/'world').exists():a.bin_dir=(a.server/'world').resolve().parent
-    elif (a.server/'bin/world').exists():a.bin_dir=(a.server/'bin').resolve()
+    elif (a.server/executable('world')).exists():a.bin_dir=(a.server/executable('world')).resolve().parent
+    elif (a.server/'bin'/executable('world')).exists():a.bin_dir=(a.server/'bin').resolve()
     else:raise ValueError('Cannot identify deployed server binaries; supply --bin-dir')
+    require(a.bin_dir.is_dir() and (a.bin_dir/executable('world')).is_file(),'The binary directory must contain the currently deployed '+executable('world'))
     a.opcode_dir=(a.opcode_dir.resolve() if a.opcode_dir else path(dirs.get('patches','./')))
     require((a.opcode_dir/'patch_RoF2.conf').is_file(),'Active RoF2 mapping missing; supply --opcode-dir matching server directories.patches')
     a.quests_dir=(a.quests_dir.resolve() if a.quests_dir else path(dirs.get('quests','quests/')))
     a.maps_dir=(a.maps_dir.resolve() if a.maps_dir else path(dirs.get('maps','maps/')))
     require((a.maps_dir/'base').is_dir(),'Configured collision-map base directory missing; supply --maps-dir')
     a.shared_dir=path(dirs.get('shared_memory','shared/'))
-    a.logical_links=[a.server/name for name in ('world','zone','ucs','shared_memory','maps')]
+    a.logical_links=configured_links+[a.server/executable(name) for name in ('world','zone','ucs','shared_memory')]+[a.server/'bin',a.server/'maps']
     for key,default in [('patches','./'),('quests','quests/'),('shared_memory','shared/')]:
         value=Path(dirs.get(key,default));a.logical_links.append(value if value.is_absolute() else a.server/value)
     alias=a.server/'maps'
     if alias.exists():require(alias.resolve()==a.maps_dir,'The runtime maps/base alias disagrees with configured maps; resolve the paths before installation.')
+    elif WINDOWS:raise ValueError('Native Windows housing helpers require SERVER\\maps to reach the configured maps directory. Create that directory/junction first (for example mklink /J SERVER\\maps MAPS), or place maps/base directly under SERVER. No database changes made.')
 
 def append_logical_links(a,receipt):
     for link in a.logical_links:
-        if link.is_symlink() and not any(row['requested']==str(link) for row in receipt):
-            receipt.append(dict(requested=str(link),resolved=str(link.resolve(strict=True)),archive=None,symlink=os.readlink(link)))
+        info=link_info(link)
+        if info and not any(row['requested']==str(link) for row in receipt):
+            receipt.append(dict(requested=str(link),resolved=str(link.resolve(strict=True)),archive=None,symlink=info['link'],link_kind=info['kind']))
 
 def backup_deployment(a):
     targets=[a.server/'eqemu_config.json',a.opcode_dir/'patch_RoF2.conf',a.quests_dir/'guildhall/player.lua',a.shared_dir,a.server/'housing-test-assets',a.server/'housing-original-meshes']
-    targets += [a.bin_dir/x for x in ('world','zone','ucs','shared_memory','housing_install','housing_capacity','housing_recovery','housing_profile_upgrade')]
+    targets += [a.bin_dir/executable(x) for x in TARGETS]
+    if WINDOWS:targets += [p for p in a.bin_dir.iterdir() if p.is_file() and p.suffix.lower()=='.dll']
     targets += [x for x in a.server.iterdir() if x.is_file() and x.suffix in ('.json','.conf')]
     receipt=[];seen=set()
     with tarfile.open(a.backup/'server-files.tar.gz','w:gz') as archive:
@@ -344,7 +348,15 @@ def backup_deployment(a):
             archive.add(resolved,arcname=name,recursive=True)
             receipt.append(dict(requested=str(target),resolved=str(resolved),archive=name,symlink=os.readlink(target) if target.is_symlink() else None))
     append_logical_links(a,receipt)
-    (a.backup/'deployment-paths.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    write_utf8(a.backup/'deployment-paths.json', json.dumps(receipt,indent=2)+'\n')
+
+def inspect_source(source):
+    def git(*arguments):
+        result=subprocess.run(['git','-C',str(source),*arguments],capture_output=True,text=True,encoding='utf-8',errors='replace')
+        require(result.returncode==0,'Cannot inspect original source checkout: '+result.stderr.strip()[-1200:]);return result.stdout.strip()
+    require(Path(git('rev-parse','--show-toplevel')).resolve()==source.resolve(),'--source must be the root of its own EQEmu Git checkout')
+    head=git('rev-parse','HEAD');status=git('status','--porcelain=v1','--untracked-files=normal')
+    return dict(head=head,status_entries=len(status.splitlines()) if status else 0,pinned_base=BASE)
 
 def main():
     global CREATED_JOURNAL
@@ -352,8 +364,16 @@ def main():
     p.add_argument('--source',required=True,type=Path);p.add_argument('--server',required=True,type=Path)
     p.add_argument('--client',required=True,type=Path);p.add_argument('--build',required=True,type=Path)
     p.add_argument('--backup',required=True,type=Path);p.add_argument('--jobs',type=int,default=2)
+    p.add_argument('--config',default='Release' if WINDOWS else None,help='CMake build configuration; native Windows default: Release')
+    p.add_argument('--generator',help='CMake generator, for example Visual Studio 17 2022 or Ninja')
+    p.add_argument('--architecture',help='CMake generator platform, for example x64 with Visual Studio')
+    p.add_argument('--toolchain',type=Path,help='CMake dependency toolchain file')
+    p.add_argument('--cmake-define',action='append',default=[],metavar='NAME=VALUE')
+    p.add_argument('--runtime-dir',action='append',default=[],type=Path,help='Explicit matching Windows DLL dependency directory; repeatable')
+    p.add_argument('--runtime-dll',action='append',default=[],type=Path,help='Explicit dynamic/plugin DLL to include and validate; repeatable')
     p.add_argument('--key',default='sunrise-housing-v1');p.add_argument('--name',default='Sunrise Hills')
     p.add_argument('--bin-dir',type=Path);p.add_argument('--opcode-dir',type=Path);p.add_argument('--quests-dir',type=Path);p.add_argument('--maps-dir',type=Path)
+    p.add_argument('--accept-pinned-server-build',action='store_true',help='Acknowledge that this build uses the pinned upstream plus housing, excluding original source HEAD/local custom changes; not a compatibility certification')
     p.add_argument('--apply',action='store_true');p.add_argument('--stop-command',help='JSON argv array; executed only with --apply')
     p.add_argument('--start-command',help='JSON argv array; executed only after all verification passes')
     p.add_argument('--schema-only',action='store_true',help=argparse.SUPPRESS)
@@ -362,11 +382,21 @@ def main():
         if command is not None:
             argv=json.loads(command);require(isinstance(argv,list) and argv and all(isinstance(v,str) and v for v in argv),'Service command must be a nonempty JSON string array')
     require(1<=a.jobs<=8,'Build jobs must be1..8');require(a.server.is_dir() and a.source.is_dir() and a.client.is_dir(),'Source/server/client directory missing')
-    manifest=json.loads((ROOT/'installer-migrations.json').read_text())
-    for entry in json.loads((ROOT/'source-manifest.json').read_text())['files']:
-        require((ROOT/entry['path']).is_file() and sha(ROOT/entry['path'])==entry['sha256'],'Production package checksum mismatch: '+entry['path'])
+    manifest=json.loads(read_utf8(ROOT/'installer-migrations.json'))
+    package_files(ROOT)
+    require(a.config is None or re.fullmatch(r'[A-Za-z0-9_-]+',a.config),'Invalid build configuration')
+    require(not a.toolchain or a.toolchain.is_file(),'CMake toolchain file missing')
+    protected={'EQEMU_BUILD_SERVER','EQEMU_BUILD_TESTS','EQEMU_BUILD_LOGIN','EQEMU_BUILD_PCH'}
+    for define in a.cmake_define:
+        require(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*=[^\r\n\0]*',define) and define.split('=',1)[0] not in protected,'Invalid/protected CMake definition: '+define)
+    require(WINDOWS or not (a.runtime_dir or a.runtime_dll),'Windows DLL options require native Windows')
     require(shutil.which('git') and shutil.which('cmake'),'Git and CMake are required')
-    subprocess.run(['git','-C',str(a.source),'cat-file','-e','8175ae61874cbf20d7b05102821f6f8a4f4d1c39^{commit}'],check=True,capture_output=True)
+    subprocess.run(['git','-C',str(a.source),'cat-file','-e',BASE+'^{commit}'],check=True,capture_output=True)
+    source_summary=inspect_source(a.source)
+    print('Original source HEAD '+source_summary['head']+'; pinned build base '+BASE+'; '+str(source_summary['status_entries'])+' reported local status entries. Original checkout is preserved.')
+    if source_summary['head']!=BASE or source_summary['status_entries']:
+        print('This clean pinned build does not include original HEAD/local custom server code. Custom gameplay/other updates must be merged and rebuilt separately; this acknowledgment is not compatibility certification.')
+        require(not a.apply or a.accept_pinned_server_build,'Use --accept-pinned-server-build only after reviewing that the deployed server will use the exact pinned upstream plus housing instead of original HEAD/local custom changes.')
     db=Database(a.server)
     try:
         deployment_paths(a,db.config)
@@ -387,10 +417,10 @@ def main():
         for table,predicate in [('housing_inventory_sessions','active=1'),('housing_live_item_leases','active=1 OR pending_key IS NOT NULL')]:
             if db.exists(table):require(db.scalar('SELECT COUNT(*) FROM '+table+' WHERE '+predicate)=='0','Active inventory state blocks installation: '+table)
         require(db.scalar("SELECT GET_LOCK('eqemu-production-housing-installer',0)")=='1','Another housing installer holds the database lock')
-        a.backup.mkdir(parents=True,exist_ok=False);a.backup.chmod(0o700)
+        a.backup.mkdir(parents=True,exist_ok=False);private_directory(a.backup)
         db.backup(a.backup/'database.sql')
         backup_deployment(a)
-        (a.backup/'backup-info.json').write_text(json.dumps(dict(database=db.name,server=str(a.server),database_sha256=sha(a.backup/'database.sql'),files_sha256=sha(a.backup/'server-files.tar.gz'),paths_sha256=sha(a.backup/'deployment-paths.json'),tables=[r[0] for r in db.query("SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE'")]),indent=2)+'\n')
+        write_utf8(a.backup/'backup-info.json', json.dumps(dict(database=db.name,server=str(a.server),database_sha256=sha(a.backup/'database.sql'),files_sha256=sha(a.backup/'server-files.tar.gz'),paths_sha256=sha(a.backup/'deployment-paths.json'),tables=[r[0] for r in db.query("SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE'")]),indent=2)+'\n')
         CREATED_JOURNAL=a.backup/'created-files.json'
         if not (a.server/'maps').exists():
             (a.server/'maps').symlink_to(a.maps_dir,target_is_directory=True);record_created(a.server/'maps')
@@ -410,23 +440,47 @@ def main():
         original_source=a.source
         a.build.mkdir(parents=True,exist_ok=True)
         managed=a.build/('housing-source-'+package_hash)
-        build_dir=a.build/('housing-build-'+package_hash)
+        options=dict(config=a.config,generator=a.generator,architecture=a.architecture,toolchain=str(a.toolchain.resolve()) if a.toolchain else None,toolchain_sha256=sha(a.toolchain) if a.toolchain else None,definitions=a.cmake_define,platform=os.name)
+        build_suffix=('-'+hashlib.sha256(json.dumps(options,sort_keys=True).encode()).hexdigest()[:12]) if WINDOWS or any((a.config,a.generator,a.architecture,a.toolchain,a.cmake_define)) else ''
+        build_dir=a.build/('housing-build-'+package_hash+build_suffix)
         if not managed.exists():
-            run(['git','clone','--no-hardlinks','--no-checkout',original_source,managed],log=a.backup/'source-clone.log')
-            run(['git','-C',managed,'checkout','--detach','8175ae61874cbf20d7b05102821f6f8a4f4d1c39'],log=a.backup/'source-clone.log')
-            run(['git','-C',managed,'submodule','update','--init','--recursive'],log=a.backup/'source-submodules.log')
+            run(['git','-c','core.autocrlf=false','-c','core.eol=lf','clone','--no-hardlinks','--no-checkout',original_source,managed],log=a.backup/'source-clone.log')
+            run(['git','-C',managed,'config','core.autocrlf','false'],log=a.backup/'source-clone.log')
+            run(['git','-C',managed,'config','core.eol','lf'],log=a.backup/'source-clone.log')
+            run(['git','-C',managed,'checkout','--detach',BASE],log=a.backup/'source-clone.log')
+            run(['git','-c','core.autocrlf=false','-c','core.eol=lf','-C',managed,'submodule','update','--init','--recursive'],log=a.backup/'source-submodules.log')
             run([sys.executable,ROOT/'tools/apply_overlay.py',managed,'--apply'],log=a.backup/'source-install.log')
-            changed=subprocess.run(['git','-C',str(managed),'diff','--name-only'],check=True,capture_output=True,text=True).stdout.splitlines()
-            files=set(changed)|{str(x.relative_to(ROOT/'overlay')) for x in (ROOT/'overlay').rglob('*') if x.is_file()}
-            (managed/'.housing-source-receipt.json').write_text(json.dumps({f:sha(managed/f) for f in sorted(files)},indent=2)+'\n')
+            changed=subprocess.run(['git','-C',str(managed),'diff','--name-only'],check=True,capture_output=True,text=True,encoding='utf-8').stdout.splitlines()
+            files=set(changed)|{x.relative_to(ROOT/'overlay').as_posix() for x in (ROOT/'overlay').rglob('*') if x.is_file()}
+            write_utf8(managed/'.housing-source-receipt.json', json.dumps({f:sha(managed/f) for f in sorted(files)},indent=2)+'\n')
         else:
-            receipt=json.loads((managed/'.housing-source-receipt.json').read_text())
+            receipt=json.loads(read_utf8(managed/'.housing-source-receipt.json'))
             require(all((managed/f).is_file() and sha(managed/f)==digest for f,digest in receipt.items()),'Managed source was modified; preserve/review it before reinstalling.')
         a.source=managed;a.build=build_dir
-        run(['cmake','-S',a.source,'-B',a.build,'-DEQEMU_BUILD_SERVER=ON','-DEQEMU_BUILD_TESTS=OFF','-DEQEMU_BUILD_LOGIN=OFF','-DEQEMU_BUILD_PCH=OFF'],log=a.backup/'configure.log')
-        targets=['world','zone','ucs','shared_memory','housing_install','housing_capacity','housing_recovery','housing_profile_upgrade']
-        run(['cmake','--build',a.build,'--parallel',str(a.jobs),'--target',*targets],log=a.backup/'build.log')
-        for binary in targets:deploy_verified(a.build/'bin'/binary,a.bin_dir/binary,a.bin_dir)
+        configure=['cmake','-S',a.source,'-B',a.build,'-DEQEMU_BUILD_SERVER=ON','-DEQEMU_BUILD_TESTS=OFF','-DEQEMU_BUILD_LOGIN=OFF','-DEQEMU_BUILD_PCH=OFF']
+        if a.generator:configure+=['-G',a.generator]
+        if a.architecture:configure+=['-A',a.architecture]
+        if a.toolchain:configure+=['-DCMAKE_TOOLCHAIN_FILE='+a.toolchain.resolve().as_posix()]
+        if a.config:configure+=['-DCMAKE_BUILD_TYPE='+a.config]
+        configure+=['-D'+d for d in a.cmake_define]
+        run(configure,log=a.backup/'configure.log')
+        build=['cmake','--build',a.build,'--parallel',str(a.jobs),'--target',*TARGETS]
+        if a.config:build+=['--config',a.config]
+        run(build,log=a.backup/'build.log')
+        binaries={name:build_executable(a.build,name,a.config) for name in TARGETS}
+        cohort=windows_cohort(binaries,a.runtime_dir,a.runtime_dll) if WINDOWS else None
+        if cohort:
+            write_utf8(a.backup/'windows-runtime-cohort.json',json.dumps(cohort,indent=2)+'\n')
+            adjacent={p.name.casefold():p for p in a.bin_dir.iterdir() if p.is_file() and p.suffix.casefold()=='.dll'}
+            for name,system_path in cohort['system_libraries'].items():
+                require(name not in adjacent or sha(adjacent[name])==sha(Path(system_path)),'Existing adjacent DLL may shadow the verified Windows system dependency: '+name+'. Review and relocate the conflicting DLL before retrying.')
+        for name,source in binaries.items():
+            if cohort:require(sha(source)==cohort['executables'][name]['sha256'],'Executable changed during dependency validation: '+name)
+            deploy_verified(source,a.bin_dir/executable(name),a.bin_dir)
+        if cohort:
+            for name,item in cohort['dlls'].items():
+                require(sha(Path(item['path']))==item['sha256'],'Runtime DLL changed during deployment: '+name)
+                deploy_verified(Path(item['path']),a.bin_dir/name,a.bin_dir)
         # Operator-owned archives and meshes stay private to the installation.
         tracked_run([sys.executable,ROOT/'tools/install_original_geometry.py','--client',a.client,'--server',a.server,'--overlay',a.source],roots=[a.server/'housing-original-meshes'],log=a.backup/'geometry.log')
         generated=a.backup/'generated-content'
@@ -439,19 +493,19 @@ def main():
         # Diagnostic preservation lists change between first install and retry;
         # they are not part of the immutable catalogue's content identity.
         proposal=generated/'housing-catalogue-proposal.json'
-        catalogue=json.loads(proposal.read_text());catalogue['excluded_items']=[]
-        proposal.write_text(json.dumps(catalogue,sort_keys=True,indent=2)+'\n')
+        catalogue=json.loads(read_utf8(proposal));catalogue['excluded_items']=[]
+        write_utf8(proposal, json.dumps(catalogue,sort_keys=True,indent=2)+'\n')
         for item in generated.rglob('*'):
             if not item.is_file() or item.name.startswith('housing-catalogue-') or item.name.endswith('generation-summary.json'):continue
             relative=item.relative_to(generated);target=a.server/relative
             if 'content-registry.json' in item.name and target.exists():
-                old=json.loads(target.read_text());new=json.loads(item.read_text());existing={json.dumps(e,sort_keys=True) for e in old['entries']}
+                old=json.loads(read_utf8(target));new=json.loads(read_utf8(item));existing={json.dumps(e,sort_keys=True) for e in old['entries']}
                 for entry in new['entries']:
                     same=[e for e in old['entries'] if e['manifest']==entry['manifest']]
                     require(not same or all(e==entry for e in same),'Conflicting existing house template registration')
                     if json.dumps(entry,sort_keys=True) not in existing:
                         old['entries'].append(entry);existing.add(json.dumps(entry,sort_keys=True))
-                item.write_text(json.dumps(old,indent=2)+'\n')
+                write_utf8(item, json.dumps(old,indent=2)+'\n')
             if relative.parts[:2]==('maps','base') and target.exists():
                 require(sha(item)==sha(target),'Existing collision map differs from authenticated original: '+str(target))
             copy_verified(item,target)
@@ -460,8 +514,8 @@ def main():
         # Merge only documented housing opcode symbols into the actual RoF2 file.
         opcodes=a.opcode_dir/'patch_RoF2.conf'
         require(opcodes.is_file(),'Runtime patch_RoF2.conf is missing')
-        mappings={m['name']:m['opcode'] for m in json.loads((ROOT/'protocol/opcodes.json').read_text())['messages'] if isinstance(m.get('opcode'),str) and re.fullmatch(r'0x[0-9A-Fa-f]{4}',m['opcode']) and int(m['opcode'],16)}
-        lines=opcodes.read_text().splitlines();found=set();merged=[]
+        mappings={m['name']:m['opcode'] for m in json.loads(read_utf8(ROOT/'protocol/opcodes.json'))['messages'] if isinstance(m.get('opcode'),str) and re.fullmatch(r'0x[0-9A-Fa-f]{4}',m['opcode']) and int(m['opcode'],16)}
+        lines=read_utf8(opcodes).splitlines();found=set();merged=[]
         values={int(value,16) for value in mappings.values()}
         for line in lines:
             existing=re.match(r'\s*(OP_\w+)\s*=\s*(0x[0-9a-fA-F]+)',line)
@@ -475,25 +529,25 @@ def main():
             merged.append(line)
         merged += [name+'='+value for name,value in mappings.items() if name not in found]
         op_target=opcodes.resolve();require(op_target.is_relative_to(a.opcode_dir),'Opcode symlink leaves configured opcode directory')
-        op_target.write_text('\n'.join(merged)+'\n')
-        quest_contract=json.loads((ROOT/'quest-overlay-manifest.json').read_text())
+        write_utf8(op_target, '\n'.join(merged)+'\n')
+        quest_contract=json.loads(read_utf8(ROOT/'quest-overlay-manifest.json'))
         for item in (ROOT/'quest-overlay').rglob('*'):
             if item.is_file():
-                relative=str(item.relative_to(ROOT/'quest-overlay'));target=a.quests_dir/relative
+                relative=item.relative_to(ROOT/'quest-overlay').as_posix();target=a.quests_dir/relative
                 if target.exists() and sha(target)!=sha(item):
                     require(sha(target) in quest_contract['files'][relative]['accepted_base_sha256'],'Custom quest differs from reviewed base: '+relative+'; merge the housing patch before installation.')
                 deploy_verified(item,target,a.quests_dir)
         # Select the active prefix AFTER shared_memory, which can clear hotfix_.
         prefix=db.scalar("SELECT COALESCE((SELECT value FROM variables WHERE varname='hotfix_name'),'')")
         require(re.fullmatch(r'[A-Za-z0-9_]*',prefix),'Unsupported shared memory prefix')
-        tracked_run([a.bin_dir/'shared_memory','-hotfix='+prefix] if prefix else [a.bin_dir/'shared_memory'],roots=[a.shared_dir],cwd=a.server,log=a.backup/'shared-memory.log')
+        tracked_run([a.bin_dir/executable('shared_memory'),'-hotfix='+prefix] if prefix else [a.bin_dir/executable('shared_memory')],roots=[a.shared_dir],cwd=a.server,log=a.backup/'shared-memory.log')
         db.query("UPDATE variables SET value="+q(prefix)+" WHERE varname='hotfix_name';")
         policy=a.source/'common/housing/house_variant_capacity_defaults.json';plan=a.backup/'capacity-plan.json'
-        run([a.bin_dir/'housing_capacity','--plan',policy,plan],cwd=a.server,log=a.backup/'capacity.log')
-        run([a.bin_dir/'housing_capacity','--dry-run',policy,plan],cwd=a.server,log=a.backup/'capacity.log')
-        run([a.bin_dir/'housing_capacity','--apply',policy,plan],cwd=a.server,log=a.backup/'capacity.log')
+        run([a.bin_dir/executable('housing_capacity'),'--plan',policy,plan],cwd=a.server,log=a.backup/'capacity.log')
+        run([a.bin_dir/executable('housing_capacity'),'--dry-run',policy,plan],cwd=a.server,log=a.backup/'capacity.log')
+        run([a.bin_dir/executable('housing_capacity'),'--apply',policy,plan],cwd=a.server,log=a.backup/'capacity.log')
         before=set(a.server.iterdir())
-        try:run([a.bin_dir/'housing_install','--apply',proposal,a.key,a.name,a.backup/'content-result.json','--reconstructed-defaults'],cwd=a.server,log=a.backup/'content-install.log')
+        try:run([a.bin_dir/executable('housing_install'),'--apply',proposal,a.key,a.name,a.backup/'content-result.json','--reconstructed-defaults'],cwd=a.server,log=a.backup/'content-install.log')
         finally:
             for item in set(a.server.iterdir())-before:
                 if item.is_file():record_created(item)
@@ -503,7 +557,7 @@ def main():
         ruleset=int(sets[0][0])
         for rule in ('EnablePlayerHousing','EnableNativeFurniturePlacement','EnableNativeEscrowTransfers','EnableNativeHouseSwap'):
             db.query("INSERT INTO rule_values(ruleset_id,rule_name,rule_value,notes) VALUES("+str(ruleset)+","+q('Housing:'+rule)+",'true','Production housing installer') ON DUPLICATE KEY UPDATE rule_value='true';")
-        (a.backup/'installation.json').write_text(json.dumps(dict(database=db.name,migrations=count,database_backup_sha256=sha(a.backup/'database.sql'),state='installed-awaiting-native-check'),indent=2)+'\n')
+        write_utf8(a.backup/'installation.json', json.dumps(dict(database=db.name,migrations=count,database_backup_sha256=sha(a.backup/'database.sql'),state='installed-awaiting-native-check'),indent=2)+'\n')
         if a.start_command:run(json.loads(a.start_command))
         print('HOUSING_INSTALL_PASS. All production features installed; no synthetic players/properties. Private rollback files: '+str(a.backup))
         print('After startup, verify one real personal/guild workflow with the matching RoF2 client; installation is not a claim of universal Live equivalence.')

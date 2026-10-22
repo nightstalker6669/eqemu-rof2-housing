@@ -1,0 +1,16 @@
+# Add to your existing AkkStack compose file; normal services remain unchanged.
+# The client mount is read-only and is never copied into the public package.
+services:
+  eqemu-server:
+    volumes:
+      - type: bind
+        source: ${HOUSING_PACKAGE:?Set HOUSING_PACKAGE to this repository's absolute path}
+        target: /opt/housing-package
+        read_only: true
+      - type: bind
+        source: ${HOUSING_CLIENT:?Set HOUSING_CLIENT to your original RoF2 directory}
+        target: /opt/housing-client
+        read_only: true
+      - type: bind
+        source: ${HOUSING_BACKUPS:?Set HOUSING_BACKUPS to an existing private backup directory}
+        target: /home/eqemu/housing-backups

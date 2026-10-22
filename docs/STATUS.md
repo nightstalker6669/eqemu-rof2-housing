@@ -1,6 +1,6 @@
 # Housing status
 
-Target: original May 10, 2013 RoF2 client, pinned EQEmu source base, Linux/MariaDB. This status distinguishes implemented mechanisms from representative native acceptance and unknown Live data.
+Target: original May 10, 2013 RoF2 client and pinned EQEmu source base. Linux/MariaDB is the accepted runtime; a native Windows installation path is implemented with the validation limits below. This status distinguishes implemented mechanisms from representative native acceptance and unknown Live data.
 
 | Area | Implemented scope | Acceptance |
 | --- | --- | --- |
@@ -14,6 +14,7 @@ Target: original May 10, 2013 RoF2 client, pinned EQEmu source base, Linux/Maria
 | Trophy benefits | Three researched reconstructed definitions, selection/activation, paid time, pause/resume and removal invalidation | Representative Giant personal and Hardened Steel guild cycles passed; Landing shares its reviewed placement class without a separate full cycle |
 | Extended item storage | Canonical augment/filled-bag state and same-UID evolving custody, ordinary-loader binding, held-writer guard, offline/parcel conservation | Eight matching production binaries deployed; original-client 40-slot filled-bag store, server restart and retrieval passed with augment, empty contained bag and same-UID evolving progress preserved |
 | Installation | Ordered 87-migration driver, backup/adoption ledger, explicit database activation, source/build/deployment pipeline, original-resource import, fresh 75-plot provisioning | Actual isolated migration/adoption/retry, full orchestration, 75-plot provisioning and checked full rollback passed; orchestration reused the independently compiled eight production binaries |
+| Native Windows upgrade | `.exe`/multi-configuration build/deployment, resolved DLL cohort and checked backup/restore, Windows process guards and portable arithmetic | Focused Windows-Python/Wine and portable arithmetic checks passed; full MSVC build, native server startup, and real NTFS permissions/junctions remain unverified; see [Windows guide](UPGRADE-WINDOWS.md) |
 
 The ten final tradeskill physical trophies have reviewed geometry and real evolving identity. Custody support does not manufacture their missing benefit minimum levels or costs. Unknown benefits remain disabled.
 

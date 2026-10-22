@@ -6,12 +6,15 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from housing_platform import read_utf8, package_files
 
 BASE = '8175ae61874cbf20d7b05102821f6f8a4f4d1c39'
 ROOT = Path(__file__).resolve().parents[1]
 
 def git(target, *args):
-    return subprocess.run(['git', '-C', str(target), *args], check=True, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(['git', '-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-C', str(target), *args], check=True, capture_output=True, text=True, encoding='utf-8').stdout.strip()
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -20,18 +23,14 @@ def main():
     modes.add_argument('--check', action='store_true')
     modes.add_argument('--apply', action='store_true')
     args = parser.parse_args()
+    package_files(ROOT)
     target = args.checkout.resolve()
     if Path(git(target, 'rev-parse', '--show-toplevel')).resolve() != target:
         raise SystemExit('The target must be the root of its own EQEmu Git checkout.')
     if git(target, 'rev-parse', 'HEAD') != BASE:
         raise SystemExit('Checkout must be at the documented exact upstream commit.')
     if git(target, 'status', '--porcelain', '--untracked-files=all'):
-        raise SystemExit('Refusing a modified checkout. Start from a separate clean checkout.')
-    manifest = json.loads((ROOT / 'source-manifest.json').read_text())
-    for item in manifest['files']:
-        path = ROOT / item['path']
-        if hashlib.sha256(path.read_bytes()).hexdigest() != item['sha256']:
-            raise SystemExit('Export checksum mismatch: ' + item['path'])
+        raise SystemExit('Refusing a modified checkout. Start from a separate clean checkout cloned with git -c core.autocrlf=false.')
     patch = ROOT / 'patches/eqemu-housing.patch'
     git(target, 'apply', '--check', str(patch))
     files = sorted(p for p in (ROOT / 'overlay').rglob('*') if p.is_file())

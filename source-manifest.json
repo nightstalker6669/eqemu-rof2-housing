@@ -2,8 +2,13 @@
   "upstream": "https://github.com/EQEmu/EQEmu",
   "base_commit": "8175ae61874cbf20d7b05102821f6f8a4f4d1c39",
   "publication_date": "2026-10-22",
-  "scope": "Housing production source, SQL, protocol and integration documentation; no suites, fixtures, logs, private runtime configuration or client assets.",
+  "scope": "Housing production source, SQL, protocol, integration documentation and requested in-game screenshots; no suites, fixtures, logs, private runtime configuration or client archives.",
   "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 73,
+      "sha256": "be53271f536f849171fc1ddb1dab13a43c79f5083f8bb892bde86d2124b1ae95"
+    },
     {
       "path": ".gitignore",
       "bytes": 211,
@@ -21,8 +26,13 @@
     },
     {
       "path": "README.md",
-      "bytes": 2573,
-      "sha256": "ba69ef2fed60f1a806b7fe9fffcf253f8af4da0d0f05b43a71950a8e14e87f90"
+      "bytes": 6300,
+      "sha256": "a91d5e88cb4cf2bac2d14c0ef07929ecbe282ec5bdee0a65a35df4b1bafe6e67"
+    },
+    {
+      "path": "deploy/akk-stack.housing.yml",
+      "bytes": 691,
+      "sha256": "884b72137c452ca3cd8f1e08bafc91b812db085fd11066b20fbe0c9e95a3fd91"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -41,13 +51,13 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 9754,
-      "sha256": "88898b7584818c7dd94ec33f6b7014c4b357a763ba2eead5501eda087c4b64f3"
+      "bytes": 11073,
+      "sha256": "8639a29d433609a4f63c11216078358d72f0f17869abd21387881bba3df8bb97"
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 2597,
-      "sha256": "cc7abe0389ebd42009b334af97633557de77dc4fd93ff10a35c94bc16320c783"
+      "bytes": 2820,
+      "sha256": "b8d5e1064b258b038b64f526b9496bb560fe31ad03101c4b7e334435f83b0692"
     },
     {
       "path": "docs/RETIREMENT-RETURNS.md",
@@ -56,8 +66,18 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 3548,
-      "sha256": "5d4726f33fddfdd95c87483e68a131c1e0a7adc3be52bfbf529e1ce23d1dd4bd"
+      "bytes": 4032,
+      "sha256": "6d85a05bad7168e7a35b389a74d7302a582460c10372380ed3770f7a47a0af34"
+    },
+    {
+      "path": "docs/UPGRADE-AKK-STACK.md",
+      "bytes": 6088,
+      "sha256": "4e8641e692a041d327ae6c68eff10c6a7f67c9d9404a7f0c4915c6e798d7ca5e"
+    },
+    {
+      "path": "docs/UPGRADE-WINDOWS.md",
+      "bytes": 8313,
+      "sha256": "4fd02a1f459cc2591f5c4dffb549c9bf6ba724418247392d8b55cc941836a230"
     },
     {
       "path": "docs/history/BILLING-SUNRISE-2026-10-18.md",
@@ -183,6 +203,31 @@
       "path": "docs/history/VAULT-MOVE-OUT-2026-10-19.md",
       "bytes": 4488,
       "sha256": "caa53e4e975eb8f7490592b47cb2206b513380065f60bb4e6e03a0736c18160f"
+    },
+    {
+      "path": "docs/images/README.md",
+      "bytes": 797,
+      "sha256": "9201ea1af11bf273aa51d6d859b6e51f2936b78df0ef9f441e8683a4e46c64b4"
+    },
+    {
+      "path": "docs/images/evantil-abode.png",
+      "bytes": 3679967,
+      "sha256": "d1bf79dd0677dcdc3f38f36c422a9e9a3fce12b643477faffa73773c7a22729d"
+    },
+    {
+      "path": "docs/images/guild-interior-services.png",
+      "bytes": 3748468,
+      "sha256": "4fb4d2a53ade85c655c176e98140e72b9f0b94c1672bbd2ef05483618f6b4a54"
+    },
+    {
+      "path": "docs/images/hermits-hideaway.png",
+      "bytes": 3669296,
+      "sha256": "22877241af6cee9d5e07d4d5d96148e3f471ccae11dc240e2d952712b0229a15"
+    },
+    {
+      "path": "docs/images/palatial-festival.png",
+      "bytes": 3090664,
+      "sha256": "faad94dcaf9342b3f91b43d1544c7656761ebeaca1975e0a7369742a8b67fcd5"
     },
     {
       "path": "docs/provenance/house-variants/CAPACITIES.md",
@@ -716,13 +761,13 @@
     },
     {
       "path": "overlay/common/housing/install/capacity_install.cpp",
-      "bytes": 10205,
-      "sha256": "4a04ad61a67421f83d06a4d10c9c4b77bf165e64b9d70299f8088703f7d406a4"
+      "bytes": 10014,
+      "sha256": "a4cad4278f1ffc52a86253f49604982ab399bea0c510ff437d67f77be2ab1865"
     },
     {
       "path": "overlay/common/housing/install/content_install.cpp",
-      "bytes": 13175,
-      "sha256": "a055b09f0c868c497634e2b8b78a2743e068c0d96c5995e1aeafd3aa949bcb7a"
+      "bytes": 12854,
+      "sha256": "8a43bdcf71ba91d971311b36319312c52f21f9da7697bdeb205f3246d7bcc705"
     },
     {
       "path": "overlay/common/housing/interaction_wire.h",
@@ -771,8 +816,8 @@
     },
     {
       "path": "overlay/common/housing/interior_profile_upgrade_cli.cpp",
-      "bytes": 8161,
-      "sha256": "9d9501a42b3ff4d0c9946b279607901daf07aa91e6877349efabc095e6c837fb"
+      "bytes": 7753,
+      "sha256": "5f0a915cdd09034a8026e64282bdeb3c5f2e9c13364884ee33027bb825e895ef"
     },
     {
       "path": "overlay/common/housing/interior_storage_service.cpp",
@@ -1096,8 +1141,8 @@
     },
     {
       "path": "overlay/common/housing/npc_native_height.h",
-      "bytes": 4113,
-      "sha256": "ba3b336eaf0722609561c61c872ad9de91450a5c4530e889ea3cf86732d720bf"
+      "bytes": 4536,
+      "sha256": "3d30e41fb8659f2c7ce4aa17ad7f39aa1c125bdde5ca24f41c0d97694e1116b3"
     },
     {
       "path": "overlay/common/housing/npc_native_model_profiles.h",
@@ -1153,6 +1198,11 @@
       "path": "overlay/common/housing/offline_npc_return_db.h",
       "bytes": 14211,
       "sha256": "36963f83ba8aab235fed822886b5b7a3b9f82aeef89e544c194f8a1a46bd80bd"
+    },
+    {
+      "path": "overlay/common/housing/offline_process_guard.h",
+      "bytes": 3064,
+      "sha256": "33b54a716dbc6f57beebe483f6f4072953fa6431a894a092041ce3cd8e415908"
     },
     {
       "path": "overlay/common/housing/offline_property_delivery_db.h",
@@ -2450,6 +2500,11 @@
       "sha256": "587a4f90c6785962906e1328a3ab8f6d26a9dc233d545eda28e6370bc576d790"
     },
     {
+      "path": "protocol/README.md",
+      "bytes": 2175,
+      "sha256": "00a6128ba1d9f65afbacd36f6a1b150f2fa194ea25376d46405499b442ec90f7"
+    },
+    {
       "path": "protocol/STRUCTS.md",
       "bytes": 30048,
       "sha256": "4cd6dc687d2e97c7fde0cc55f763b098ed75465dc658dc7b862ecc690a9107a7"
@@ -2475,24 +2530,29 @@
       "sha256": "78284e9fd37a21b1489abaf1242f6e98850b92cd8e2e5e732fe9aed626309b4a"
     },
     {
-      "path": "quest-overlay/guildhall/player.lua",
-      "bytes": 2758,
-      "sha256": "a62cbeed02593f3615dc2c0367834ce33f09239c96922c08cc221c1bb75d17ab"
-    },
-    {
       "path": "quest-overlay-manifest.json",
       "bytes": 296,
       "sha256": "188465f9bc76003ac9427ead81b7e30bb95d18159a6c75e1e3b5002563543900"
     },
     {
+      "path": "quest-overlay/guildhall/player.lua",
+      "bytes": 2758,
+      "sha256": "a62cbeed02593f3615dc2c0367834ce33f09239c96922c08cc221c1bb75d17ab"
+    },
+    {
       "path": "tools/apply_overlay.py",
-      "bytes": 2496,
-      "sha256": "f65a93e0d052591e5030e724fe44bab24c9d85d2c4da85c67a0ffb720c11b3f9"
+      "bytes": 2457,
+      "sha256": "069606f9b26fccb254163f1fead115a421df5a298add356f3d42b928415da89b"
     },
     {
       "path": "tools/generate_house_variant_content.py",
       "bytes": 25425,
       "sha256": "a2032b113fde9e2df9027fae1d56c2f05e573de42ea087cf1443b094528b6fd0"
+    },
+    {
+      "path": "tools/housing_platform.py",
+      "bytes": 18340,
+      "sha256": "829a8a41c84510b8cd5f5ae08af73029ed3423713cb3633139ffe3a266e40e4e"
     },
     {
       "path": "tools/housing_schema_contract.py",
@@ -2501,18 +2561,18 @@
     },
     {
       "path": "tools/install_housing.py",
-      "bytes": 37368,
-      "sha256": "b58588081a2f3f6d6543d87a4f62743acf48051d6d60f275ed85f29f26067bb8"
+      "bytes": 43240,
+      "sha256": "c818e25ca212edb50717b8f84fc2e3d0b7466075aa6b78789a2af0f85b3469fb"
     },
     {
       "path": "tools/install_original_geometry.py",
-      "bytes": 15531,
-      "sha256": "b3557b0bd50c5746f88ecf6ec7138ced98ffaf530bc95ad83646453935411b8e"
+      "bytes": 15774,
+      "sha256": "260e51aee3bbf473b4f6252f59392f838f33b4853f383d539cfe75b490e0c4af"
     },
     {
       "path": "tools/restore_housing.py",
-      "bytes": 5867,
-      "sha256": "74ef1f749eea50bd5deb49b7773a1f8edb458ccc61f6047d2695bc00d4121200"
+      "bytes": 6085,
+      "sha256": "cb686f639c73d2516fe474caa41598d038c8069c701c3080b62a84bbf95768e6"
     }
   ]
 }

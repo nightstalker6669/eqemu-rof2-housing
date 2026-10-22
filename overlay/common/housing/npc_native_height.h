@@ -1,6 +1,7 @@
 #ifndef EQEMU_HOUSING_NPC_NATIVE_HEIGHT_H
 #define EQEMU_HOUSING_NPC_NATIVE_HEIGHT_H
 #include <array>
+#include <boost/multiprecision/cpp_int.hpp>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -8,7 +9,9 @@ namespace Housing::NpcNativeHeight {
 // Original CRT8e1258 converts main-loop9031f to x87 PC53/chop and
 // temporary displaya031f to PC24/chop. Exact integer arithmetic retains
 // the extended exponent until original FSTP float32; server FENV is irrelevant.
-using Wide=unsigned __int128;
+// Header-only fixed-width unsigned arithmetic is supported by MSVC as well
+// as GCC/Clang. All products/aligned sums here fit below bit125.
+using Wide=boost::multiprecision::uint128_t;
 struct Binary {Wide significand=0;int exponent=0;};
 inline uint32_t Bits(float v){uint32_t b;std::memcpy(&b,&v,4);return b;}
 inline float Float(uint32_t b){float v;std::memcpy(&v,&b,4);return v;}
@@ -48,8 +51,14 @@ inline std::optional<uint32_t> Add(uint32_t left,uint32_t right){
  // The small operand is below every retained bit. With opposite signs its
  // sticky subtraction makes chop step one float32 ULP toward zero.
  if(difference>100)return an==bn?left:((left&0x80000000u)|((left&0x7fffffffu)-1));
- const __int128 av=__int128(a.significand<<difference)*(an?-1:1),bv=__int128(b.significand)*(bn?-1:1),sum=av+bv;
- if(!sum)return uint32_t(0);const bool negative=sum<0;Binary out{Wide(negative?-sum:sum),b.exponent};
+ // Use unsigned magnitudes instead of compiler-specific signed128. Equal-sign
+ // addition and opposite-sign subtraction retain the exact original sign.
+ const Wide av=a.significand<<difference,bv=b.significand;
+ Wide magnitude;bool negative;
+ if(an==bn){magnitude=av+bv;negative=an;}
+ else if(av>=bv){magnitude=av-bv;negative=an;}
+ else{magnitude=bv-av;negative=bn;}
+ if(!magnitude)return uint32_t(0);Binary out{magnitude,b.exponent};
  auto result=Float32(out);if(!result)return {};return *result|(negative?0x80000000u:0);
 }
 inline std::optional<uint32_t> Subtract(uint32_t a,uint32_t b){return Add(a,b^0x80000000u);}

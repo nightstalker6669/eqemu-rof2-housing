@@ -9,32 +9,35 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent))
 from install_housing import Database, require, stopped, sha, q
+from housing_platform import read_utf8, write_utf8, link_info
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--server',required=True,type=Path);p.add_argument('--backup',required=True,type=Path)
     p.add_argument('--apply',action='store_true');a=p.parse_args();a.server=a.server.resolve();a.backup=a.backup.resolve()
-    info=json.loads((a.backup/'backup-info.json').read_text());require(info['server']==str(a.server),'Backup belongs to another server directory')
+    info=json.loads(read_utf8(a.backup/'backup-info.json'));require(Path(info['server']).resolve()==a.server,'Backup belongs to another server directory')
     for name,key in [('database.sql','database_sha256'),('server-files.tar.gz','files_sha256'),('deployment-paths.json','paths_sha256')]:
         require(sha(a.backup/name)==info[key],'Backup checksum mismatch: '+name)
-    paths=json.loads((a.backup/'deployment-paths.json').read_text());created=json.loads((a.backup/'created-files.json').read_text()) if (a.backup/'created-files.json').exists() else []
+    paths=json.loads(read_utf8(a.backup/'deployment-paths.json'));created=json.loads(read_utf8(a.backup/'created-files.json')) if (a.backup/'created-files.json').exists() else []
     # Resolve all conflicting changes before altering the database or any file.
     for row in created:
         target=Path(row['path'])
         if row.get('kind')=='symlink':
-            require(target.is_symlink() and os.readlink(target)==row['link'],'A newly installed link was changed: '+str(target))
+            require(link_info(target) and link_info(target)['link']==row['link'],'A newly installed link was changed: '+str(target))
         elif target.exists():require(target.is_file() and not target.is_symlink() and sha(target)==row['sha256'],'A newly installed file was subsequently changed: '+str(target))
     for row in paths:
         requested=Path(row['requested'])
         require(requested.resolve(strict=False)==Path(row['resolved']),'Deployment target was redirected after backup: '+str(requested))
-        if row['symlink'] is not None:require(requested.is_symlink() and os.readlink(requested)==row['symlink'],'Deployment link was changed after backup')
+        if row['symlink'] is not None:require(link_info(requested) and link_info(requested)['link']==row['symlink'],'Deployment link was changed after backup')
     with tarfile.open(a.backup/'server-files.tar.gz') as archive:
         for row in paths:
             if row['archive'] is None:continue
             prefix=row['archive'];members=[m for m in archive.getmembers() if m.name==prefix or m.name.startswith(prefix+'/')]
             require(members,'Backup target is absent from archive')
-            require(all((m.isfile() or m.isdir()) and not Path(m.name).is_absolute() and '..' not in Path(m.name).parts for m in members),'Unsupported linked or unsafe backup member; use manual reviewed restore')
+            require(all((m.isfile() or m.isdir()) and not Path(m.name).is_absolute() and '..' not in Path(m.name).parts and ':' not in m.name and '\\' not in m.name for m in members),'Unsupported linked or unsafe backup member; use manual reviewed restore')
     print('Restore plan: full database plus '+str(len(paths))+' resolved deployment targets; no automatic service start.')
     if not a.apply:return
     stopped();db=Database(a.server)
@@ -51,7 +54,7 @@ def main():
         extra=sorted(t for t in current-set(info['tables']) if t.startswith('housing_'))
         if extra:db.query('SET FOREIGN_KEY_CHECKS=0;'+''.join('DROP TABLE `'+t+'`;' for t in extra)+'SET FOREIGN_KEY_CHECKS=1;')
         with (a.backup/'database.sql').open('rb') as source:
-            result=subprocess.run([db.client,'--defaults-extra-file='+str(db.option),db.name],stdin=source,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+            result=subprocess.run([db.client,'--defaults-extra-file='+str(db.option),'--default-character-set=utf8mb4',db.name],stdin=source,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
         require(result.returncode==0,'Database restore failed: '+result.stderr.decode(errors='replace')[-1000:])
         for row in sorted(created,key=lambda r:r.get('kind')=='symlink'):
             target=Path(row['path'])

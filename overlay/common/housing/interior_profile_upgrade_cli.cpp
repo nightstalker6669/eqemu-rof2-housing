@@ -1,3 +1,4 @@
+#include "offline_process_guard.h"
 #include "runtime_activation_db.h"
 // Offline maintenance helper. No gameplay endpoint, process control or schema
 // changes. Deployment must back up state and coordinate manifest/binary updates.
@@ -22,13 +23,7 @@ Manifest Read(const char* path,const Housing::InteriorContent::Profile& identity
  auto bundle=Housing::Catalog::DecodePayloads(Unhex(doc["definitions_hex"].asString(),Housing::NeighborhoodWire::MaximumPayload),Unhex(doc["regions_hex"].asString(),Housing::RegionWire::MaximumPayload));Require(!bundle.regions.empty()&&bundle.costs.empty(),"Invalid room payload");Manifest result{identity,doc["profile_revision"].asUInt64()};auto& p=result.profile;bool found=false;
  for(const auto& definition:bundle.definitions){if(definition.id==identity.definition.id){Require(!found,"Duplicate room definition");p.definition=definition;found=true;}else p.child_definitions.push_back(definition);}Require(found,"Missing room definition");p.region=bundle.regions.front();p.additional_regions.assign(bundle.regions.begin()+1,bundle.regions.end());p.manifest_sha256=Hash(raw);Housing::InteriorContent::DefinitionPayload(p);Housing::InteriorContent::RegionPayload(p);return result;
 }
-void RequireStopped(){
- for(const auto& entry:std::filesystem::directory_iterator("/proc")){
-  const auto name=entry.path().filename().string();if(name.empty()||name.find_first_not_of("0123456789")!=std::string::npos)continue;
-  std::error_code error;auto executable=std::filesystem::read_symlink(entry.path()/"exe",error);if(error)continue;
-  const auto binary=executable.filename().string();Require(binary!="zone"&&binary!="world"&&binary!="zone (deleted)"&&binary!="world (deleted)","Server processes still running");
- }
-}
+void RequireStopped(){Housing::OfflineProcessGuard::RequireWorldAndZoneStopped();}
 }
 int main(int argc,char** argv){
  std::unique_ptr<Database> db;bool transaction=false;
