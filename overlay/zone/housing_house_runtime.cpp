@@ -1,3 +1,4 @@
+#include "../common/housing/runtime_activation_db.h"
 #include "map.h"
 #include "../common/path_manager.h"
 #include "housing_house_runtime.h"
@@ -192,7 +193,7 @@ public:
 namespace {
 bool ConfigureSelections(std::vector<PersonalTestSelection> entries){
  const auto* config=EQEmuConfig::get();
- if(!InventoryBridge::IsRegisteredZoneThread()||!config||config->DatabaseDB!="peq_housing_test"||!ContentLoader::ValidSelections(entries))return false;
+ if(!InventoryBridge::IsRegisteredZoneThread()||!config||!Housing::RuntimeActivation::AllowsReconstructedContent(database)||!ContentLoader::ValidSelections(entries))return false;
  std::vector<std::shared_ptr<const HouseReviewedContent::Policies>> parts;Selections selections,rooms;
  for(auto& entry:entries){parts.push_back(entry.content);auto selected=std::make_shared<const PersonalTestSelection>(std::move(entry));if(selected->room_profile)rooms.push_back(selected);selections.push_back(std::move(selected));}
  auto combined=std::make_shared<const HouseReviewedContent::PolicySet>(std::move(parts));

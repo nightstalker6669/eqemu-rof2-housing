@@ -7,6 +7,7 @@
 #include "static_furniture_registry.h"
 #include "house_geometry_registry.h"
 #include "inventory_row_db.h"
+#include "item_payload_db.h"
 #include "house_inventory_transition.h"
 #include "item_storage_db.h"
 #include "../inventory_profile.h"
@@ -36,7 +37,7 @@ inline std::vector<uint8_t> CurrencyBytes(const std::array<uint32_t,16>& a){std:
 // Bounded, deterministic length-prefixed text/HEX witness. No delimiter or NULL
 // ambiguity; all binary columns are selected as HEX. Order is primary-key order.
 inline void Append(Database& db,std::string& out,const std::string& label,const std::string& query,unsigned columns){
- auto add=[&](const std::string& s){out+=Id(s.size())+":"+s;if(out.size()>2*1024*1024)throw Stop{Status::Deferred};};
+ auto add=[&](const std::string& s){out+=Id(s.size())+":"+s;if(out.size()>64*1024*1024)throw Stop{Status::Deferred};};
  add(label);auto r=Q(db,query+" FOR UPDATE");add(Id(r.RowCount()));
  for(auto p=r.begin();p!=r.end();++p)for(unsigned c=0;c<columns;++c){if(!p[c])out+="N";else{out+="V";add(p[c]);}}
 }
@@ -51,6 +52,7 @@ inline std::string Cargo(Database& db,uint64_t crate,uint32_t owner,const std::v
  std::string out="housing-offline-cargo-v1;";
  if(!payload_only)Append(db,out,"members","SELECT custody_id,crate_id,revision,origin_native_estate_id,origin_house_id,HEX(origin_pose_blob),origin_stowed FROM housing_crate_members WHERE crate_id="+id+" ORDER BY custody_id",7);
  Append(db,out,"custody","SELECT custody_id,estate_id,owner_character_id,HEX(schema_descriptor),HEX(row_blob),HEX(catalog_blob) FROM housing_live_item_custody WHERE custody_id IN "+custody+" ORDER BY custody_id",6);
+ auto payloads=Q(db,"SELECT custody_id,HEX(row_blob) FROM housing_live_item_custody WHERE custody_id IN "+custody+" ORDER BY custody_id LIMIT 1001 FOR UPDATE");if(payloads.RowCount()>1000)throw Stop{Status::Deferred};for(auto p=payloads.begin();p!=payloads.end();++p){auto row=CustodyCodec::Decode(ItemPayload::Unhex(p[1]));ItemPayload::Metadata(db,row);ItemPayload::ValidateHeld(db,row,N(p[0]));}
  if(!payload_only)Append(db,out,"storage","SELECT custody_id,revision,stowed,native_estate_id FROM housing_live_item_storage WHERE custody_id IN "+custody+" ORDER BY custody_id",4);
  Append(db,out,"poses","SELECT custody_id,native_item_id,pose_revision,HEX(pose_blob) FROM housing_live_placed_items WHERE custody_id IN "+custody+" ORDER BY custody_id",4);
  Append(db,out,"reservations","SELECT native_item_id,native_estate_id,estate_id,HEX(catalog_key),catalog_revision,character_id,account_id,lease_epoch,HEX(session_key),HEX(source_row),runtime_serial,state,custody_id,content_binding_version,HEX(content_binding_digest) FROM housing_live_placement_reservations WHERE custody_id IN "+custody+" ORDER BY native_item_id",15);
@@ -101,12 +103,12 @@ inline Packing PackLoose(Database& db,uint32_t estate,uint32_t owner,const LiveI
  for(auto r=candidates.begin();r!=candidates.end();++r){
   const auto id=N(r[0]);auto inspected=LiveItems::Service::InspectCustodyUnderTransaction(db,id);if(!inspected)throw Stop{Status::Deferred};const auto& s=inspected.value;
   if(s.estate_id!=estate||s.row.values.character_id!=owner||!s.placement||s.placement->npc_frame||s.placement->reservation.native_estate_id!=b.parent_native_estate_id||s.placement->reservation.estate_id!=estate||s.placement->reservation.catalog_key!=b.catalog_key||s.placement->reservation.catalog_revision!=b.catalog_revision||!CustodyCodec::Valid(s.row))throw Stop{Status::Deferred};
-  const auto& v=s.row.values;if(s.row.null_fields&LiveItems::NullItemId||v.augment_one||v.augment_two||v.augment_three||v.augment_four||v.augment_five||v.augment_six||CrateGeometry::TemplateDefinition(v.item_id))throw Stop{Status::Deferred};
+  const auto& v=s.row.values;if(s.row.null_fields&LiveItems::NullItemId||CrateGeometry::TemplateDefinition(v.item_id))throw Stop{Status::Deferred};
   Empty(db,"SELECT custody_id FROM housing_house_item_scopes WHERE custody_id="+Id(id));Empty(db,"SELECT custody_id FROM housing_live_npc_frames WHERE custody_id="+Id(id));Empty(db,"SELECT custody_id FROM housing_live_vault_items WHERE custody_id="+Id(id));
   auto metadata=Q(db,"SELECT idfile,itemclass,bagslots,loregroup,nodrop,evoitem FROM items WHERE id="+Id(v.item_id)+" FOR UPDATE");if(metadata.RowCount()!=1)throw Stop{Status::Deferred};auto m=metadata.begin();
-  if(!m[0]||N(m[1])||N(m[2])||std::stoll(m[3])!=s.catalog.lore_group||std::stoll(m[4])!=s.catalog.no_drop||N(m[5])||s.catalog.item_class||s.catalog.bag_slots)throw Stop{Status::Deferred};
+  if(!m[0]||N(m[1])||N(m[2])||std::stoll(m[3])!=s.catalog.lore_group||std::stoll(m[4])!=s.catalog.no_drop||s.catalog.item_class||s.catalog.bag_slots)throw Stop{Status::Deferred};
   const auto* house=HouseGeometry::Lookup(v.item_id,m[0]);if((house&&HouseTemplates::Type(v.item_id)!=(guild?2u:3u))||(!house&&!StaticFurniture::Lookup(v.item_id,m[0])))throw Stop{Status::Deferred};
-  Empty(db,"SELECT id FROM items_evolving_details WHERE item_id="+Id(v.item_id));Empty(db,"SELECT id FROM character_evolving_items WHERE character_id="+Id(owner)+" AND item_id="+Id(v.item_id)+" AND deleted_at IS NULL");
+  ItemPayload::Metadata(db,s.row);ItemPayload::ValidateHeld(db,s.row,id);
   auto house_row=Q(db,"SELECT h.house_id,h.created_by_character_id,h.item_template_id,h.pending_request_key FROM housing_house_instances h JOIN housing_house_locations l ON l.house_id=h.house_id WHERE l.location_kind=2 AND l.custody_id="+Id(id)+" FOR UPDATE");
   if(house){if(house_row.RowCount()!=1||N(house_row.begin()[1])!=owner||N(house_row.begin()[2])!=v.item_id||house_row.begin()[3])throw Stop{Status::Deferred};houses.push_back(CrateHouseRules::LockedHouse(db,N(house_row.begin()[0])));}else if(house_row.RowCount())throw Stop{Status::Deferred};
   auto storage=ItemStorage::Locked(db,id);if(storage.revision==UINT64_MAX||(storage.revision&&storage.native_estate_id!=b.parent_native_estate_id)||!r[1]||std::string(r[1]).size()!=56)throw Stop{Status::Deferred};

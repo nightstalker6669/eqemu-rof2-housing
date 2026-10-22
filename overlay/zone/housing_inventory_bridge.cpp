@@ -307,9 +307,18 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
         try{
             auto& inv=client_.GetInv();
             if(!held_||!SlotSupported(inv,r.values.slot_id)||inv.GetItem(int16_t(r.values.slot_id))||!CursorCompatible(inv,r.values.slot_id,false))return false;
-            for(const auto& it:retained_)if(it.second&&Matches(r,*it.second))return !client_.CheckLoreConflict(it.second->GetItem());
+            // Native lore restrictions apply to every physical member, including
+            // socketed augments and bag children, and within this one bundle.
+            std::set<std::pair<int32_t,uint32_t>> lore;
+            const auto allowed=[&](auto&& self,EQ::ItemInstance& item)->bool{
+                const auto* data=item.GetItem();if(!data||client_.CheckLoreConflict(data))return false;
+                if(data->LoreFlag&&data->LoreGroup){const auto key=std::make_pair(data->LoreGroup,data->LoreGroup==-1?data->ID:0u);if(!lore.insert(key).second)return false;}
+                for(const auto& [slot,child]:*item.GetContents())if(!child||!self(self,*child))return false;
+                return true;
+            };
+            for(const auto& it:retained_)if(it.second&&Matches(r,*it.second))return allowed(allowed,*it.second);
             auto rebuilt=Reconstruct(database,r);
-            return rebuilt && !client_.CheckLoreConflict(rebuilt.value.item->GetItem());
+            return rebuilt && allowed(allowed,*rebuilt.value.item);
         }
         catch(...){
             return false;
@@ -370,7 +379,7 @@ bool Bridge::MountSurfaceSelectedUnderTransaction(Database& db,const LiveItems::
             else found->second=std::move(rebuilt.value.item);
             reconstructed_custody_.insert(r.stored.custody_id);
         }
-        if(!Matches(r.inventory_after,*found->second)||!ReturnAllowed(r.inventory_after))return false;
+        if(!InventoryProjection::RestoreEvolution(r.inventory_after,*found->second)||!Matches(r.inventory_after,*found->second)||!ReturnAllowed(r.inventory_after))return false;
         if(r.house_effect_required&&!HouseMemory::Apply(*r.house_effect,*found->second,reconstructed_custody_.count(r.stored.custody_id)!=0))return false;
         if(r.crate_allocation&&!CrateMemory::Apply(r,*found->second,reconstructed_custody_.count(r.stored.custody_id)!=0))return false;
         auto pointer=found->second.get();

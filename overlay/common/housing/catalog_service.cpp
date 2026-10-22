@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #include "inventory_row_db.h"
 #include "catalog_service.h"
 #include "custody_codec.h"
@@ -69,7 +70,7 @@ void Domain(Database& db,const Bundle& b){
   if(n.ownership_estate_id){auto e=Query(db,"SELECT plot_id FROM housing_current_estates WHERE id="+std::to_string(n.ownership_estate_id)+" FOR UPDATE");if(e.RowCount()!=1||std::stoul(e.begin()[0])!=n.plot_id)throw Failure{Error::InvalidRoute};}
  }
 }
-void ExperimentalDatabase(Database& db){auto name=Query(db,"SELECT DATABASE()");if(name.RowCount()!=1||!name.begin()[0])throw Failure{Error::Unauthorized};const std::string n=name.begin()[0];if(n!="peq_housing_test"&&n.rfind("peq_housing_test_",0)!=0)throw Failure{Error::Unauthorized};}
+void ExperimentalDatabase(Database& db){auto name=Query(db,"SELECT DATABASE()");if(name.RowCount()!=1||!name.begin()[0])throw Failure{Error::Unauthorized};const std::string n=name.begin()[0];if(!Housing::RuntimeActivation::AllowsReconstructedContent(db))throw Failure{Error::Unauthorized};}
 void Engines(Database& db){auto r=Query(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_name IN ('housing_catalogs','housing_native_estates','housing_neighborhoods','housing_plot_definitions','housing_estates','instance_list')");if(r.RowCount()!=1||std::stoul(r.begin()[0])!=6)throw Failure{Error::DatabaseFailure};}
 // A saved interior is durable identity; active does not mean physically placed.
 bool HouseSchema(Database& db){
@@ -113,7 +114,7 @@ void LiveHouseView(Database& db,Bundle& b){
    hidden.insert(uint32_t(id));continue;
   }
   if(kind!=2||r[11]||r[12]||!r[13]||Number(r[14])!=Number(r[13])||!r[17])throw Failure{Error::Conflict};
-  const auto source=CustodyCodec::Decode(Unhex(r[17],70000));
+  const auto source=CustodyCodec::Decode(Unhex(r[17],CustodyCodec::MaximumPayload));
   if(source.values.item_id!=Number(r[8])||source.values.character_id!=Number(r[16]))throw Failure{Error::Conflict};
   // A house in an exact carried crate retains its permanent interior/native
   // identity and original ownership generation. It is not current property
@@ -130,7 +131,7 @@ void LiveHouseView(Database& db,Bundle& b){
   }
   // Custody inventory/storage is not itself physical placement.
   if(!r[18]){hidden.insert(uint32_t(id));continue;}
-  if(!Number(r[18])||Number(r[18])>=UINT32_MAX||Number(r[19])!=parent->native_id.value||Number(r[20])!=Number(r[15])||Number(r[15])!=parent->ownership_estate_id||!r[21]||std::string(r[21])!=b.key||Number(r[22])!=1||Number(r[23])!=ContentBinding::HouseVersion||!r[28]||Unhex(r[28]).size()!=32||!r[24]||Unhex(r[24],70000)!=CustodyCodec::Encode(source))throw Failure{Error::Conflict};
+  if(!Number(r[18])||Number(r[18])>=UINT32_MAX||Number(r[19])!=parent->native_id.value||Number(r[20])!=Number(r[15])||Number(r[15])!=parent->ownership_estate_id||!r[21]||std::string(r[21])!=b.key||Number(r[22])!=1||Number(r[23])!=ContentBinding::HouseVersion||!r[28]||Unhex(r[28]).size()!=32||!r[24]||Unhex(r[24],CustodyCodec::MaximumPayload)!=CustodyCodec::Encode(source))throw Failure{Error::Conflict};
   // A stored house keeps its permanent interior identity, but is not a
   // physically placed child of the plot. Its item remains in the scene's
   // storage list; omit only the interior from this placed-estate projection.

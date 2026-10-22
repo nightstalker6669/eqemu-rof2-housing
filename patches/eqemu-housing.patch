@@ -1,3 +1,15 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 59279ca..c6db0a4 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -465,6 +465,7 @@ IF(EQEMU_BUILD_SERVER OR EQEMU_BUILD_LOGIN OR EQEMU_BUILD_TESTS OR EQEMU_BUILD_H
+ ENDIF(EQEMU_BUILD_SERVER OR EQEMU_BUILD_LOGIN OR EQEMU_BUILD_TESTS OR EQEMU_BUILD_HC)
+ 
+ IF(EQEMU_BUILD_SERVER)
++	ADD_SUBDIRECTORY(common/housing/install)
+ 	ADD_SUBDIRECTORY(shared_memory)
+ 	ADD_SUBDIRECTORY(world)
+ 	ADD_SUBDIRECTORY(zone)
 diff --git a/common/CMakeLists.txt b/common/CMakeLists.txt
 index 1a9028e..f1bb247 100644
 --- a/common/CMakeLists.txt
@@ -409,7 +421,7 @@ index 99edfb5..28312fe 100644
  		mutable CharacterEvolvingItemsRepository::CharacterEvolvingItems  m_evolving_details{};
  
 diff --git a/common/patches/rof2.cpp b/common/patches/rof2.cpp
-index b250a5d..fc7a2b5 100644
+index b250a5d..c568288 100644
 --- a/common/patches/rof2.cpp
 +++ b/common/patches/rof2.cpp
 @@ -1,3 +1,5 @@
@@ -428,7 +440,7 @@ index b250a5d..fc7a2b5 100644
  #include "../opcodemgr.h"
  
  #include "../eq_stream_ident.h"
-@@ -52,6 +57,34 @@ namespace RoF2
+@@ -52,6 +57,53 @@ namespace RoF2
  
  	void SerializeItem(EQ::OutBuffer& ob, const EQ::ItemInstance *inst, int16 slot_id, uint8 depth, ItemPacketType packet_type);
  
@@ -454,16 +466,35 @@ index b250a5d..fc7a2b5 100644
 +		if (!HousingItemTreeValid(instance, 0, nodes)) return std::nullopt;
 +		EQ::OutBuffer buffer;
 +		SerializeItem(buffer, &instance, server_slot, 0, ItemPacketTrade);
-+		if (!buffer.good() || buffer.size() == 0 || buffer.size() > HousingItemMaximumBytes)
++		if (!buffer.good() || buffer.size() == 0 || buffer.size() > HousingItemMaximumInventoryBytes)
 +			return std::nullopt;
 +		const auto bytes = buffer.str();
 +		return std::vector<uint8_t>(bytes.begin(), bytes.end());
 +	}
 +
++
++	std::optional<std::vector<uint8_t>> SerializeHousingItemListEntry(
++		const EQ::ItemInstance &instance, int16_t server_slot)
++	{
++		size_t nodes = 0;
++		if (!HousingItemTreeValid(instance, 0, nodes)) return std::nullopt;
++		std::unique_ptr<EQ::ItemInstance> root;
++		const auto* view = &instance;
++		if (instance.IsClassBag()) {
++			root.reset(instance.Clone());
++			if (!root) return std::nullopt;
++			root->Clear();
++			view = root.get();
++		}
++		auto bytes = SerializeHousingItem(*view, server_slot);
++		if (!bytes || bytes->size() > HousingItemMaximumBytes) return std::nullopt;
++		return bytes;
++	}
++
  	// server to client inventory location converters
  	static inline structs::InventorySlot_Struct ServerToRoF2Slot(uint32 server_slot);
  	static inline structs::InventorySlot_Struct ServerToRoF2CorpseSlot(uint32 server_corpse_slot);
-@@ -1794,8 +1827,8 @@ namespace RoF2
+@@ -1794,8 +1846,8 @@ namespace RoF2
  		*buffer = '\0';
  		buffer++;
  
@@ -474,7 +505,7 @@ index b250a5d..fc7a2b5 100644
  		buffer += sizeof(uint32);
  
  		//add member count.
-@@ -1837,7 +1870,7 @@ namespace RoF2
+@@ -1837,7 +1889,7 @@ namespace RoF2
  				PutFieldN(rank);
  				PutFieldN(time_last_on);
  				PutFieldN(tribute_enable);
@@ -483,7 +514,7 @@ index b250a5d..fc7a2b5 100644
  				PutFieldN(total_tribute);
  				PutFieldN(last_tribute);
  				e->unknown_one = htonl(1);
-@@ -2081,7 +2114,8 @@ namespace RoF2
+@@ -2081,7 +2133,8 @@ namespace RoF2
                  EQ::OutBuffer           ob;
                  EQ::OutBuffer::pos_type last_pos = ob.tellp();
  
@@ -493,7 +524,7 @@ index b250a5d..fc7a2b5 100644
  
                  SerializeItem(ob, (const EQ::ItemInstance *)int_struct->inst, int_struct->slot_id, 0,
                                old_item_pkt->PacketType);
-@@ -4920,9 +4954,16 @@ namespace RoF2
+@@ -4920,9 +4973,16 @@ namespace RoF2
  			// SplineID -- no idea
  			Buffer += 8;
  			VARSTRUCT_ENCODE_TYPE(uint8, Buffer, emu->IsMercenary);
@@ -513,7 +544,7 @@ index b250a5d..fc7a2b5 100644
  			// 29 zero bytes follow
  			// PhysicsEffects follow here ... unsure what they are but it's a count followed by a struct like {spellid, casterid, effectid, baseeffect}
  			Buffer += 29;
-@@ -5599,6 +5640,10 @@ namespace RoF2
+@@ -5599,6 +5659,10 @@ namespace RoF2
  
  	DECODE(OP_FindPersonRequest)
  	{
@@ -524,7 +555,7 @@ index b250a5d..fc7a2b5 100644
  		DECODE_LENGTH_EXACT(structs::FindPersonRequest_Struct);
  		SETUP_DIRECT_DECODE(FindPersonRequest_Struct, structs::FindPersonRequest_Struct);
  
-@@ -6464,6 +6509,12 @@ namespace RoF2
+@@ -6464,6 +6528,12 @@ namespace RoF2
  
  		structs::InventorySlot_Struct slot_id{};
  		switch (packet_type) {
@@ -537,7 +568,7 @@ index b250a5d..fc7a2b5 100644
  		case ItemPacketLoot:
  			slot_id = ServerToRoF2CorpseSlot(slot_id_in);
  			break;
-@@ -6544,7 +6595,9 @@ namespace RoF2
+@@ -6544,7 +6614,9 @@ namespace RoF2
  		hdrf.ornamentHeroModel = hero_model;
  		hdrf.unknown063 = 0;
  		hdrf.Copied = 0;
@@ -548,7 +579,7 @@ index b250a5d..fc7a2b5 100644
  		hdrf.unknowna5 = 0;
  		hdrf.ItemClass = item->ItemClass;
  
-@@ -6880,7 +6933,7 @@ namespace RoF2
+@@ -6880,7 +6952,7 @@ namespace RoF2
  		//evolve_string; // Some String, but being evolution related is just a guess
  
  		iqbs.Heirloom = 0;
@@ -557,7 +588,7 @@ index b250a5d..fc7a2b5 100644
  		iqbs.unknown28 = -1;
  		iqbs.unknown29 = packet_type == ItemPacketInvalid ? 0xFF : 0;
  		iqbs.unknown30 = -1;
-@@ -6890,7 +6943,29 @@ namespace RoF2
+@@ -6890,7 +6962,29 @@ namespace RoF2
  		iqbs.unknown38 = 0;
  		iqbs.unknown39 = packet_type == ItemPacketInvalid ? 0 : 1;;
  
@@ -589,13 +620,14 @@ index b250a5d..fc7a2b5 100644
  		EQ::OutBuffer::pos_type count_pos = ob.tellp();
  		uint32 subitem_count = 0;
 diff --git a/common/patches/rof2.h b/common/patches/rof2.h
-index f5f00db..ef2cd1c 100644
+index f5f00db..db6dbec 100644
 --- a/common/patches/rof2.h
 +++ b/common/patches/rof2.h
-@@ -21,6 +21,12 @@
+@@ -21,6 +21,13 @@
  #define COMMON_ROF2_H
  
  #include "../struct_strategy.h"
++#include "rof2_limits.h"
 +#include <cstddef>
 +#include <cstdint>
 +#include <optional>
@@ -605,17 +637,23 @@ index f5f00db..ef2cd1c 100644
  
  class EQStreamIdentifier;
  
-@@ -30,6 +36,14 @@ namespace RoF2
+@@ -30,6 +37,20 @@ namespace RoF2
  	//these are the only public member of this namespace.
  	extern void Register(EQStreamIdentifier &into);
  	extern void Reload();
 +	// Native embedded ItemPtr, without the OP_ItemPacket type DWORD. Uses the
 +	// ordinary item encoder and preserves instance identity, charges and children.
-+	// Housing must be enabled. Limits are server policy, not client wire limits.
++	// Housing must be enabled. Full inventory trees and compact estate list
++	// ItemPtrs have distinct bounds; the latter retain their existing16-bit frame.
 +	inline constexpr size_t HousingItemMaximumBytes = 65535;
-+	inline constexpr size_t HousingItemMaximumNodes = 64;
++	inline constexpr size_t HousingItemMaximumNodes = (1 + invbag::SLOT_COUNT) * 7;
 +	inline constexpr size_t HousingItemMaximumDepth = 8;
++	inline constexpr size_t HousingItemMaximumInventoryBytes = 16 * 1024 * 1024;
 +	std::optional<std::vector<uint8_t>> SerializeHousingItem(
++		const EQ::ItemInstance &instance, int16_t server_slot);
++	// Bag contents remain exclusively in the canonical custody tree and ordinary
++	// inventory delivery. The stored-list bag root keeps its identity/definition.
++	std::optional<std::vector<uint8_t>> SerializeHousingItemListEntry(
 +		const EQ::ItemInstance &instance, int16_t server_slot);
  
  
@@ -745,6 +783,55 @@ index eb344f4..ae8259b 100644
  
  			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
  		}
+diff --git a/common/repositories/character_evolving_items_repository.h b/common/repositories/character_evolving_items_repository.h
+index 8bc3795..0d1e954 100644
+--- a/common/repositories/character_evolving_items_repository.h
++++ b/common/repositories/character_evolving_items_repository.h
+@@ -10,6 +10,44 @@
+ class CharacterEvolvingItemsRepository: public BaseCharacterEvolvingItemsRepository {
+ public:
+ 	// Custom extended repository methods here
++	static int UpdateOne(
++		Database& db,
++		const CharacterEvolvingItems &e
++	)
++	{
++		// Normal core writers must never reactivate, evolve or transfer a held UID.
++		// Optional housing installation keeps the upstream behavior when absent.
++		auto schema = db.QueryDatabase("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_evolving_item_locations'");
++		if (!schema.Success() || schema.RowCount() != 1) return 0;
++		const bool held_guard = std::string(schema.begin()[0]) != "0";
++		std::vector<std::string> v;
++
++		auto columns = Columns();
++		if (held_guard) for (auto& column : columns) column = TableName() + "." + column;
++
++		v.push_back(columns[1] + " = " + std::to_string(e.character_id));
++		v.push_back(columns[2] + " = " + std::to_string(e.item_id));
++		v.push_back(columns[3] + " = " + std::to_string(e.activated));
++		v.push_back(columns[4] + " = " + std::to_string(e.equipped));
++		v.push_back(columns[5] + " = " + std::to_string(e.current_amount));
++		v.push_back(columns[6] + " = " + std::to_string(e.progression));
++		v.push_back(columns[7] + " = " + std::to_string(e.final_item_id));
++		v.push_back(columns[8] + " = FROM_UNIXTIME(" + (e.deleted_at > 0 ? std::to_string(e.deleted_at) : "null") + ")");
++
++		auto results = db.QueryDatabase(
++			fmt::format(
++				"UPDATE {} SET {} WHERE {} = {}{}",
++				held_guard ? TableName() + " LEFT JOIN housing_evolving_item_locations housing_evolving_guard ON housing_evolving_guard.evolving_id=character_evolving_items.id" : TableName(),
++				Strings::Implode(", ", v),
++				held_guard ? TableName() + "." + PrimaryKey() : PrimaryKey(),
++				e.id,
++				held_guard ? " AND (housing_evolving_guard.evolving_id IS NULL OR housing_evolving_guard.location_kind<>2)" : ""
++			)
++		);
++
++		return (results.Success() ? results.RowsAffected() : 0);
++	}
++
+ 
+ 	static CharacterEvolvingItems SetCurrentAmountAndProgression(Database& db, const uint64 id, const uint64 amount, const double progression)
+ 	{
 diff --git a/common/repositories/inventory_repository.h b/common/repositories/inventory_repository.h
 index 8b4b859..2b7c8f5 100644
 --- a/common/repositories/inventory_repository.h
@@ -897,15 +984,16 @@ index 9985c87..95f6138 100644
 +
  #endif
 diff --git a/common/shareddb.cpp b/common/shareddb.cpp
-index 0ef0cbe..579f3b4 100644
+index 0ef0cbe..2f11ae4 100644
 --- a/common/shareddb.cpp
 +++ b/common/shareddb.cpp
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,5 @@
++#include "housing/evolving_item_custody_db.h"
 +#include "housing/npc_item_metadata_db.h"
  /*	EQEMu: Everquest Server Emulator
  	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.org)
  
-@@ -34,6 +35,7 @@
+@@ -34,6 +36,7 @@
  #include "mysql.h"
  #include "rulesys.h"
  #include "shareddb.h"
@@ -913,7 +1001,7 @@ index 0ef0cbe..579f3b4 100644
  #include "strings.h"
  #include "eqemu_config.h"
  #include "data_verification.h"
-@@ -55,6 +57,7 @@
+@@ -55,6 +58,7 @@
  #include "repositories/spells_new_repository.h"
  #include "repositories/damageshieldtypes_repository.h"
  #include "repositories/items_repository.h"
@@ -921,7 +1009,32 @@ index 0ef0cbe..579f3b4 100644
  
  SharedDatabase::SharedDatabase()
  : Database()
-@@ -620,22 +623,40 @@ bool SharedDatabase::GetSharedBank(uint32 id, EQ::InventoryProfile *inv, bool is
+@@ -221,6 +225,10 @@ bool SharedDatabase::VerifyInventory(uint32 account_id, int16 slot_id, const EQ:
+ 
+ bool SharedDatabase::SaveInventory(uint32 char_id, const EQ::ItemInstance* inst, int16 slot_id)
+ {
++	// Reject stale held identities before container clearing can delete any rows.
++	try { if (inst && !Housing::EvolvingItemCustody::InventorySaveAllowed(*this, char_id, *inst)) return false; }
++	catch (...) { return false; }
++
+ 	// Don't save any Tribute slots
+ 	if (
+ 		EQ::ValueWithin(slot_id, EQ::invslot::GUILD_TRIBUTE_BEGIN, EQ::invslot::GUILD_TRIBUTE_END) ||
+@@ -287,7 +295,13 @@ bool SharedDatabase::UpdateInventorySlot(uint32 char_id, const EQ::ItemInstance*
+ 	e.ornament_hero_model = inst->GetOrnamentHeroModel();
+ 	e.guid                = inst->GetSerialNumber();
+ 
++	try { if (!Housing::EvolvingItemCustody::InventorySaveAllowed(*this, char_id, *inst)) return false; }
++	catch (...) { return false; }
+ 	const int replaced = InventoryRepository::ReplaceOne(*this, e);
++	if (replaced && Housing::EvolvingItemCustody::Has(*inst)) {
++		try { Housing::EvolvingItemCustody::BindInventory(*this, char_id, slot_id, *inst); }
++		catch (...) { return false; }
++	}
+ 
+ 	// Save bag contents, if slot supports bag contents
+ 	if (inst->IsClassBag() && EQ::InventoryProfile::SupportsContainers(slot_id)) {
+@@ -620,22 +634,40 @@ bool SharedDatabase::GetSharedBank(uint32 id, EQ::InventoryProfile *inv, bool is
  }
  // Overloaded: Retrieve character inventory based on character id (zone entry)
  //bool SharedDatabase::GetInventory(uint32 char_id, EQ::InventoryProfile *inv)
@@ -964,7 +1077,7 @@ index 0ef0cbe..579f3b4 100644
  		LogError("Error loading inventory for char_id {} from the database.", char_id);
  		return false;
  	}
-@@ -707,11 +728,13 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -707,11 +739,13 @@ bool SharedDatabase::GetInventory(Client *c)
  				item_id,
  				slot_id
  			);
@@ -978,7 +1091,7 @@ index 0ef0cbe..579f3b4 100644
  			continue;
  		}
  
-@@ -721,7 +744,7 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -721,7 +755,7 @@ bool SharedDatabase::GetInventory(Client *c)
  
  		inst->SetOrnamentIcon(ornament_icon);
  		inst->SetOrnamentationIDFile(ornament_idfile);
@@ -987,7 +1100,88 @@ index 0ef0cbe..579f3b4 100644
  
  		if (
  			instnodrop ||
-@@ -831,6 +854,7 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -764,51 +798,37 @@ bool SharedDatabase::GetInventory(Client *c)
+ 			}
+ 		}
+ 
+-		if (item->EvolvingItem) {
+-			if (slot_id >= EQ::invslot::EQUIPMENT_BEGIN && slot_id <= EQ::invslot::EQUIPMENT_END) {
+-				inst->SetEvolveEquipped(true);
+-			}
+-
+-			auto t = std::ranges::find_if(
+-				e_results.cbegin(),
+-				e_results.cend(),
+-				[&](const CharacterEvolvingItemsRepository::CharacterEvolvingItems &x) {
+-					return x.item_id == item_id;
++		try {
++			for (uint8 component = 0; component <= 6; ++component) {
++				auto* evolving = Housing::EvolvingItemCustody::Component(*inst, component);
++				if (!evolving || !evolving->IsEvolving()) continue;
++				const auto id = Housing::EvolvingItemCustody::InventoryIdentity(*this, char_id, slot_id, component, evolving->GetID(), row.guid);
++				auto candidate = e_results.end();
++				if (id) candidate = std::find_if(e_results.begin(), e_results.end(), [&](const auto& e) { return e.id == id; });
++				else {
++					size_t physical = 0, identities = 0;
++					for (const auto& source : results) {
++						for (auto template_id : {source.item_id, source.augment_one, source.augment_two, source.augment_three, source.augment_four, source.augment_five, source.augment_six})
++							if (template_id == evolving->GetID()) ++physical;
++					}
++					for (auto e = e_results.begin(); e != e_results.end(); ++e) if (e->item_id == evolving->GetID()) { ++identities; candidate = e; }
++					if (physical != 1 || identities > 1) throw std::invalid_argument("Ambiguous unbound evolving inventory identity");
++					if (!identities) {
++						auto e = CharacterEvolvingItemsRepository::NewEntity();
++						e.character_id = char_id; e.item_id = evolving->GetID();
++						e.equipped = component == 0 && slot_id >= EQ::invslot::EQUIPMENT_BEGIN && slot_id <= EQ::invslot::EQUIPMENT_END;
++						e.final_item_id = EvolvingItemsManager::Instance()->GetFinalItemID(*evolving);
++						e = CharacterEvolvingItemsRepository::InsertOne(*this, e);
++						if (!e.id) throw std::invalid_argument("Cannot allocate evolving inventory identity");
++						e_results.push_back(e); candidate = std::prev(e_results.end());
++					}
+ 				}
+-			);
+-
+-			if (t == std::end(e_results)) {
+-				auto e = CharacterEvolvingItemsRepository::NewEntity();
+-
+-				e.character_id  = char_id;
+-				e.item_id       = item_id;
+-				e.equipped      = inst->GetEvolveEquipped();
+-				e.final_item_id = EvolvingItemsManager::Instance()->GetFinalItemID(*inst);
+-
+-				auto r = CharacterEvolvingItemsRepository::InsertOne(*this, e);
+-				e.id = r.id;
+-				e_results.push_back(e);
+-
+-				inst->SetEvolveUniqueID(e.id);
+-				inst->SetEvolveCharID(e.character_id);
+-				inst->SetEvolveItemID(e.item_id);
+-				inst->SetEvolveActivated(e.activated);
+-				inst->SetEvolveEquipped(e.equipped);
+-				inst->SetEvolveCurrentAmount(e.current_amount);
+-				inst->CalculateEvolveProgression();
+-				inst->SetEvolveFinalItemID(e.final_item_id);
++				if (candidate == e_results.end() || candidate->character_id != char_id || candidate->item_id != evolving->GetID() || Housing::EvolvingItemCustody::Held(*this, candidate->id))
++					throw std::invalid_argument("Tracked evolving inventory identity missing");
++				evolving->GetEvolvingDetails() = *candidate;
++				evolving->CalculateEvolveProgression();
+ 			}
+-			else {
+-				inst->SetEvolveUniqueID(t->id);
+-				inst->SetEvolveCharID(t->character_id);
+-				inst->SetEvolveItemID(t->item_id);
+-				inst->SetEvolveActivated(t->activated);
+-				inst->SetEvolveEquipped(t->equipped);
+-				inst->SetEvolveCurrentAmount(t->current_amount);
+-				inst->CalculateEvolveProgression();
+-				inst->SetEvolveFinalItemID(t->final_item_id);
+-			}
+-		}
++		} catch (...) { safe_delete(inst); return false; }
+ 
+ 		int16 put_slot_id;
+ 		// this had  || slot_id == EQ::invslot::slotCursor ??s
+@@ -831,6 +851,7 @@ bool SharedDatabase::GetInventory(Client *c)
  				item_id,
  				slot_id
  			);
@@ -995,7 +1189,7 @@ index 0ef0cbe..579f3b4 100644
  		}
  	}
  
-@@ -845,14 +869,35 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -845,14 +866,35 @@ bool SharedDatabase::GetInventory(Client *c)
  		);
  	}
  
@@ -1033,7 +1227,7 @@ index 0ef0cbe..579f3b4 100644
  }
  
  std::map<uint32, uint32> SharedDatabase::GetItemRecastTimestamps(uint32 char_id)
-@@ -972,6 +1017,15 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+@@ -972,6 +1014,15 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
  		}
  	}
  
@@ -1049,7 +1243,7 @@ index 0ef0cbe..579f3b4 100644
  	EQ::ItemData item;
  
  	const auto& l = ItemsRepository::All(*this);
-@@ -1004,6 +1058,26 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+@@ -1004,6 +1055,26 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
  		item.NoPet           = !disable_no_pet && e.nopet;
  		item.NoRent          = disable_no_rent ? std::numeric_limits<uint8>::max() : e.norent;
  		item.NoTransfer      = !disable_no_transfer && e.notransfer;
@@ -2070,6 +2264,71 @@ index d5e8f3e..555c3e5 100644
  
  	PlayerProfile_Struct m_pp;
  	ExtendedProfile_Struct m_epp;
+diff --git a/zone/client_evolving_items.cpp b/zone/client_evolving_items.cpp
+index 77c29a4..bfcc5b3 100644
+--- a/zone/client_evolving_items.cpp
++++ b/zone/client_evolving_items.cpp
+@@ -1,3 +1,4 @@
++#include "../common/housing/evolving_item_custody_db.h"
+ #include "../common/evolving_items.h"
+ 
+ #include "../common/events/player_event_logs.h"
+@@ -13,27 +14,34 @@ const std::string  SUB_TYPE_DELIMITER = ".";
+ 
+ void Client::DoEvolveItemToggle(const EQApplicationPacket *app)
+ {
+-	const auto in   = reinterpret_cast<EvolveItemToggle *>(app->pBuffer);
+-	auto       item = CharacterEvolvingItemsRepository::FindOne(database, in->unique_id);
+-
+-	LogEvolveItemDetail(
+-		"Character ID <green>[{}] requested to set evolve item with unique id <yellow>[{}] to status <yellow>[{}]",
+-		CharacterID(),
+-		in->unique_id,
+-		in->activated
+-	);
+-
+-	if (!item.id) {
+-		LogEvolveItemDetail(
+-			"Character ID <green>[{}] toggle evolve item unique id <yellow>[{}] failed", CharacterID(), in->unique_id);
+-		return;
+-	}
+-
+-	item.activated  = in->activated;
+-	const auto inst = GetInv().GetItem(GetInv().HasItem(item.item_id));
+-	inst->SetEvolveActivated(item.activated ? true : false);
+-
+-	CharacterEvolvingItemsRepository::ReplaceOne(database, item);
++	if (!app || app->size != sizeof(EvolveItemToggle)) return;
++	const auto in = reinterpret_cast<const EvolveItemToggle*>(app->pBuffer);
++	if (in->activated > 1 || !in->unique_id) return;
++	auto item = CharacterEvolvingItemsRepository::FindOne(database, in->unique_id);
++	if (!item.id || item.character_id != CharacterID() || item.deleted_at > 0) return;
++	EQ::ItemInstance* inst = nullptr;
++	try {
++		if (Housing::EvolvingItemCustody::Held(database, item.id)) return;
++		auto rows = database.QueryDatabase("SELECT slot_id FROM inventory WHERE character_id=" + std::to_string(CharacterID()));
++		if (!rows.Success()) return;
++		for (auto row : rows) {
++			auto* root = GetInv().GetItem(std::stoi(row[0]));
++			if (!root) continue;
++			for (uint8 component = 0; component <= 6; ++component) {
++				auto* node = Housing::EvolvingItemCustody::Component(*root, component);
++				if (!node || !node->IsEvolving() || node->GetEvolveUniqueID() != item.id) continue;
++				if (inst || node->GetEvolveCharID() != CharacterID() || node->GetID() != item.item_id) return;
++				inst = node;
++			}
++		}
++		if (!inst) return;
++		if (item.activated != in->activated) {
++			item.activated = in->activated;
++			if (!CharacterEvolvingItemsRepository::UpdateOne(database, item)) return;
++		}
++	} catch (...) { return; }
++	item.activated = in->activated;
++	inst->SetEvolveActivated(item.activated != 0);
+ 
+ 	SendEvolvingPacket(EvolvingItems::Actions::UPDATE_ITEMS, item);
+ }
 diff --git a/zone/client_packet.cpp b/zone/client_packet.cpp
 index a059bef..4a6717c 100644
 --- a/zone/client_packet.cpp

@@ -12,6 +12,8 @@
 #include "interior_placement_review.h"
 #include "vault_storage_db.h"
 #include "inventory_row_db.h"
+#include "item_payload_db.h"
+#include "runtime_activation_db.h"
 #include "house_item_scope_db.h"
 #include "item_storage_db.h"
 #include "live_item_service.h"
@@ -97,7 +99,7 @@ namespace Housing::LiveItems {
                 Error::DatabaseFailure
             };
             std::string s=p;
-            if(s.size()%2||s.size()>std::max(size_t(400000),2*RegionWire::MaximumPayload))throw Failure{
+            if(s.size()%2||s.size()>std::max(size_t(8*CustodyCodec::MaximumPayload),2*RegionWire::MaximumPayload))throw Failure{
                 Error::DatabaseFailure
             };
             Bytes b;
@@ -149,10 +151,7 @@ namespace Housing::LiveItems {
                 return out;
             }
         };
-        bool Valid(const InventoryRow& r){
-            const auto& v=r.values;
-            return !(r.null_fields&~uint8_t(15))&&v.custom_data.size()<=65535&&(!(r.null_fields&NullItemId)||!v.item_id)&&(!(r.null_fields&NullCharges)||!v.charges)&&(!(r.null_fields&NullCustomData)||v.custom_data.empty())&&(!(r.null_fields&NullGuid)||!v.guid);
-        }
+        bool Valid(const InventoryRow& r){return CustodyCodec::Valid(r);}
         Bytes Encode(const InventoryRow& row){return CustodyCodec::Encode(row);}
         InventoryRow Decode(const Bytes& bytes){try{return CustodyCodec::Decode(bytes);}catch(const std::invalid_argument&){throw Failure{Error::DatabaseFailure};}}
         void B(Bytes& b,const Bytes& v){
@@ -291,9 +290,10 @@ namespace Housing::LiveItems {
         }
         Catalog Simple(Database& db,const InventoryRow& r,bool vault=false){
             const auto& v=r.values;
-            if((r.null_fields&NullItemId)||!v.item_id||v.augment_one||v.augment_two||v.augment_three||v.augment_four||v.augment_five||v.augment_six)throw Failure{
+            if((r.null_fields&NullItemId)||!v.item_id)throw Failure{
                 Error::UnsupportedItem
             };
+            ItemPayload::Metadata(db,r);
             auto rows=Q(db,"SELECT itemclass,bagslots,loregroup,nodrop FROM items WHERE id="+std::to_string(v.item_id)+" FOR UPDATE");
             if(rows.RowCount()!=1)throw Failure{
                 Error::UnsupportedItem
@@ -304,11 +304,6 @@ namespace Housing::LiveItems {
             };
             if(vault){auto current=VaultStorage::Profile(db,r);if(Cat(current)!=Cat(c))throw Failure{Error::Conflict};}
             if(!vault&&(c.item_class!=0||c.bag_slots!=0))throw Failure{
-                Error::UnsupportedItem
-            };
-            auto evolving=Q(db,"SELECT id FROM items_evolving_details WHERE item_id="+std::to_string(v.item_id)+" FOR UPDATE");
-            auto active=Q(db,"SELECT id FROM character_evolving_items WHERE character_id="+std::to_string(v.character_id)+" AND item_id="+std::to_string(v.item_id)+" AND deleted_at IS NULL FOR UPDATE");
-            if(evolving.RowCount()||active.RowCount())throw Failure{
                 Error::UnsupportedItem
             };
             return c;
@@ -324,7 +319,7 @@ namespace Housing::LiveItems {
             if(creator.RowCount()>1)throw Failure{Error::DatabaseFailure};if(creator.RowCount()&&creator.begin()[0])throw Failure{Error::PendingApplication};
         }
         const std::string stored_columns="estate_id,owner_character_id,schema_descriptor,HEX(row_blob),HEX(catalog_blob)";
-        Stored StoredRow(MySQLRequestRow row,uint64_t id){
+        Stored StoredRow(Database& db,MySQLRequestRow row,uint64_t id){
             Stored s;
             s.custody_id=id;
             s.estate_id=uint32_t(std::stoul(row[0]));
@@ -336,6 +331,7 @@ namespace Housing::LiveItems {
             if(s.row.values.character_id!=std::stoul(row[1]))throw Failure{
                 Error::DatabaseFailure
             };
+            if(id)ItemPayload::ValidateHeld(db,s.row,id);
             return s;
         }
         Bytes Pose(const PlacementPolicy::Transform& t){Bytes b;for(float v:{t.heading,t.pitch,t.roll,t.scale,t.position[0],t.position[1],t.position[2]}){if(!std::isfinite(v))throw Failure{Error::InvalidArgument};uint32_t bits;std::memcpy(&bits,&v,4);W(b,bits,4);}return b;}
@@ -363,7 +359,7 @@ namespace Housing::LiveItems {
             auto access=CurrentAccess(db,p.estate_id,p.native_estate_id,actor,
                 operation==PlacementPolicy::Operation::Add?(house?AccessPolicy::Capability::AddHouse:crate?AccessPolicy::Capability::AddCrate:AccessPolicy::Capability::AddItem):AccessPolicy::Capability::MoveItem);
             auto cat=Q(db,"SELECT revision,origin,HEX(definitions_blob),HEX(regions_blob),client_build FROM housing_catalogs WHERE catalog_key="+Quote(db,p.catalog_key)+" FOR UPDATE");if(cat.RowCount()!=1||(!p.content_binding&&std::stoull(cat.begin()[0])!=p.catalog_revision)||(expected_current_revision&&std::stoull(cat.begin()[0])!=expected_current_revision)||std::stoul(cat.begin()[4])!=20130510)throw Failure{Error::Conflict};
-            if(std::stoul(cat.begin()[1])==2){auto name=Q(db,"SELECT DATABASE()");std::string n=name.begin()[0];if(n!="peq_housing_test"&&n.rfind("peq_housing_test_",0)!=0)throw Failure{Error::Unauthorized};}else if(std::stoul(cat.begin()[1])!=1)throw Failure{Error::UnsupportedItem};
+            if(std::stoul(cat.begin()[1])==2){if(!RuntimeActivation::AllowsReconstructedContent(db))throw Failure{Error::Unauthorized};}else if(std::stoul(cat.begin()[1])!=1)throw Failure{Error::UnsupportedItem};
             auto bundle=Housing::Catalog::DecodePayloads(Unhex(cat.begin()[2]),Unhex(cat.begin()[3]));
             auto map=Q(db,"SELECT n.definition_id,n.neighborhood_id,p.definition_id,h.zone_id,h.zone_version,h.instance_id,i.zone,i.version,i.never_expires,n.plot_id,e.plot_id FROM housing_native_estates n JOIN housing_native_estates p ON p.native_id=n.parent_native_id AND p.active=1 AND p.parent_native_id IS NULL AND p.catalog_key=n.catalog_key AND p.neighborhood_id=n.neighborhood_id JOIN housing_neighborhoods h ON h.id=n.neighborhood_id JOIN instance_list i ON i.id=h.instance_id JOIN housing_current_estates e ON e.id=n.ownership_estate_id WHERE n.native_id="+std::to_string(p.native_estate_id)+" AND n.catalog_key="+Quote(db,p.catalog_key)+" AND n.active=1 AND n.ownership_estate_id="+std::to_string(p.estate_id)+" FOR UPDATE");
             if(map.RowCount()!=1)throw Failure{Error::Unauthorized};auto m=map.begin();if(std::stoul(m[3])!=std::stoul(m[6])||std::stoul(m[4])!=std::stoul(m[7])||std::stoul(m[8])!=1||!std::stoul(m[5])||std::stoul(m[5])>32000||std::stoul(m[9])!=std::stoul(m[10]))throw Failure{Error::Conflict};
@@ -431,7 +427,7 @@ namespace Housing::LiveItems {
             if(rows.RowCount()!=1)throw Failure{Error::Unauthorized};auto row=rows.begin();
             auto instance=std::stoul(row[0]);if(!instance||instance>32000||std::stoul(row[1])!=std::stoul(row[3])||std::stoul(row[2])!=std::stoul(row[4])||std::stoul(row[5])!=1)throw Failure{Error::Conflict};
             if(std::stoul(row[12])!=20130510)throw Failure{Error::UnsupportedItem};
-            auto origin=std::stoul(row[11]);if(origin==2){auto current=Q(db,"SELECT DATABASE()");std::string name=current.begin()[0];if(name!="peq_housing_test"&&name.rfind("peq_housing_test_",0)!=0)throw Failure{Error::Unauthorized};}else if(origin!=1)throw Failure{Error::UnsupportedItem};
+            auto origin=std::stoul(row[11]);if(origin==2){if(!RuntimeActivation::AllowsReconstructedContent(db))throw Failure{Error::Unauthorized};}else if(origin!=1)throw Failure{Error::UnsupportedItem};
             auto bundle=Housing::Catalog::DecodePayloads(Unhex(row[8]),Unhex(row[9]));const EstateWire::Definition *definition=nullptr,*root=nullptr;for(const auto& d:bundle.definitions){if(d.id==std::stoul(row[6]))definition=&d;if(d.id==std::stoul(row[7]))root=&d;}
             auto kind=std::stoul(row[10]);if(!definition||!root||root->type!=5||root->zone_id!=std::stoul(row[1])||((kind==1&&definition->type!=4)||(kind==3&&definition->type!=8))||(kind!=1&&kind!=3)||std::find(root->children.begin(),root->children.end(),definition->id)==root->children.end())throw Failure{Error::UnsupportedItem};
             if(!fence.PlacementContextMatches(p.estate_id,p.native_estate_id,uint16_t(instance)))throw Failure{Error::UnheldFence};
@@ -522,7 +518,7 @@ namespace Housing::LiveItems {
         CrateMemberContext UnmemberContext(const Bytes& bytes){Reader b{bytes};CrateMemberContext m;m.crate_id=b.N(8);m.revision=b.N(8);m.native_plot_id=b.N(4);m.catalog_revision=b.N(8);m.source={uint32_t(b.N(4)),uint8_t(b.N(1)),uint16_t(b.N(2))};if(b.at!=bytes.size()||MemberContextBytes(m)!=bytes)throw Failure{Error::DatabaseFailure};return m;}
         uint32_t StackCount(const InventoryRow& row){if((row.null_fields&NullCharges)||!row.values.charges||row.values.charges>=32767)throw Failure{Error::UnsupportedItem};return row.values.charges;}
         uint32_t PartitionMaximum(Database& db,const Request& r,const InventoryRow& row){
-            if(!r.partition_quantity||!r.partition_serial||r.partition_serial>INT32_MAX||r.partition_serial==row.values.guid||r.house||r.crate||(r.placement&&r.placement->npc_frame)||row.values.character_id!=r.lease.actor.character_id)throw Failure{Error::UnsupportedItem};
+            if(!row.children.empty()||!row.evolving_payload.empty()||row.values.augment_one||row.values.augment_two||row.values.augment_three||row.values.augment_four||row.values.augment_five||row.values.augment_six||!r.partition_quantity||!r.partition_serial||r.partition_serial>INT32_MAX||r.partition_serial==row.values.guid||r.house||r.crate||(r.placement&&r.placement->npc_frame)||row.values.character_id!=r.lease.actor.character_id)throw Failure{Error::UnsupportedItem};
             if(r.vault)(void)VaultStorage::Profile(db,row);if(r.action==Action::Return&&Encode(r.expected)!=Encode(row))throw Failure{Error::Conflict};
             auto m=Q(db,"SELECT itemclass,bagslots,loregroup,stackable,stacksize,UNK227,idfile FROM items WHERE id="+std::to_string(row.values.item_id)+" FOR UPDATE");if(m.RowCount()!=1)throw Failure{Error::UnsupportedItem};auto x=m.begin();for(unsigned i=0;i<7;++i)if(!x[i])throw Failure{Error::UnsupportedItem};
             const auto* model=StaticFurniture::Lookup(row.values.item_id,std::string(x[6]));if((r.vault?std::stoul(x[0])>2:std::stoul(x[0])!=0)||std::stoul(x[1])||std::stoll(x[2])||std::stoul(x[3])!=1||std::stoll(x[4])<=1||std::stoll(x[4])>=32767||std::stoll(x[5])||(!r.vault&&(!model||!StaticFurniture::Enabled(*model)))||r.partition_quantity>=StackCount(row)||StackCount(row)>std::stoul(x[4]))throw Failure{Error::UnsupportedItem};
@@ -550,8 +546,8 @@ namespace Housing::LiveItems {
         }
         void PartitionPostimage(Database& db,const Receipt& r){
             if(!r.partition)return;PartitionShape(r);const auto& p=*r.partition;
-            if(r.action==Action::Store){auto row=Q(db,"SELECT "+select_inventory+" FROM inventory WHERE "+Slot(p.after.values.character_id,p.after.values.slot_id)+" FOR UPDATE");if(row.RowCount()!=1||Encode(InvRow(row.begin()))!=Encode(p.after))throw Failure{Error::Conflict};auto source=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.stored.custody_id)+" FOR UPDATE");if(source.RowCount()!=1)throw Failure{Error::Conflict};auto current=StoredRow(source.begin(),r.stored.custody_id);if(current.estate_id!=r.stored.estate_id||Encode(current.row)!=Encode(r.stored.row)||Cat(current.catalog)!=Cat(r.stored.catalog))throw Failure{Error::Conflict};if(p.vault_source){if(!VaultStorage::Outcome(db,*p.vault_source,r.stored,true)||CurrentPose(db,r.stored.custody_id)||ItemStorage::Locked(db,r.stored.custody_id).revision)throw Failure{Error::Conflict};auto scope=HouseItemScope::Locked(db,r.stored.custody_id);if(p.vault_source->house_id?(!scope||scope->revision!=p.vault_scope_revision):bool(scope))throw Failure{Error::Conflict};}else{auto pose=CurrentPose(db,r.stored.custody_id,bool(r.crate_member));auto marker=ItemStorage::Locked(db,r.stored.custody_id);if(bool(pose)!=bool(r.stored.placement)||(pose&&PlacementBytes(*pose)!=PlacementBytes(*r.stored.placement))||marker.revision!=r.stored.storage_revision||marker.stowed!=r.stored.stowed||(marker.revision&&(!pose||marker.native_estate_id!=pose->reservation.native_estate_id)))throw Failure{Error::Conflict};if(pose){auto reserved=Q(db,"SELECT state,custody_id,HEX(source_row) FROM housing_live_placement_reservations WHERE native_item_id="+std::to_string(pose->reservation.native_item_id)+" FOR UPDATE");if(reserved.RowCount()!=1||!reserved.begin()[0]||std::stoul(reserved.begin()[0])!=1||!reserved.begin()[1]||std::stoull(reserved.begin()[1])!=r.stored.custody_id||Unhex(reserved.begin()[2])!=Encode(r.stored.row))throw Failure{Error::Conflict};}}return;}
-            auto source=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.stored.custody_id)+" FOR UPDATE");if(source.RowCount()!=1)throw Failure{Error::Conflict};auto current=StoredRow(source.begin(),r.stored.custody_id);if(current.estate_id!=r.stored.estate_id||Encode(current.row)!=Encode(p.after)||Cat(current.catalog)!=Cat(r.stored.catalog))throw Failure{Error::Conflict};if(p.vault_source){if(CurrentPose(db,r.stored.custody_id)||ItemStorage::Locked(db,r.stored.custody_id).revision||!VaultPartitionPostimage(db,r))throw Failure{Error::Conflict};return;}if(p.room_source){auto scope=HouseItemScope::Locked(db,r.stored.custody_id);if(!scope||scope->house_id!=p.room_source->house_id||scope->revision!=p.room_source->scope_revision)throw Failure{Error::Conflict};}auto pose=CurrentPose(db,r.stored.custody_id,bool(r.crate_member));if(!pose||!r.stored.placement||PlacementBytes(*pose)!=PlacementBytes(*r.stored.placement))throw Failure{Error::Conflict};auto marker=ItemStorage::Locked(db,r.stored.custody_id);if(marker.revision!=p.storage_after||marker.stowed!=p.stowed||marker.native_estate_id!=pose->reservation.native_estate_id)throw Failure{Error::Conflict};auto reserved=Q(db,"SELECT state,custody_id,HEX(source_row) FROM housing_live_placement_reservations WHERE native_item_id="+std::to_string(pose->reservation.native_item_id)+" FOR UPDATE");if(reserved.RowCount()!=1||!reserved.begin()[0]||std::stoul(reserved.begin()[0])!=1||!reserved.begin()[1]||std::stoull(reserved.begin()[1])!=r.stored.custody_id||Unhex(reserved.begin()[2])!=Encode(p.after))throw Failure{Error::Conflict};
+            if(r.action==Action::Store){auto row=Q(db,"SELECT "+select_inventory+" FROM inventory WHERE "+Slot(p.after.values.character_id,p.after.values.slot_id)+" FOR UPDATE");if(row.RowCount()!=1||Encode(ItemPayload::Complete(db,InvRow(row.begin()),&p.after))!=Encode(p.after))throw Failure{Error::Conflict};auto source=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.stored.custody_id)+" FOR UPDATE");if(source.RowCount()!=1)throw Failure{Error::Conflict};auto current=StoredRow(db,source.begin(),r.stored.custody_id);if(current.estate_id!=r.stored.estate_id||Encode(current.row)!=Encode(r.stored.row)||Cat(current.catalog)!=Cat(r.stored.catalog))throw Failure{Error::Conflict};if(p.vault_source){if(!VaultStorage::Outcome(db,*p.vault_source,r.stored,true)||CurrentPose(db,r.stored.custody_id)||ItemStorage::Locked(db,r.stored.custody_id).revision)throw Failure{Error::Conflict};auto scope=HouseItemScope::Locked(db,r.stored.custody_id);if(p.vault_source->house_id?(!scope||scope->revision!=p.vault_scope_revision):bool(scope))throw Failure{Error::Conflict};}else{auto pose=CurrentPose(db,r.stored.custody_id,bool(r.crate_member));auto marker=ItemStorage::Locked(db,r.stored.custody_id);if(bool(pose)!=bool(r.stored.placement)||(pose&&PlacementBytes(*pose)!=PlacementBytes(*r.stored.placement))||marker.revision!=r.stored.storage_revision||marker.stowed!=r.stored.stowed||(marker.revision&&(!pose||marker.native_estate_id!=pose->reservation.native_estate_id)))throw Failure{Error::Conflict};if(pose){auto reserved=Q(db,"SELECT state,custody_id,HEX(source_row) FROM housing_live_placement_reservations WHERE native_item_id="+std::to_string(pose->reservation.native_item_id)+" FOR UPDATE");if(reserved.RowCount()!=1||!reserved.begin()[0]||std::stoul(reserved.begin()[0])!=1||!reserved.begin()[1]||std::stoull(reserved.begin()[1])!=r.stored.custody_id||Unhex(reserved.begin()[2])!=Encode(r.stored.row))throw Failure{Error::Conflict};}}return;}
+            auto source=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.stored.custody_id)+" FOR UPDATE");if(source.RowCount()!=1)throw Failure{Error::Conflict};auto current=StoredRow(db,source.begin(),r.stored.custody_id);if(current.estate_id!=r.stored.estate_id||Encode(current.row)!=Encode(p.after)||Cat(current.catalog)!=Cat(r.stored.catalog))throw Failure{Error::Conflict};if(p.vault_source){if(CurrentPose(db,r.stored.custody_id)||ItemStorage::Locked(db,r.stored.custody_id).revision||!VaultPartitionPostimage(db,r))throw Failure{Error::Conflict};return;}if(p.room_source){auto scope=HouseItemScope::Locked(db,r.stored.custody_id);if(!scope||scope->house_id!=p.room_source->house_id||scope->revision!=p.room_source->scope_revision)throw Failure{Error::Conflict};}auto pose=CurrentPose(db,r.stored.custody_id,bool(r.crate_member));if(!pose||!r.stored.placement||PlacementBytes(*pose)!=PlacementBytes(*r.stored.placement))throw Failure{Error::Conflict};auto marker=ItemStorage::Locked(db,r.stored.custody_id);if(marker.revision!=p.storage_after||marker.stowed!=p.stowed||marker.native_estate_id!=pose->reservation.native_estate_id)throw Failure{Error::Conflict};auto reserved=Q(db,"SELECT state,custody_id,HEX(source_row) FROM housing_live_placement_reservations WHERE native_item_id="+std::to_string(pose->reservation.native_item_id)+" FOR UPDATE");if(reserved.RowCount()!=1||!reserved.begin()[0]||std::stoul(reserved.begin()[0])!=1||!reserved.begin()[1]||std::stoull(reserved.begin()[1])!=r.stored.custody_id||Unhex(reserved.begin()[2])!=Encode(p.after))throw Failure{Error::Conflict};
         }
         Bytes Binding(const Request& r){
             if(r.crate_member&&(r.crate||r.crate_member->revision>=UINT64_MAX-1||(r.action==Action::Store?(!r.initial_stowed||!r.placement):(r.action!=Action::Return||r.initial_stowed||r.placement))))throw Failure{Error::InvalidArgument};
@@ -597,7 +593,7 @@ namespace Housing::LiveItems {
             r.lease.actor.character_id=b.N(4);r.lease.actor.account_id=b.N(4);
             r.lease.epoch=b.N(8);r.lease.session_key=b.Text(96);
             for(auto& byte:r.lease.token)byte=b.N(1);
-            r.estate_id=b.N(4);r.action=Action(b.N(1));r.expected=Decode(b.Blob(70000));
+            r.estate_id=b.N(4);r.action=Action(b.N(1));r.expected=Decode(b.Blob(CustodyCodec::MaximumPayload));
             uint32_t serial=b.N(4);std::memcpy(&r.verified_runtime_serial,&serial,4);
             r.custody_id=b.N(8);r.destination_slot=b.N(4);
             while(b.at!=bytes.size()){
@@ -635,7 +631,7 @@ namespace Housing::LiveItems {
         }
         LiveItems::Stored CountContainer(Database& db,uint64_t crate){
             auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id=(SELECT custody_id FROM housing_crate_locations WHERE crate_id="+std::to_string(crate)+" AND location_kind=2) FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::Conflict};
-            auto stored=StoredRow(rows.begin(),0);auto id=Q(db,"SELECT custody_id FROM housing_crate_locations WHERE crate_id="+std::to_string(crate)+" AND location_kind=2 FOR UPDATE");if(id.RowCount()!=1||!id.begin()[0])throw Failure{Error::Conflict};stored.custody_id=std::stoull(id.begin()[0]);stored.placement=CurrentPose(db,stored.custody_id);auto marker=ItemStorage::Locked(db,stored.custody_id);stored.stowed=marker.stowed;stored.storage_revision=marker.revision;return stored;
+            auto stored=StoredRow(db,rows.begin(),0);auto id=Q(db,"SELECT custody_id FROM housing_crate_locations WHERE crate_id="+std::to_string(crate)+" AND location_kind=2 FOR UPDATE");if(id.RowCount()!=1||!id.begin()[0])throw Failure{Error::Conflict};stored.custody_id=std::stoull(id.begin()[0]);ItemPayload::ValidateHeld(db,stored.row,stored.custody_id);stored.placement=CurrentPose(db,stored.custody_id);auto marker=ItemStorage::Locked(db,stored.custody_id);stored.stowed=marker.stowed;stored.storage_revision=marker.revision;return stored;
         }
         LayoutCrateMember::Proof CountMember(Database& db,const Stored& source,uint64_t crate){
             auto container=CountContainer(db,crate);auto proof=LayoutCrateMember::CaptureUnderTransaction(db,source,container);if(!proof)throw Failure{proof.error};return proof.value;
@@ -698,9 +694,9 @@ namespace Housing::LiveItems {
             };
             r.stored.custody_id=p.N(8);
             r.stored.estate_id=uint32_t(p.N(4));
-            r.stored.row=Decode(p.Blob(70000));
+            r.stored.row=Decode(p.Blob(CustodyCodec::MaximumPayload));
             r.stored.catalog=Uncat(p.Blob(16));
-            if(r.action==Action::Return)r.inventory_after=Decode(p.Blob(70000));
+            if(r.action==Action::Return)r.inventory_after=Decode(p.Blob(CustodyCodec::MaximumPayload));
             if(version>=2){r.stored.placement=Unplacement(p.Blob(512));if(bool(r.stored.placement->reservation.content_binding)!=(version==3))throw Failure{Error::DatabaseFailure};}
             while(p.at!=b.size()){
                 const auto extension=p.N(4);
@@ -708,7 +704,7 @@ namespace Housing::LiveItems {
                 else if(extension==5&&!r.crate_allocation){auto decoded=CrateBinding::DecodeAllocation(p.Blob(512));if(!decoded)throw Failure{decoded.error};r.crate_allocation=std::make_shared<CrateBinding::Allocation>(std::move(decoded.value));}
                 else if(extension==6&&!r.crate_before){auto decoded=CrateBinding::DecodeAllocation(p.Blob(512));if(!decoded)throw Failure{decoded.error};r.crate_before=std::make_shared<CrateBinding::Allocation>(std::move(decoded.value));}
                 else if(extension==7&&!r.crate_member){r.crate_member=UnmemberContext(p.Blob(64));}
-                else if((extension==8||extension==9||extension==10)&&!r.partition){auto part=std::make_shared<StackPartition>();part->before=Decode(p.Blob(70000));part->after=Decode(p.Blob(70000));part->quantity=p.N(4);part->serial=p.N(4);part->maximum=p.N(4);part->storage_before=p.N(8);part->storage_after=p.N(8);auto flag=p.N(1);if(flag>1)throw Failure{Error::DatabaseFailure};part->stowed=flag;if(extension==10){auto room=p.N(1);if(room>1)throw Failure{Error::DatabaseFailure};if(room)part->room_source=UnroomMove(p.Blob(128));auto container=CrateBinding::DecodeAllocation(p.Blob(512));if(!container)throw Failure{Error::DatabaseFailure};part->member_container_before=std::make_shared<const CrateBinding::Allocation>(std::move(container.value));auto before=p.N(1);if(before>1)throw Failure{Error::DatabaseFailure};if(before)part->member_before=LayoutCrateMember::Decode(p.Blob(1024));part->member_after=LayoutCrateMember::Decode(p.Blob(1024));}else if(extension==9){auto kind=p.N(1);if(kind==1)part->room_source=UnroomMove(p.Blob(128));else if(kind==2||kind==3){VaultContext v;v.estate_id=p.N(4);v.native_estate_id=p.N(4);v.catalog_revision=p.N(8);v.house_id=p.N(8);v.house_revision=p.N(8);v.profile_revision=p.N(8);v.source={uint32_t(p.N(4)),uint8_t(p.N(1)),uint16_t(p.N(2))};v.expected_native_item_id=p.N(4);v.expected_revision=p.N(8);part->vault_scope_revision=p.N(8);if(kind==3){v.crate_id=p.N(8);v.crate_revision=p.N(8);v.member_revision=p.N(8);VaultStorage::ContextShape(v);}part->vault_source=v;}else throw Failure{Error::DatabaseFailure};}r.partition=part;}
+                else if((extension==8||extension==9||extension==10)&&!r.partition){auto part=std::make_shared<StackPartition>();part->before=Decode(p.Blob(CustodyCodec::MaximumPayload));part->after=Decode(p.Blob(CustodyCodec::MaximumPayload));part->quantity=p.N(4);part->serial=p.N(4);part->maximum=p.N(4);part->storage_before=p.N(8);part->storage_after=p.N(8);auto flag=p.N(1);if(flag>1)throw Failure{Error::DatabaseFailure};part->stowed=flag;if(extension==10){auto room=p.N(1);if(room>1)throw Failure{Error::DatabaseFailure};if(room)part->room_source=UnroomMove(p.Blob(128));auto container=CrateBinding::DecodeAllocation(p.Blob(512));if(!container)throw Failure{Error::DatabaseFailure};part->member_container_before=std::make_shared<const CrateBinding::Allocation>(std::move(container.value));auto before=p.N(1);if(before>1)throw Failure{Error::DatabaseFailure};if(before)part->member_before=LayoutCrateMember::Decode(p.Blob(1024));part->member_after=LayoutCrateMember::Decode(p.Blob(1024));}else if(extension==9){auto kind=p.N(1);if(kind==1)part->room_source=UnroomMove(p.Blob(128));else if(kind==2||kind==3){VaultContext v;v.estate_id=p.N(4);v.native_estate_id=p.N(4);v.catalog_revision=p.N(8);v.house_id=p.N(8);v.house_revision=p.N(8);v.profile_revision=p.N(8);v.source={uint32_t(p.N(4)),uint8_t(p.N(1)),uint16_t(p.N(2))};v.expected_native_item_id=p.N(4);v.expected_revision=p.N(8);part->vault_scope_revision=p.N(8);if(kind==3){v.crate_id=p.N(8);v.crate_revision=p.N(8);v.member_revision=p.N(8);VaultStorage::ContextShape(v);}part->vault_source=v;}else throw Failure{Error::DatabaseFailure};}r.partition=part;}
                 else throw Failure{Error::DatabaseFailure};
             }
             PartitionShape(r);
@@ -981,7 +977,7 @@ namespace Housing::LiveItems {
             if(r.partition_quantity&&r.crate_member){
                 auto container=CountContainer(db,r.crate_member->crate_id);count_container_before=CurrentCrate(db,container);
                 if(!count_container_before||count_container_before->binding.revision!=r.crate_member->revision)throw Failure{Error::Conflict};
-                if(r.action==Action::Return){auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.custody_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::Conflict};auto member=StoredRow(rows.begin(),r.custody_id);member.placement=CurrentPose(db,r.custody_id,true);auto marker=ItemStorage::Locked(db,r.custody_id);member.stowed=marker.stowed;member.storage_revision=marker.revision;count_member_before=CountMember(db,member,r.crate_member->crate_id);}
+                if(r.action==Action::Return){auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.custody_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::Conflict};auto member=StoredRow(db,rows.begin(),r.custody_id);member.placement=CurrentPose(db,r.custody_id,true);auto marker=ItemStorage::Locked(db,r.custody_id);member.stowed=marker.stowed;member.storage_revision=marker.revision;count_member_before=CountMember(db,member,r.crate_member->crate_id);}
             }
             Q(db,"INSERT INTO housing_live_item_receipts(request_key,character_id,account_id,lease_epoch,session_key,binding_blob) VALUES ("+key+","+std::to_string(r.lease.actor.character_id)+","+std::to_string(r.lease.actor.account_id)+","+std::to_string(r.lease.epoch)+","+Quote(db,r.lease.session_key)+",x'"+Hex(bind)+"')");Receipt out;out.request_key=r.request_key;out.action=r.action;out.house_effect_required=bool(r.house);out.room=r.room;
             std::unique_ptr<HouseBinding::TransactionHelpers> house_helper;
@@ -996,17 +992,16 @@ namespace Housing::LiveItems {
                     Error::UnheldFence
                 };auto rows=Q(db,"SELECT "+select_inventory+" FROM inventory WHERE "+Slot(r.lease.actor.character_id,r.expected.values.slot_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{
                     Error::Conflict
-                };auto actual=InvRow(rows.begin());if(Encode(actual)!=Encode(r.expected))throw Failure{
+                };auto actual=ItemPayload::Complete(db,InvRow(rows.begin()),&r.expected);ItemPayload::ValidateInventory(db,actual);if(Encode(actual)!=Encode(r.expected))throw Failure{
                     Error::Conflict
                 };
                 if(r.crate){auto carried=CrateBinding::ReadCarriedUnderTransaction(db,actual);if(!carried||carried.value.binding.crate_id!=r.crate->crate_id||carried.value.binding.revision!=r.crate->expected_revision)throw Failure{Error::Conflict};out.crate_before=std::make_shared<CrateBinding::Allocation>(std::move(carried.value));}
-                NoChildren(db,actual.values.character_id,actual.values.slot_id);
                 const auto full_source=actual;if(r.partition_quantity){auto part=std::make_shared<StackPartition>();part->member_container_before=count_container_before;part->member_before=count_member_before;part->maximum=PartitionMaximum(db,r,actual);if(r.room)part->room_source=InteriorMoveContext{r.room->house_id,r.room->house_revision,r.room->profile_revision,1,r.room->source};if(r.vault){part->vault_source=r.vault;part->vault_scope_revision=r.vault->house_id?1:0;}part->before=actual;part->after=actual;part->quantity=r.partition_quantity;part->serial=r.partition_serial;part->after.values.charges=StackCount(actual)-part->quantity;part->after.null_fields&=~NullCharges;actual.values.charges=part->quantity;actual.values.guid=part->serial;actual.null_fields&=~uint8_t(NullCharges|NullGuid);out.partition=part;}
                 auto catalog=Simple(db,actual,bool(r.vault));auto stored=Q(db,"INSERT INTO housing_live_item_custody(estate_id,owner_character_id,schema_descriptor,row_blob,catalog_blob) VALUES ("+std::to_string(r.estate_id)+","+std::to_string(r.lease.actor.character_id)+","+Quote(db,SchemaDescriptor())+",x'"+Hex(Encode(actual))+"',x'"+Hex(Cat(catalog))+"')");if(stored.RowsAffected()!=1||!stored.LastInsertedID())throw Failure{
                     Error::DatabaseFailure
                 };auto removed=out.partition?Q(db,"UPDATE inventory SET charges="+std::to_string(out.partition->after.values.charges)+" WHERE "+Slot(actual.values.character_id,actual.values.slot_id)+" AND charges="+std::to_string(full_source.values.charges)):Q(db,"DELETE FROM inventory WHERE "+Slot(actual.values.character_id,actual.values.slot_id));if(removed.RowsAffected()!=1)throw Failure{
                     Error::Conflict
-                };out.stored={
+                };if(!out.partition){ItemPayload::Hold(db,actual,stored.LastInsertedID());ItemPayload::RemoveChildren(db,actual);}out.stored={
                     stored.LastInsertedID(),r.estate_id,actual,catalog
                 };
                 if(r.vault){
@@ -1052,7 +1047,7 @@ namespace Housing::LiveItems {
                 if(!RentState::HouseActive(db,r.custody_id))throw Failure{Error::Unauthorized};
                 auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.custody_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{
                     Error::NotFound
-                };auto stored=StoredRow(rows.begin(),r.custody_id);if(!r.vault&&VaultStorage::Installed(db)){auto v=Q(db,"SELECT custody_id FROM housing_live_vault_items WHERE custody_id="+std::to_string(r.custody_id)+" FOR UPDATE");if(v.RowCount())throw Failure{Error::Unauthorized};}auto room_scope=HouseItemScope::Locked(db,r.custody_id);if(r.vault){if(bool(room_scope)!=bool(r.vault->house_id)||(room_scope&&room_scope->house_id!=r.vault->house_id))throw Failure{Error::Conflict};}else if(bool(room_scope)!=bool(r.room))throw Failure{Error::Unauthorized};if(stored.estate_id!=r.estate_id)throw Failure{
+                };auto stored=StoredRow(db,rows.begin(),r.custody_id);if(!r.vault&&VaultStorage::Installed(db)){auto v=Q(db,"SELECT custody_id FROM housing_live_vault_items WHERE custody_id="+std::to_string(r.custody_id)+" FOR UPDATE");if(v.RowCount())throw Failure{Error::Unauthorized};}auto room_scope=HouseItemScope::Locked(db,r.custody_id);if(r.vault){if(bool(room_scope)!=bool(r.vault->house_id)||(room_scope&&room_scope->house_id!=r.vault->house_id))throw Failure{Error::Conflict};}else if(bool(room_scope)!=bool(r.room))throw Failure{Error::Unauthorized};if(stored.estate_id!=r.estate_id)throw Failure{
                     Error::Unauthorized
                 };
                 auto pose_tables=Q(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_live_placed_items'");
@@ -1092,15 +1087,13 @@ namespace Housing::LiveItems {
                     // CurrentCrate validates each retained member under these same locks.
                     // Contents stay in crate custody; only the container's location changes.
                 }
-                auto after=stored.row;after.values.character_id=lease.actor.character_id;after.values.slot_id=r.destination_slot;
+                auto after=stored.row;ItemPayload::Owner(after,lease.actor.character_id);after.values.slot_id=r.destination_slot;
                 if(r.partition_quantity){if(!stored.placement&&!r.vault)throw Failure{Error::UnsupportedItem};auto part=std::make_shared<StackPartition>();part->member_container_before=count_container_before;part->member_before=count_member_before;part->maximum=PartitionMaximum(db,r,stored.row);if(r.room)part->room_source=r.room_return_context;if(r.vault){part->vault_source=r.vault;part->vault_scope_revision=room_scope?room_scope->revision:0;}part->before=stored.row;part->after=stored.row;part->quantity=r.partition_quantity;part->serial=r.partition_serial;part->after.values.charges=StackCount(stored.row)-part->quantity;part->after.null_fields&=~NullCharges;auto marker=r.vault?ItemStorage::State{r.vault->expected_revision,false,r.vault->native_estate_id}:ItemStorage::Locked(db,stored.custody_id);if(marker.revision==UINT64_MAX||(marker.revision&&marker.native_estate_id!=(r.vault?r.vault->native_estate_id:stored.placement->reservation.native_estate_id)))throw Failure{Error::Conflict};part->storage_before=marker.revision;part->storage_after=marker.revision+1;part->stowed=marker.stowed;after.values.charges=part->quantity;after.values.guid=part->serial;after.null_fields&=~uint8_t(NullCharges|NullGuid);out.partition=part;}
                 if(!fence.ReturnAllowed(after))throw Failure{
                     Error::UnheldFence
                 };NoChildren(db,after.values.character_id,after.values.slot_id);auto destination=Q(db,"SELECT slot_id FROM inventory WHERE "+Slot(after.values.character_id,after.values.slot_id)+" FOR UPDATE");if(destination.RowCount())throw Failure{
                     Error::Conflict
-                };auto inserted=Q(db,"INSERT INTO inventory("+InventoryRepository::ColumnsRaw()+") VALUES ("+Values(after,after.values.slot_id)+")");if(inserted.RowsAffected()!=1)throw Failure{
-                    Error::DatabaseFailure
-                };
+                };if(!out.partition)after=ItemPayload::Release(db,stored.row,stored.custody_id,lease.actor.character_id,r.destination_slot);ItemPayload::Insert(db,after);
                 if(out.crate_before){
                     auto carried=std::make_shared<CrateBinding::Allocation>(*out.crate_before);const auto& before=out.crate_before->binding;
                     carried->binding.revision++;carried->binding.custody_id=0;carried->inventory_character_id=after.values.character_id;carried->inventory_slot_id=after.values.slot_id;
@@ -1313,7 +1306,7 @@ namespace Housing::LiveItems {
             auto& db=*database_;auto lease=Locked(db,input);
             if(!lease.pending_key.empty())throw Failure{Error::PendingApplication};
             auto rows=Q(db,"SELECT "+select_inventory+" FROM inventory WHERE "+Slot(input.actor.character_id,expected.values.slot_id)+" FOR UPDATE");
-            if(rows.RowCount()!=1||Encode(InvRow(rows.begin()))!=Encode(expected))throw Failure{Error::Conflict};
+            if(rows.RowCount()!=1||Encode(ItemPayload::Complete(db,InvRow(rows.begin()),&expected))!=Encode(expected))throw Failure{Error::Conflict};
             NoChildren(db,expected.values.character_id,expected.values.slot_id);Simple(db,expected);
             if(!houses_->Templates().VerifiedHouse(expected))throw Failure{Error::UnsupportedItem};
             HouseBinding::TransactionHelpers helper(db,fence,houses_->Authorization());
@@ -1339,7 +1332,7 @@ namespace Housing::LiveItems {
         try{
             auto tx=Q(db,"SELECT @@in_transaction");if(!id||tx.RowCount()!=1||std::string(tx.begin()[0])!="1")return {{},Error::InvalidArgument};
             auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(id)+" FOR UPDATE");if(rows.RowCount()!=1)return {{},Error::NotFound};
-            auto item=StoredRow(rows.begin(),id);PlacementTables(db);item.placement=CurrentPose(db,id,allow_contained);
+            auto item=StoredRow(db,rows.begin(),id);PlacementTables(db);item.placement=CurrentPose(db,id,allow_contained);
             auto state=ItemStorage::Locked(db,id);item.stowed=state.stowed;item.storage_revision=state.revision;
             return {std::move(item),Error::None};
         }catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}
@@ -1365,7 +1358,7 @@ namespace Housing::LiveItems {
         return Run<Stored>(*database_,[&]{
             auto& db=*database_;Locked(db,input);auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{
                 Error::NotFound
-            };auto item=StoredRow(rows.begin(),id);if(HouseItemScope::Locked(db,id))throw Failure{Error::Unauthorized};const bool foreign=item.row.values.character_id!=input.actor.character_id;
+            };auto item=StoredRow(db,rows.begin(),id);if(HouseItemScope::Locked(db,id))throw Failure{Error::Unauthorized};const bool foreign=item.row.values.character_id!=input.actor.character_id;
             auto tables=Q(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_live_placed_items'");
             if(std::stoul(tables.begin()[0])){PlacementTables(db);item.placement=CurrentPose(db,id);}
             if(foreign){ForeignCustody(db,item);auto catalog=Simple(db,item.row);if(Cat(catalog)!=Cat(item.catalog))throw Failure{Error::UnsupportedItem};}
@@ -1392,7 +1385,7 @@ namespace Housing::LiveItems {
                 const auto used=std::count_if(yard.crate_contents.begin(),yard.crate_contents.end(),[&](const auto& item){return item.contained_in_crate==target.crate_id;});if(definition==bundle.definitions.end()||!definition->max_items||uint64_t(used)>=definition->max_items)throw Failure{Error::Conflict};
             }
             ContentBinding::Identity fresh;bool bound=ContentBinding::ColumnsInstalled(db);PlacementCatalog(db,p,r.expected,{},!destination,fence,r.lease.actor,PlacementPolicy::Operation::Add,bound?&fresh:nullptr,0,houses_,&lease,HouseBinding::PlacementStage::Preview,r.verified_runtime_serial,crates_,nullptr,{},r.house_storage_only);if(bound)p.content_binding=fresh;auto old=Q(db,"SELECT "+ReservationColumns(db)+" FROM housing_live_placement_reservations WHERE request_key="+Quote(db,r.request_key)+" FOR UPDATE");if(old.RowCount()){auto row=old.begin();HeldReservation(row,lease);auto prior=ReservationRow(row);if(HouseStorageReservation(db,prior.native_item_id)!=r.house_storage_only)throw Failure{Error::Conflict};if(prior.native_estate_id!=p.native_estate_id||prior.estate_id!=p.estate_id||prior.catalog_key!=p.catalog_key||prior.catalog_revision!=p.catalog_revision||Unhex(row[9])!=Encode(r.expected)||std::stol(row[10])!=r.verified_runtime_serial||std::stoul(row[11])!=0||(prior.content_binding&&(!p.content_binding||!ContentBinding::Same(*prior.content_binding,*p.content_binding))))throw Failure{Error::Conflict};return prior;}
-            if(!fence.SourceMatches(r.expected,r.verified_runtime_serial))throw Failure{Error::UnheldFence};auto inventory=Q(db,"SELECT "+select_inventory+" FROM inventory WHERE "+Slot(lease.actor.character_id,r.expected.values.slot_id)+" FOR UPDATE");if(inventory.RowCount()!=1||Encode(InvRow(inventory.begin()))!=Encode(r.expected))throw Failure{Error::Conflict};NoChildren(db,r.expected.values.character_id,r.expected.values.slot_id);Simple(db,r.expected);
+            if(!fence.SourceMatches(r.expected,r.verified_runtime_serial))throw Failure{Error::UnheldFence};auto inventory=Q(db,"SELECT "+select_inventory+" FROM inventory WHERE "+Slot(lease.actor.character_id,r.expected.values.slot_id)+" FOR UPDATE");if(inventory.RowCount()!=1||Encode(ItemPayload::Complete(db,InvRow(inventory.begin()),&r.expected))!=Encode(r.expected))throw Failure{Error::Conflict};NoChildren(db,r.expected.values.character_id,r.expected.values.slot_id);Simple(db,r.expected);
             auto inserted=Q(db,std::string("INSERT INTO housing_live_placement_reservations(request_key,character_id,account_id,lease_epoch,session_key,estate_id,native_estate_id,catalog_key,catalog_revision,source_row,runtime_serial")+(p.content_binding?",content_binding_version,content_binding_digest":"")+") VALUES ("+Quote(db,r.request_key)+","+std::to_string(lease.actor.character_id)+","+std::to_string(lease.actor.account_id)+","+std::to_string(lease.epoch)+","+Quote(db,lease.session_key)+","+std::to_string(p.estate_id)+","+std::to_string(p.native_estate_id)+","+Quote(db,p.catalog_key)+","+std::to_string(p.catalog_revision)+",x'"+Hex(Encode(r.expected))+"',"+std::to_string(r.verified_runtime_serial)+(p.content_binding?","+std::to_string(p.content_binding->version)+",x'"+Hex(Bytes(p.content_binding->digest.begin(),p.content_binding->digest.end()))+"'":"")+")");if(!inserted.LastInsertedID()||inserted.LastInsertedID()>=0xffffffff)throw Failure{Error::Conflict};p.native_item_id=inserted.LastInsertedID();if(r.house_storage_only){auto mark=Q(db,"INSERT INTO housing_house_storage_reservations(native_item_id) VALUES("+std::to_string(p.native_item_id)+")");if(mark.RowsAffected()!=1)throw Failure{Error::Conflict};}return p;};
         if(parent_transaction){try{auto tx=Q(*connection,"SELECT @@in_transaction");if(tx.RowCount()!=1||!tx.begin()[0]||std::string(tx.begin()[0])!="1")return {{},Error::InvalidArgument};return {execute(),Error::None};}catch(const Failure& e){return {{},e.error};}catch(...){return {{},Error::DatabaseFailure};}}
         return Run<Reservation>(*connection,execute);
@@ -1437,7 +1430,7 @@ namespace Housing::LiveItems {
         return Run<InteriorReservation>(*connection,execute);
     }
     Result<bool> Service::CancelPlacement(const Lease& l,uint32_t id,InventorySessionFence& fence){std::lock_guard<std::mutex> lock(mutex_);if(!enabled_)return {{},Error::Disabled};if(!LeaseShape(l)||!id||id==0xffffffff)return {{},Error::InvalidArgument};if(!fence.HeldFor(l.actor,l.epoch,l.session_key))return {{},Error::UnheldFence};if(!database_||database_->GetStatus()!=DBcore::Connected)return {{},Error::DatabaseFailure};return Run<bool>(*database_,[&]{auto& db=*database_;auto lease=Locked(db,l);PlacementTables(db);auto rows=Q(db,"SELECT "+ReservationColumns(db)+" FROM housing_live_placement_reservations WHERE native_item_id="+std::to_string(id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::NotFound};auto row=rows.begin();HeldReservation(row,lease);if(std::stoul(row[11])==1)throw Failure{Error::Conflict};Q(db,"UPDATE housing_live_placement_reservations SET state=2 WHERE native_item_id="+std::to_string(id)+" AND state=0");return true;});}
-    Result<std::vector<Stored>> Service::ReadPlaced(const Lease& l,EstateId estate,InventorySessionFence& fence){std::lock_guard<std::mutex> lock(mutex_);if(!enabled_)return {{},Error::Disabled};if(!LeaseShape(l)||!estate)return {{},Error::InvalidArgument};if(!fence.HeldFor(l.actor,l.epoch,l.session_key))return {{},Error::UnheldFence};if(!database_||database_->GetStatus()!=DBcore::Connected)return {{},Error::DatabaseFailure};return Run<std::vector<Stored>>(*database_,[&]{auto& db=*database_;auto lease=Locked(db,l);if(!lease.pending_key.empty())throw Failure{Error::PendingApplication};Estate(db,estate,l.actor);PlacementTables(db);auto ids=Q(db,"SELECT c.custody_id FROM housing_live_item_custody c JOIN housing_live_placed_items p ON p.custody_id=c.custody_id WHERE c.estate_id="+std::to_string(estate)+HouseItemScope::ExteriorPredicate(db)+CrateMemberScope::ExteriorPredicate(db)+" ORDER BY c.custody_id LIMIT 1001 FOR UPDATE");if(ids.RowCount()>1000)throw Failure{Error::UnsupportedItem};std::vector<Stored> out;for(auto row=ids.begin();row.operator!=(ids.end());++row){auto current=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::string(row[0])+" FOR UPDATE");auto item=StoredRow(current.begin(),std::stoull(row[0]));if(item.row.values.character_id!=l.actor.character_id)throw Failure{Error::Unauthorized};auto current_catalog=Simple(db,item.row);if(Cat(current_catalog)!=Cat(item.catalog))throw Failure{Error::UnsupportedItem};item.placement=CurrentPose(db,item.custody_id);if(!item.placement)throw Failure{Error::DatabaseFailure};item.current_catalog_revision=PlacementCatalog(db,item.placement->reservation,item.row,item.placement->transform,false,fence,l.actor,PlacementPolicy::Operation::Add,nullptr,0,houses_,&lease,HouseBinding::PlacementStage::Read,0,crates_,nullptr,item.placement->npc_frame);CurrentCrate(db,item);out.push_back(std::move(item));}return out;});}
+    Result<std::vector<Stored>> Service::ReadPlaced(const Lease& l,EstateId estate,InventorySessionFence& fence){std::lock_guard<std::mutex> lock(mutex_);if(!enabled_)return {{},Error::Disabled};if(!LeaseShape(l)||!estate)return {{},Error::InvalidArgument};if(!fence.HeldFor(l.actor,l.epoch,l.session_key))return {{},Error::UnheldFence};if(!database_||database_->GetStatus()!=DBcore::Connected)return {{},Error::DatabaseFailure};return Run<std::vector<Stored>>(*database_,[&]{auto& db=*database_;auto lease=Locked(db,l);if(!lease.pending_key.empty())throw Failure{Error::PendingApplication};Estate(db,estate,l.actor);PlacementTables(db);auto ids=Q(db,"SELECT c.custody_id FROM housing_live_item_custody c JOIN housing_live_placed_items p ON p.custody_id=c.custody_id WHERE c.estate_id="+std::to_string(estate)+HouseItemScope::ExteriorPredicate(db)+CrateMemberScope::ExteriorPredicate(db)+" ORDER BY c.custody_id LIMIT 1001 FOR UPDATE");if(ids.RowCount()>1000)throw Failure{Error::UnsupportedItem};std::vector<Stored> out;for(auto row=ids.begin();row.operator!=(ids.end());++row){auto current=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::string(row[0])+" FOR UPDATE");auto item=StoredRow(db,current.begin(),std::stoull(row[0]));if(item.row.values.character_id!=l.actor.character_id)throw Failure{Error::Unauthorized};auto current_catalog=Simple(db,item.row);if(Cat(current_catalog)!=Cat(item.catalog))throw Failure{Error::UnsupportedItem};item.placement=CurrentPose(db,item.custody_id);if(!item.placement)throw Failure{Error::DatabaseFailure};item.current_catalog_revision=PlacementCatalog(db,item.placement->reservation,item.row,item.placement->transform,false,fence,l.actor,PlacementPolicy::Operation::Add,nullptr,0,houses_,&lease,HouseBinding::PlacementStage::Read,0,crates_,nullptr,item.placement->npc_frame);CurrentCrate(db,item);out.push_back(std::move(item));}return out;});}
     namespace {
         void MoveTable(Database& db){auto t=Q(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_live_pose_moves' AND engine='InnoDB'");if(t.RowCount()!=1||std::stoul(t.begin()[0])!=1)throw Failure{Error::DatabaseFailure};}
         Bytes MoveBinding(const MoveRequest& r){Bytes b;W(b,1,4);S(b,r.request_key);W(b,r.lease.actor.character_id,4);W(b,r.lease.actor.account_id,4);W(b,r.lease.epoch,8);S(b,r.lease.session_key);b.insert(b.end(),r.lease.token.begin(),r.lease.token.end());W(b,r.estate_id,4);W(b,r.custody_id,8);W(b,r.native_item_id,4);W(b,r.expected_pose_revision,8);W(b,r.expected_catalog_revision,8);B(b,Pose(r.transform));if(r.room){W(b,3,4);B(b,RoomMoveBytes(*r.room));}if(r.room_exterior_source){if(!r.room||!r.room_exterior_source->zone_id||!r.room_exterior_source->instance_id||r.room_exterior_source->instance_id>32000)throw Failure{Error::InvalidArgument};W(b,5,4);W(b,r.room_exterior_source->zone_id,4);W(b,r.room_exterior_source->zone_version,1);W(b,r.room_exterior_source->instance_id,2);}if(r.parent_yard){if(r.room||r.room_exterior_source)throw Failure{Error::InvalidArgument};W(b,6,4);B(b,OccupiedParentYard::Encode(*r.parent_yard));}if(r.npc_frame){NpcNativeFrame::Shape(*r.npc_frame,r.transform);W(b,7,4);W(b,r.npc_frame->height_bits,4);W(b,r.npc_frame->origin_z_bits,4);}return b;}
@@ -1462,7 +1455,7 @@ namespace Housing::LiveItems {
             auto lease=Locked(db,r.lease);if(!lease.pending_key.empty())throw Failure{Error::PendingApplication};PlacementTables(db);MoveTable(db);auto binding=MoveBinding(r);auto prior=Q(db,"SELECT "+move_columns+" FROM housing_live_pose_moves WHERE request_key="+Quote(db,r.request_key)+" FOR UPDATE");if(prior.RowCount()){auto row=prior.begin();auto outcome=MoveRow(row,lease,r.request_key);if(Unhex(row[4])!=binding)throw Failure{Error::Conflict};return outcome;}
             // Historical replay above mutates nothing. Every new move freshly
             // verifies ownership/custody/catalog/current housing session context.
-            auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.custody_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::NotFound};auto stored=StoredRow(rows.begin(),r.custody_id);auto scope=HouseItemScope::Locked(db,r.custody_id);if(bool(scope)!=bool(r.room))throw Failure{Error::Unauthorized};if(stored.estate_id!=r.estate_id)throw Failure{Error::Unauthorized};
+            auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(r.custody_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::NotFound};auto stored=StoredRow(db,rows.begin(),r.custody_id);auto scope=HouseItemScope::Locked(db,r.custody_id);if(bool(scope)!=bool(r.room))throw Failure{Error::Unauthorized};if(stored.estate_id!=r.estate_id)throw Failure{Error::Unauthorized};
             // Pose-only movement does not transfer creator ownership. Lock the
             // creator's pending inventory application as well as the mover's
             // lease: the earlier Scene read cannot fence this transaction.
@@ -1649,12 +1642,13 @@ namespace Housing::LiveItems {
             if (have_placement) PlacementTables(db);
             if (receipt.action==Action::Store) {
                 if (custody.RowCount()!=1) return {{},Error::Conflict};
-                const auto actual=StoredRow(custody.begin(),receipt.stored.custody_id);
+                const auto actual=StoredRow(db,custody.begin(),receipt.stored.custody_id);
                 if (actual.estate_id!=receipt.stored.estate_id || Encode(actual.row)!=Encode(receipt.stored.row) ||
                     Cat(actual.catalog)!=Cat(receipt.stored.catalog)) return {{},Error::Conflict};
                 auto source=Q(db,"SELECT slot_id FROM inventory WHERE "+Slot(lease.actor.character_id,
                     receipt.stored.row.values.slot_id)+" FOR UPDATE");
                 if (source.RowCount()&&!receipt.partition) return {{},Error::Conflict};
+                if(!receipt.partition){NoChildren(db,lease.actor.character_id,receipt.stored.row.values.slot_id);ItemPayload::ValidateHeld(db,actual.row,actual.custody_id);}
                 if(receipt.partition)PartitionPostimage(db,receipt);
                 const auto storage=ItemStorage::Locked(db,receipt.stored.custody_id);
                 if(storage.stowed!=receipt.stored.stowed||storage.revision!=receipt.stored.storage_revision||(storage.revision&&(!receipt.stored.placement||storage.native_estate_id!=receipt.stored.placement->reservation.native_estate_id)))return {{},Error::Conflict};
@@ -1680,14 +1674,15 @@ namespace Housing::LiveItems {
                     request.destination_slot!=receipt.inventory_after.values.slot_id ||
                     receipt.inventory_after.values.character_id!=lease.actor.character_id) return {{},Error::Conflict};
                 auto expected_after=receipt.stored.row;
-                expected_after.values.character_id=lease.actor.character_id;expected_after.values.slot_id=request.destination_slot;
+                ItemPayload::Owner(expected_after,lease.actor.character_id);expected_after.values.slot_id=request.destination_slot;
                 if(receipt.partition){expected_after.values.charges=receipt.partition->quantity;expected_after.values.guid=receipt.partition->serial;expected_after.null_fields&=~uint8_t(NullCharges|NullGuid);PartitionPostimage(db,receipt);}
                 if (Encode(expected_after)!=Encode(receipt.inventory_after)) return {{},Error::Conflict};
                 auto inventory=Q(db,"SELECT "+select_inventory+" FROM inventory WHERE "+Slot(lease.actor.character_id,
                     request.destination_slot)+" FOR UPDATE");
-                if (inventory.RowCount()!=1 || Encode(InvRow(inventory.begin()))!=Encode(receipt.inventory_after)) {
+                if (inventory.RowCount()!=1 || Encode(ItemPayload::Complete(db,InvRow(inventory.begin()),&receipt.inventory_after))!=Encode(receipt.inventory_after)) {
                     return {{},Error::Conflict};
                 }
+                ItemPayload::ValidateInventory(db,receipt.inventory_after);
                 if (have_placement&&!receipt.partition) {
                     auto remaining_pose=Q(db,"SELECT custody_id FROM housing_live_placed_items WHERE custody_id="+
                         std::to_string(receipt.stored.custody_id)+" FOR UPDATE");
@@ -1727,7 +1722,7 @@ namespace Housing::LiveItems {
         // table rows remain exact. No inventory slot, Return or Store is run.
         void VaultCountInstalled(Database& db){auto rows=Q(db,"SELECT engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='housing_live_vault_partitions'");if(rows.RowCount()!=1||!rows.begin()[0]||std::string(rows.begin()[0])!="InnoDB")throw Failure{Error::Disabled};}
         Bytes VaultCountBytes(const StackPartition& p,EstateId estate){Bytes b;W(b,1,4);W(b,estate,4);B(b,Encode(p.before));B(b,Encode(p.after));for(auto n:{p.quantity,p.serial,p.maximum})W(b,n,4);W(b,p.vault_scope_revision,8);return b;}
-        std::shared_ptr<StackPartition> VaultCountRead(const Bytes& bytes,const VaultTransferRequest& request,EstateId& estate){Reader reader{bytes};if(reader.N(4)!=1)throw Failure{Error::DatabaseFailure};estate=reader.N(4);if(!estate||estate==UINT32_MAX)throw Failure{Error::DatabaseFailure};auto p=std::make_shared<StackPartition>();p->before=CustodyCodec::Decode(reader.Blob(70000));p->after=CustodyCodec::Decode(reader.Blob(70000));p->quantity=reader.N(4);p->serial=reader.N(4);p->maximum=reader.N(4);p->vault_scope_revision=reader.N(8);p->storage_before=request.from.expected_revision;p->storage_after=p->storage_before+1;p->vault_source=request.from;if(reader.at!=bytes.size()||VaultCountBytes(*p,estate)!=bytes||Encode(p->before)!=Encode(request.expected)||p->quantity!=request.partition_quantity||p->serial!=request.partition_serial)throw Failure{Error::Conflict};return p;}
+        std::shared_ptr<StackPartition> VaultCountRead(const Bytes& bytes,const VaultTransferRequest& request,EstateId& estate){Reader reader{bytes};if(reader.N(4)!=1)throw Failure{Error::DatabaseFailure};estate=reader.N(4);if(!estate||estate==UINT32_MAX)throw Failure{Error::DatabaseFailure};auto p=std::make_shared<StackPartition>();p->before=CustodyCodec::Decode(reader.Blob(CustodyCodec::MaximumPayload));p->after=CustodyCodec::Decode(reader.Blob(CustodyCodec::MaximumPayload));p->quantity=reader.N(4);p->serial=reader.N(4);p->maximum=reader.N(4);p->vault_scope_revision=reader.N(8);p->storage_before=request.from.expected_revision;p->storage_after=p->storage_before+1;p->vault_source=request.from;if(reader.at!=bytes.size()||VaultCountBytes(*p,estate)!=bytes||Encode(p->before)!=Encode(request.expected)||p->quantity!=request.partition_quantity||p->serial!=request.partition_serial)throw Failure{Error::Conflict};return p;}
         InventoryRow VaultCountPiece(const StackPartition& p){auto row=p.before;row.values.charges=p.quantity;row.values.guid=p.serial;row.null_fields&=~uint8_t(NullCharges|NullGuid);return row;}
         void VaultCountPostimage(Database& db,const VaultTransferRequest& request,const VaultTransferReceipt& result){
             if(!result.partition||result.custody_id==request.custody_id||result.native_item_id==request.from.expected_native_item_id||result.native_estate_id!=request.to.native_estate_id||result.revision!=1)throw Failure{Error::Conflict};const auto& part=*result.partition;
@@ -1737,7 +1732,7 @@ namespace Housing::LiveItems {
             // Reuse the exact immutable source count/scope validator only;
             // this call performs no inventory read, mutation, apply or ACK.
             PartitionPostimage(db,source);
-            auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(result.custody_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::Conflict};auto child=StoredRow(rows.begin(),result.custody_id);
+            auto rows=Q(db,"SELECT "+stored_columns+" FROM housing_live_item_custody WHERE custody_id="+std::to_string(result.custody_id)+" FOR UPDATE");if(rows.RowCount()!=1)throw Failure{Error::Conflict};auto child=StoredRow(db,rows.begin(),result.custody_id);
             if(child.estate_id!=result.custody_estate_id||Encode(child.row)!=Encode(source.inventory_after)||Cat(child.catalog)!=Cat(source.stored.catalog)||CurrentPose(db,child.custody_id)||ItemStorage::Locked(db,child.custody_id).revision||CrateMemberScope::Locked(db,child.custody_id,true)||!VaultStorage::Outcome(db,request.to,child,true))throw Failure{Error::Conflict};
             auto identity=Q(db,"SELECT native_item_id,runtime_serial,character_id FROM housing_live_placement_reservations WHERE custody_id="+std::to_string(child.custody_id)+" AND state=1 FOR UPDATE");if(identity.RowCount()!=1||!identity.begin()[0]||!identity.begin()[1]||!identity.begin()[2]||std::stoul(identity.begin()[0])!=result.native_item_id||std::stoul(identity.begin()[1])!=part.serial||std::stoul(identity.begin()[2])!=part.before.values.character_id)throw Failure{Error::Conflict};
             auto scope=HouseItemScope::Locked(db,child.custody_id);if(request.to.house_id?(!scope||scope->revision!=1):bool(scope))throw Failure{Error::Conflict};

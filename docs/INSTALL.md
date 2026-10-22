@@ -1,231 +1,81 @@
-# Integration notes
+# Complete housing installation
 
-## 1. Source
+`tools/install_housing.py` installs the production housing package as one ordered operation. Manual SQL filename sorting and separate feature activation are not required.
 
-Use a clean checkout of EQEmu commit `8175ae61874cbf20d7b05102821f6f8a4f4d1c39`. The overlay tool requires the exact commit and refuses local tracked/untracked changes. It applies the housing-only tracked patch and copies the new overlay files. It never connects to a database or starts a server.
+## Supported prerequisites
+
+Use an existing Linux EQEmu server and MariaDB, with its normal PEQ database, Lua quests, matching server dependencies, and a complete collision-map installation. The installer requires the configured item/content database and housing database to be the same physical database. Split database layouts and arbitrary MySQL variants are refused rather than partially migrated.
+
+Provide your own **May 10, 2013 RoF2 client**. Its executable and renderer must match the hashes in the production geometry catalogs. Original archives and collision maps are authenticated locally; they are not downloaded or redistributed by this repository. Another RoF release or a current Live client is not interchangeable.
+
+The machine running the installer needs Python 3.9+, Git, CMake, a C++20 compiler, EQEmu's ordinary build dependencies, and `mariadb`/`mysql` plus `mariadb-dump`/`mysqldump`. No Python database package is needed. The server directory must contain `eqemu_config.json`. The driver detects deployed binaries through the existing `world` link or `bin/world`, and reads the mapping, quests, maps and shared-cache directories from configuration. This includes AkkStack layouts with `bin/` binaries and `assets/patches/patch_RoF2.conf`. Use `--bin-dir`, `--opcode-dir`, `--quests-dir` or `--maps-dir` when those locations differ. The maps directory must contain `base/`; an existing runtime `maps` link must agree with it. MariaDB must allow packets of at least 64MiB (`max_allowed_packet=64M` or larger). Normal spell/damage-shield tables and the original moving-crate item 62586 metadata must already exist. Missing or conflicting native prerequisites are reported before installation writes.
+
+The `--source` path is an EQEmu Git repository containing the pinned upstream commit. Its working tree is preserved: installation creates a separate managed source checkout and build directory under `--build`. Later releases get separate source/build directories. A modified managed source tree is refused until its changes have been reviewed.
+
+## Plan and apply
+
+Run this first without `--apply`:
 
 ```sh
-git clone https://github.com/EQEmu/EQEmu.git EQEmu-housing
-cd EQEmu-housing
-git checkout 8175ae61874cbf20d7b05102821f6f8a4f4d1c39
-git submodule update --init --recursive
-cd /path/to/eqemu-rof2-housing
-python3 tools/apply_overlay.py /path/to/EQEmu-housing --check
-python3 tools/apply_overlay.py /path/to/EQEmu-housing --apply
+python3 tools/install_housing.py \
+  --source /srv/EQEmu --server /srv/eqemu/server \
+  --client /srv/clients/RoF2 --build /srv/eqemu/housing-build \
+  --backup /srv/eqemu/backups/housing-install-01
 ```
 
-## 2. Build coherently
+Use a new private backup directory for each application. The installer reads database credentials directly from the existing server configuration and uses a temporary mode 0600 client option file. Do not put credentials on the command line.
 
-Use upstream's CMake build process and dependencies, with C++20 and OpenSSL headers/libcrypto. Housing invokes SHA256/RAND APIs even when an alternative transport TLS backend is selected; mbedTLS-only linking is not validated here.
+Stop **world and every zone** before repeating that command with `--apply`. The installer rejects active inventory sessions, leases and pending application state. It does not time out sessions, manufacture process-death certificates or reconcile unknown custody outcomes. Resolve a genuinely unfinished inventory operation through its existing supervised recovery workflow first.
 
-Rebuild world, zone and shared_memory together. The full integration changes shared ItemData/ItemInstance and common interfaces relative to upstream. Regenerate the shared item cache with the matching build before activation. Recovery/profile CLI sources are separate entrypoints; they are not automatically added as server executables. Use the provided CMake source lists; operational CLI entrypoints are separate tools.
+An existing service manager can be invoked with explicit argument arrays:
 
-## 3. Schema review
+```sh
+python3 tools/install_housing.py \
+  --source /srv/EQEmu --server /srv/eqemu/server \
+  --client /srv/clients/RoF2 --build /srv/eqemu/housing-build \
+  --backup /srv/eqemu/backups/housing-install-01 --apply \
+  --stop-command '["systemctl","stop","eqemu"]' \
+  --start-command '["systemctl","start","eqemu"]'
+```
 
-The export contains schema files, not a personal database dump. Review and apply them to a backed-up disposable database before any deployment:
+For Docker, stop the server container and run the installer in a one-off container with the same server/source/client mounts and network, overriding its entrypoint with Python. Keep the database container running. Start the normal server container only after installation succeeds. Do not run the installer by starting a second world/zone process.
 
-- `utils/sql/housing/001...034`: numbered core migrations; read file prerequisites in order.
-- Housing-named files under `utils/sql/optional/` and `utils/sql/git/optional/` add later features/columns.
-- `common/housing/trophy_benefits.sql`, `trophy_billing.sql`, `guild_trophies.sql` add trophy state/billing/member support.
+## What is installed
 
-Some ALTER statements are not idempotent. Do not blindly execute every optional file or treat filename order across directories as a universal migration plan. Core custody/catalog/scopes precede storage/layout/lifecycle additions; trophy state precedes billing ALTERs; native purchase policy precedes guild-purchase ALTERs; NPC metadata precedes runtime/frame additions. Placement flag columns referenced by the modified generated item repository must exist even if the housing rule is disabled. A portable schema-version installer is not included.
+The explicit `installer-migrations.json` orders every required housing migration, including the cross-directory prerequisites for vaults, retirement, guild returns, parcels, trophy billing, capacity policies and NPC services. The driver takes a complete database dump and a private server-file backup first. The file receipt records resolved binaries, mappings, quest/configuration files, existing generated resources and shared-cache contents, while retaining their logical deployment links. Newly generated files are journaled for checked rollback. It then checks base-table prerequisites and converts only the documented required MyISAM tables to InnoDB.
 
-## 4. Runtime/content setup
+Existing structures are adopted without dropping their rows. The migration ledger records each exact source SHA. Duplicate columns and indexes are avoided; superseded check constraints are not temporarily reintroduced over newer history. This matters for existing generated-return origins. A different previously installed migration SHA or a conflicting schema/seed is refused. The supported trophy seed adopts only exact existing rows, with no blanket replacement of custom definitions.
 
-The feature is gated by the Housing rule and authenticated content loaders. This snapshot retains development fences referring to `peq_housing_test`, including house startup registration and recovery/profile tools. Renaming a production database is not an activation procedure; review/adapt those gates deliberately and revalidate.
+The installer builds and deploys `world`, `zone`, `ucs`, `shared_memory`, `housing_install`, `housing_capacity`, `housing_recovery` and `housing_profile_upgrade`. Only documented housing opcode symbols are merged into `patch_RoF2.conf`; other mappings are preserved. The guild-hall quest override is installed only over its known original version or the already installed housing version. A custom conflicting quest must be merged first.
 
-Loaders expect reviewed house/room/crate registry JSON and lawful original assets (interior EQG files and matching collision maps). Personal runtime manifests, inventory adoption rows, account IDs and server configs are intentionally excluded. The included registries/numeric geometry are compiled dependencies; they do not replace the user's game installation.
+Original geometry is imported from the operator's client into private runtime storage. The house generator writes reviewed profiles and the complete selected house/hall definition set. Existing bound manifests and their bytes are preserved. Capacity changes use the versioned capacity ledger, retaining original profiles, placement/custody identities and historical fingerprints. Fresh profiles receive the configured limits automatically.
 
-Historical tariffs, all per-template vault/NPC limits, and all guild-hall capacities remain incomplete. Do not fill them from the one-copper/no-upkeep technical test settings. Missing values are documented gaps.
+A fresh neighborhood is provisioned through the production neighborhood, plot and catalog services. It contains 71 personal plots and four guild plots, without fabricated player owners. Purchase and upkeep policies are bound to the resulting catalog revision and hashes. Existing owned neighborhoods are not replaced. The default installation key is `sunrise-housing-v1`; its completed receipt is idempotent. To deliberately create another neighborhood, use a new `--key` and `--name`.
 
-## 5. Protocol and rollout
+The actor-free moving-crate configuration uses the original item 62586/definition 174 and authenticated crate resources. Existing legacy crate manifests retain priority so their placed-crate identity digests do not change. Banking, tribute and vendor/teleport service bindings use the reviewed production seeds. No test character, synthetic NPC stand-in or free property owner is created.
 
-Apply housing/guild-trophy mappings from the integration patch to the actual RoF2 opcode file used by the server. Message numbers are client-build-specific. Begin with a local disposable environment; validate coherent startup, inventory recovery, the current catalog and one representative personal/guild workflow before expanding coverage.
+The selected shared-memory cache is generated only after item metadata is installed. The installer restores `hotfix_name` **after** `shared_memory` finishes, because upstream startup can clear the default `hotfix_` value. It then enables the four native housing rules in the configured active ruleset. All existing zones must start fresh with the matching binaries and cache; a hotfix command alone is insufficient.
 
-This repository is a research/development integration snapshot. A complete turnkey installer and full Live-equivalent acceptance are not supplied.
+## Defaults and preservation
 
-Legacy configuration schema names are retained in the production crate parser for compatibility. The parser is published as `crate_content_loader.h`; it is a runtime dependency, not a test fixture.
+The fresh neighborhood uses reconstructed map/collision boundaries, the documented later-Live tariff profile, and the explicitly inferred 103 Betwixt address. Personal yard limits follow the researched later table. Guild yards use the labelled 200-item/six-NPC server policy. The guild purchase member minimum is one as an emulator policy. These are not newly recovered 2013 Live values.
 
+House/hall capacities are configured in `house_variant_capacity_defaults.json`; research evidence remains separate in `house_variant_capacities.json`. Vault and NPC quotas share the total budget. Allowing an NPC quota does not authorize an unreviewed NPC/model binding. Unknown trophy costs/minimum levels do not gain invented values through installation.
 
-## October 18 optional schema additions
+Installation supplies lifecycle mechanisms and native voluntary Move Out. It does not retroactively enroll arbitrary existing properties into destructive inactivity retirement or choose recipients for old guilds. Those actions retain their existing exact-generation policy and recipient review requirements.
 
-Review and apply only the schemas for the feature you are provisioning, after the documented base housing schema sequence:
+## Completion, failure and rollback
 
-- utils/sql/optional/2026_10_17_housing_estate_preferences.sql: per-ownership voting preference.
-- utils/sql/optional/2026_10_17_housing_house_storage.sql: stored replacement-house intent.
-- utils/sql/optional/2026_10_17_housing_house_swaps.sql: durable house-swap operation state.
+A successful installation means the package, schemas, reviewed content, cache and rules were installed coherently. After startup, confirm one real personal/guild workflow with the matching client. This is distinct from claiming every item or every Live behavior has been accepted.
 
-Housing:EnableNativeHouseSwap defaults false. Native swap admission requires supported reviewed templates, same plot/creator, current house and item capabilities, valid occupancy/custody/rent checks and no placed moving crate in the old interior. The integration does not provision historical catalogue content or enable every experimental rule automatically.
+On failure, the installer does **not** automatically restart services. Keep writers stopped, read the private step log, and correct the stated conflict before retrying with a new backup directory. Successfully recorded migrations replay through their SHA ledger; partial DDL is inspected and adopted rather than blindly repeated. Existing housing inventory/history is never discarded to make a migration pass.
 
+For full rollback, keep services stopped and inspect the checked restore plan:
 
-## Optional lifecycle extensions and creation provenance
+```sh
+python3 tools/restore_housing.py \
+  --server /srv/eqemu/server \
+  --backup /srv/eqemu/backups/housing-install-01
+```
 
-After the existing upkeep-cycle/full-property dependencies, review these migrations in order:
-
-1. `utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql`
-2. `utils/sql/optional/2026_10_18_housing_offline_property_delivery.sql`
-3. `utils/sql/optional/2026_10_18_housing_offline_property_packing.sql`
-4. `utils/sql/optional/2026_10_18_housing_offline_crate_creation.sql`
-5. `utils/sql/optional/2026_10_18_housing_crate_creation_origins.sql`
-
-Apply the final provenance migration before enabling offline crate creation. It replaces the direct live-receipt foreign key with typed creation origins and backfills existing crates from genuine receipts. Review legacy crate integrity before migrating. Rebuild world and zone together for origin-aware readers/writers. These migrations do not activate automatic retirement globally; exact per-estate reviews and supported custody/content are required.
-
-See [property lifecycle details](../overlay/common/housing/property_lifecycle.md) for currency, ownership, capacity, session and pending-operation restrictions. The optional `common/housing/trophy_supported_catalogue.sql` is a separately reviewed compatibility profile, not a prerequisite or authentic complete item seed; its referenced stat items and identifiers must exist and be independently checked. Evolving trophy placement remains unsupported.
-
-
-## Guild Hall visitor quest override
-
-The source overlay installer does not copy quest files. If your `guildhall/player.lua` has the legacy unconditional unguilded-player boot, review and merge the separate [production quest override](../quest-overlay/guildhall/player.lua) into your active quest directory. Preserve unrelated local customizations and back up the current script. The override waits for the server-verified occupied-housing bootstrap; it retains the basic Guild Hall guild requirement. Deploy the matching C++ source and reload/restart quests together. See [interior Access editing](INTERIOR-ACCESS-2026-10-19.md).
-
-## Same-plot ownership recovery
-
-After026, apply the one-time034 relocation-ledger ALTER while housing writers are stopped, then deploy the matching world and zone builds. It retains legacy cross-plot history and adds explicit ownership-generation evidence for same-parent recovery. See [deployment and acceptance scope](SAME-PLOT-RECOVERY-2026-10-19.md).
-
-### Optional existing personal-catalog crate transition
-
-Schema035 creates an empty maintenance journal and does not activate content. The one-shot `CatalogCrateUpgrade` API requires a reviewed exact previous catalog/native graph, original content witnesses and stopped writers; it coherently advances current item/interior/purchase-policy bindings. Do not bypass the normal `Catalog::Import` managed-interior refusal or directly edit a bootstrap under existing houses. See [transition instructions and limits](CRATE-CATALOG-CAPACITY-2026-10-19.md).
-
-
-## Vault-aware moving crates
-
-Apply additive migration036 after the existing vault/crate schema, while housing writers are stopped. It creates an empty typed membership table; it does not seed items, activate retirement policies or rewrite existing physical members. Back up the database first. Deploy coherent world, zone and any inventory-recovery binaries linked to the same rebuilt common library: the internal scene/request structures changed. Do not run an older recovery CLI against the new build. Shared item data and client wire structs are unchanged by this milestone.
-
-Without036 legacy non-vault behavior remains available; vault packing refuses rather than discarding contents. Do not remove the table while it has members. See [vault Move Out scope](VAULT-MOVE-OUT-2026-10-19.md).
-
-
-### Individual vault-item crate transfers
-
-The [individual-control follow-up](INDIVIDUAL-VAULT-CRATE-2026-10-19.md) uses the same036 table; no further migration or client patch is needed. Deploy matching world, zone and inventory-recovery CLI binaries rebuilt against the same common library. Internal vault contexts and recovery decoding now carry typed container witnesses. Legacy bindings without those witnesses retain their original bytes.
-
-## Native retirement parcel overflow
-
-Apply numbered migration037 after036 and the optional offline-direct-return, return-settlement and mixed-return-batch schemas. Stop housing writers for the change. Native parcel/inventory/custody tables must use InnoDB. The migration adds durable sidecars, a distinct queued crate location, and an overflow flag defaulting to0; it does not enroll existing properties. Enable overflow only in an exact current estate/catalogue batch review. Capacity exhaustion defers the complete property.
-
-Deploy matching world, zone, UCS and inventory-recovery binaries linked to the same rebuilt common library. The tracked integration patch now includes `zone/parcels.cpp`; applying only new overlay headers omits the native retrieval adapter. A queued typed parcel must never use generic template-only retrieval. Keep sidecars and their claim tombstones; they outlive native parcel deletion. Review [retirement/returns](RETIREMENT-RETURNS.md) and [batch contracts](../overlay/common/housing/offline_return_batches.md) before activation.
-
-
-## Standard guild-hall model door
-
-Optional numbered content migration038 enables the existing `OBJ_GUILD_DOOR` row4 in `guildhall` version0 for RoF2 only. It requires the reviewed model, type and position; it does not create a missing door or expose the duplicate `GUILD_DOOR`. Apply only after reviewing local door content, then reload doors or restart the zone. Other customized masks are left unchanged. Deploy the updated zone hook with it: a housing-bound Standard hall exits through its verified current parent neighborhood, while absent housing bindings retain legacy door handling. The normal basic hall in version1 is outside this hook. No new client asset, opcode, wire struct or schema is required.
-
-
-Original collision geometry: follow [original geometry installation](INSTALL-ORIGINAL-GEOMETRY.md) after applying the overlay. The runtime reads private authenticated resources from `housing-original-meshes` under the server working directory, or `EQEMU_HOUSING_ORIGINAL_ASSETS`. No client assets are included in this repository.
-
-
-## Verified trophy profile, October 20
-
-Use the [trophy scope](TROPHIES-2026-10-20.md) to distinguish reconstructed
-content, implemented placement admission and native acceptance. This optional
-profile enables Giant, Landing and guild Hardened Steel only. Verify the
-referenced hidden stat items and keys in your own item database before use.
-
-1. Back up content and state, stop world and **all zone processes**, and exclude
-   other database writers. Deploy matching rebuilt world/zone/common binaries.
-2. For a fresh profile, review `common/housing/trophy_supported_catalogue.sql`
-   after the trophy, billing and guild schemas. Do not rerun this fresh insert
-   script over existing keys. For an installation containing the earlier ten
-   level1 tradeskill seeds, instead apply
-   `common/housing/trophy_verified_catalogue_correction_20261020.sql`. The
-   correction requires seven reference tables using InnoDB, accepts only exact
-   old triplets or wholly absent triplets, and refuses affected selections or
-   customized/partial rows. Resolve such conflicts explicitly; do not clear user
-   state to force the correction.
-3. Optionally apply
-   `utils/sql/optional/2026_10_20_housing_verified_personal_trophy_placement.sql`
-   for Landing68727/Giant68730. It requires InnoDB items, exact identities/models
-   and empty or already-reviewed placement fields; a conflict rolls back both
-   repairs. Unknown rotation/free-placement flags are not supplied. Review the
-   [placement evidence](../overlay/common/housing/personal_trophy_placement.md).
-4. Regenerate shared item data with the matching build for the **actual active
-   prefix** selected by `variables.hotfix_name`, including a nonempty prefix if
-   one is active. Confirm which item database supplies that generation and
-   verify the reviewed item metadata is present there. Keep all zones stopped
-   while replacing the dataset. Select the generated prefix **after** the
-   `shared_memory` process finishes: this upstream tool can clear
-   `variables.hotfix_name` when it contains `hotfix_`. Recheck the final variable
-   before restarting world and zones, then verify the running processes attach
-   the intended regenerated dataset.
-
-Do not substitute `#hotfix` alone for step4. In this upstream code, the shared
-item generation/hotfix path can load through `content_db`, while normal zone
-startup attaches items through `database`; a hotfix success message and SQL
-readback do not prove the cold-start inventory cache uses the repaired metadata.
-
-No guessed tradeskill minimum levels are retained, and evolving physical trophy
-placement remains disabled until its separate identity/progression can survive
-custody, relog, recovery, containment and retirement. Unknown catalogue entries
-remain excluded. The repository supplies no client assets or complete item seed.
-
-## Additional reviewed house variants
-
-Use [the portable variant generator](HOUSE-VARIANTS-2026-10-21.md) with the
-operator's matching original client and prepared maps. Preserve every existing
-configured template and its permanent bindings. Activate the generated proposal
-through reviewed production catalogue/persistence setup in a fresh neighborhood;
-generation itself makes no database or runtime changes.
-
-Review the optional October21 variant migrations: Evantil77407 item metadata,
-missing original zone766 registration, supported guild737/738/751 zone identity/
-normal-player access, and Hermit54999 metadata plus missing zone723 registration.
-Hermit uses the explicitly reviewed route reconstruction in its
-[provenance guide](provenance/house-variants/HERMIT-HIDEAWAY.md).
-The18 later Manor aliases need no item repair when their exact structured fields
-already match; contradictory lore is retained. Their technical policies and guarded preconditions are
-explicit in the SQL and variant documentation. Stop metadata writers, apply
-against the correct configured database, regenerate shared items, select the
-generated prefix after generation finishes, and cold-start world and every zone
-to refresh both item and zone caches. A hotfix alone is insufficient.
-
-For full room quotas, also install unseeded migration039 and review the separate
-source-labelled capacity policy. The checked maintenance API appends policies
-for existing rooms and exact template/base grants for future legacy allocations;
-it does not rewrite original profile bytes or historic item tags. Native bootstrap
-uses effective values. Keep all world/zones stopped for existing-room upgrades,
-review the complete pinned plan and retain backups. Adding Grand requires merging
-its registry entry with existing Palatial/Modest entries and a reviewed fresh
-plot catalogue that permits definition39; do not rewrite a bound catalogue.
-New variants need exact template/base capacity grants as well as their files.
-Register only newly configured templates and preserve existing room policy heads
-and grants. Adding files never authorizes an existing bound catalogue rewrite.
-NPC quotas do not seed missing NPC item metadata. See [capacity and identity
-boundaries](HOUSE-VARIANTS-2026-10-21.md#existing-rooms-and-future-preserved-templates).
-
-Capacity maintenance requires the operator to stop every world and zone process. The API locks historical inventory process records without treating them as death certificates; it refuses active inventory sessions, leases or pending work. Installing capacities does not reconcile inventory or mark a process reaped.
-
-### Guild-recipient policy and character saves
-
-Apply [character-save compatibility](../overlay/utils/sql/optional/2026_10_21_housing_character_save_compatibility.sql) after installing guild inactivity policies.
-The upstream character save uses `REPLACE`, whose transient delete conflicts
-with the old recipient foreign key. The guarded migration removes only the exact
-`housing_guild_inactive_recipient` constraint, preserving policy and receipt
-rows; conflicting definitions are refused. Fresh guild-policy creation omits this
-constraint. The service still locks and revalidates the current guild, leader,
-recipient, account and nondeleted character before retirement. Stop concurrent
-schema writers; no process restart or item-cache regeneration is required for
-this DDL-only correction. The applied migration conserved policy rows, and
-ordinary native zoning/save persisted the correct destination instance.
-
-### Reviewed housing NPC item
-
-The optional [Holgresh binding](NPC-ITEM-BINDINGS-2026-10-21.md) has a separate
-guarded seed after NPC metadata/runtime prerequisites. It preserves the real
-item key and opaque respawn value and uses an explicit original-model-default
-sizing policy. Audit retained item custody with the versioned codec first.
-Build and deploy matching shared-memory/common/world/zone/UCS tools, seed only
-the reviewed tuple, regenerate the actual shared-item prefix, select it after
-generation, and cold-start. Other unproved item-to-model bindings stay disabled.
-
-
-### Purchased guild-hall services and entrance merchants
-
-Follow [service acquisition and installation](SERVICE-NPCS-2026-10-21.md#acquisition-and-installation) for the complete prerequisites and scoped policies. With all housing and shared-item writers stopped, apply these optional migrations after the NPC metadata/runtime and capacity schemas:
-
-1. [2026_10_21_housing_service_contracts.sql](../overlay/utils/sql/optional/2026_10_21_housing_service_contracts.sql): authenticated contract metadata and the additional personal-tribute/device NPC templates.
-2. [2026_10_21_housing_guild_portal_alignment.sql](../overlay/utils/sql/optional/2026_10_21_housing_guild_portal_alignment.sql): transactional per-current-hall crystal alignment.
-3. [2026_10_21_housing_service_vendor.sql](../overlay/utils/sql/optional/2026_10_21_housing_service_vendor.sql): guarded Brent Harnak acquisition stock, including the explicitly labelled direct-device server policy.
-
-Each migration refuses conflicting source rows or reserved identities. Existing standard PEQ neighbourhood merchants and Banker Fraener are reused; do not duplicate their spawns. Their stock depends on the operator's corresponding PEQ content. Unreviewed effects, crafting-station interactions and unbound pet models are not enabled by this installation.
-
-Rebuild and deploy matching common/world/zone and shared-memory binaries together: the canonical spawn structure and Mob binding fields change the server ABI. Regenerate the selected shared-item dataset after seeding and make every process use that same completed cache prefix. Install the RoF2 mapping `OP_RealEstateBindSpawn=0x21ea` in the actual opcode directory configured by the running server; a similarly named unused copy does not activate the message. Cold-start the affected matching processes. This reuses an already recovered opcode number. Representative native Grand hall placement, purchases, banking, tribute and paid portal travel passed; see the service document for completed representative pickup/revocation and separately accepted Standard geode path, together with the remaining wider acceptance limits.
-
-Existing neighbourhood instances can retain a persisted spawn-state snapshot from before the Brent migration. After installing the new spawn content, use the server's normal administrative repop or reviewed spawn-state refresh procedure for those instances; a process restart alone may restore the older snapshot. Newly created instances read the new seed. Do not delete housing estates, item custody or placement records to refresh ordinary NPC spawns.
+Repeat with `--apply` to restore the database and matching resolved binaries, mappings, configuration and cache together. Changed deployment links or subsequently modified newly installed files are refused before restoration. The restore tool does not start services. Review the restored state, then start the previous matching server. Do not restore only a database or only an older binary over a newer custody format. The original source checkout and original client remain untouched.

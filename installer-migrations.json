@@ -1,0 +1,1622 @@
+{
+  "format": "eqemu-housing-install-migrations-v1",
+  "target": "Production export paths; explicit dependency order, not filename sorting",
+  "client_build": 20130510,
+  "migrations": [
+    {
+      "path": "overlay/utils/sql/housing/001_milestone_b_persistence.sql",
+      "kind": "schema",
+      "sha256": "4c1cf2dfa29510668af6c8690159784517b26154021685aa92f6e17c25e01cc5",
+      "creates": [
+        "housing_instance_allocator",
+        "housing_neighborhoods",
+        "housing_plot_definitions",
+        "housing_estates"
+      ],
+      "alters": [],
+      "references": [
+        "housing_neighborhoods",
+        "housing_plot_definitions"
+      ],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/002_vendor_prices.sql",
+      "kind": "schema",
+      "sha256": "9f69024aebc025798ac015b6969f19d881b00220add15be6e589b99ac8d61601",
+      "creates": [
+        "housing_vendor_prices"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/003_personal_plot_purchase_foundation.sql",
+      "kind": "schema",
+      "sha256": "449656b9f8565fd72568d74f3761a59e233171b4734390c27c6e1302b782f4f3",
+      "creates": [
+        "housing_purchase_offers",
+        "housing_purchase_requests"
+      ],
+      "alters": [],
+      "references": [
+        "housing_plot_definitions"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/004_personal_estate_acl.sql",
+      "kind": "schema",
+      "sha256": "8c99436ee25937912fb9608b5b5ecbf188ac958a913d8e1de9053fc6e48433c3",
+      "creates": [
+        "housing_acl_state",
+        "housing_acl_groups",
+        "housing_acl_members"
+      ],
+      "alters": [],
+      "references": [
+        "housing_acl_state",
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/005_isolated_coin_escrow.sql",
+      "kind": "schema",
+      "sha256": "1a4bacad563d5acfb14ea4126bfa61f1690f6c42a0447de1821ffe5f0ded3001",
+      "creates": [
+        "housing_escrow_balances",
+        "housing_escrow_transfers"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/006_isolated_item_custody.sql",
+      "kind": "schema",
+      "sha256": "a70be1b8608296dc027238b969f3eda8da0d43bdb7595d8f270914399c247a57",
+      "creates": [
+        "housing_fixture_item_custody",
+        "housing_fixture_item_receipts"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/007_live_inventory_custody.sql",
+      "kind": "schema",
+      "sha256": "43a02301eec06a9043142fd8c609c3ac103c994975ebfcd4ac6da1f67abf35a8",
+      "creates": [
+        "housing_live_item_leases",
+        "housing_live_item_custody",
+        "housing_live_item_receipts"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/008_native_catalog.sql",
+      "kind": "schema",
+      "sha256": "1cfadbde53526bd653c658aa3c11ae2ccd323c6713708628f2615d13a82fc2b1",
+      "creates": [
+        "housing_catalogs",
+        "housing_native_estates"
+      ],
+      "alters": [],
+      "references": [
+        "housing_catalogs",
+        "housing_estates",
+        "housing_native_estates",
+        "housing_neighborhoods",
+        "housing_plot_definitions"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/009_inventory_session_reservation.sql",
+      "kind": "schema",
+      "sha256": "3bad4d0f3a05b0e1536a30aa5b6787ef00749fc3b98438a6395c3fef3af09b64",
+      "creates": [
+        "housing_inventory_sessions",
+        "housing_inventory_session_history"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/010_live_furniture_placement.sql",
+      "kind": "schema",
+      "sha256": "caada843fcf44402a3df4f76e4c10706f22019b0a364eb450835078ec2dbbf98",
+      "creates": [
+        "housing_live_placement_reservations",
+        "housing_live_placed_items",
+        "housing_live_pose_moves"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates",
+        "housing_live_item_custody",
+        "housing_live_placement_reservations",
+        "housing_native_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/008_native_catalog.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/011_supervised_inventory_recovery.sql",
+      "kind": "schema",
+      "sha256": "6aa7e82191c0630f5f17654ae8a528d8b94f5ae42c1952ca6aa607b2e2b129eb",
+      "creates": [
+        "housing_inventory_processes",
+        "housing_inventory_custody_links",
+        "housing_inventory_death_reconciliations"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/012_typed_scene_acl.sql",
+      "kind": "schema",
+      "sha256": "c0c4afc287a19311e4e70f18d164a5ef8162612f932b9b5048dc3586b4b92667",
+      "creates": [
+        "housing_acl_special_members"
+      ],
+      "alters": [],
+      "references": [
+        "housing_acl_state"
+      ],
+      "requires": [
+        "utils/sql/housing/004_personal_estate_acl.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/013_placement_content_binding.sql",
+      "kind": "schema",
+      "sha256": "7b9dc709913815554accd38c37ebde8d29a5f6be85fbf7a7068f0ae83815eb5b",
+      "creates": [],
+      "alters": [
+        "housing_live_placement_reservations"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/housing/010_live_furniture_placement.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/housing/014_native_acl_receipts.sql",
+      "kind": "schema",
+      "sha256": "ec2fc8fa9a153d50db524b22cc5f822c12bddd7dbaac697411a822dae0bb01ed",
+      "creates": [
+        "housing_native_acl_receipts"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/015_live_cursor_escrow.sql",
+      "kind": "schema",
+      "sha256": "9350b2c90b88f3887eee9a3d183e1f814a5cd8a79732e449479035d24029b1fb",
+      "creates": [
+        "housing_live_escrow_receipts",
+        "housing_live_escrow_pending"
+      ],
+      "alters": [],
+      "references": [
+        "housing_live_escrow_receipts"
+      ],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/016_house_binding.sql",
+      "kind": "schema",
+      "sha256": "4fe9d4614671e2cfe245fa71656c73f14f97e13adf3e0ba59a4f4333fe81acbf",
+      "creates": [
+        "housing_house_instances",
+        "housing_house_locations",
+        "housing_house_interiors",
+        "housing_house_receipt_effects"
+      ],
+      "alters": [],
+      "references": [
+        "housing_catalogs",
+        "housing_house_instances",
+        "housing_live_item_custody",
+        "housing_live_item_receipts",
+        "housing_native_estates",
+        "instance_list"
+      ],
+      "requires": [
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/008_native_catalog.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/017_house_inventory_transition.sql",
+      "kind": "schema",
+      "sha256": "eac17dde50956939e34078bc4009f31c5fc19fa06b9d1d02e7fcb944311a17b4",
+      "creates": [
+        "housing_house_inventory_receipts",
+        "housing_house_inventory_pending"
+      ],
+      "alters": [],
+      "references": [
+        "housing_house_inventory_receipts"
+      ],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/018_house_item_scope.sql",
+      "kind": "schema",
+      "sha256": "0ca784af1bc6ab0721126f0fa7e566319775e288df8e8c67594fbfd9ce4d8faa",
+      "creates": [
+        "housing_house_item_scopes"
+      ],
+      "alters": [],
+      "references": [
+        "housing_house_instances",
+        "housing_live_item_custody"
+      ],
+      "requires": [
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/016_house_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/019_house_room_profiles.sql",
+      "kind": "schema",
+      "sha256": "130093eb465ce37d3cbec7af6a2e1f8e213d5379a19e8d6b55608ae785650a01",
+      "creates": [
+        "housing_house_room_profiles"
+      ],
+      "alters": [],
+      "references": [
+        "housing_house_interiors"
+      ],
+      "requires": [
+        "utils/sql/housing/016_house_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/020_interior_placement_reservations.sql",
+      "kind": "schema",
+      "sha256": "87d55fb7ced83cb4e63fe413dbcaceda4e1202472804551bf7241178b77f8895",
+      "creates": [
+        "housing_interior_placement_reservations"
+      ],
+      "alters": [],
+      "references": [
+        "housing_house_room_profiles",
+        "housing_live_placement_reservations",
+        "instance_list"
+      ],
+      "requires": [
+        "utils/sql/housing/010_live_furniture_placement.sql",
+        "utils/sql/housing/019_house_room_profiles.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/021_live_item_storage.sql",
+      "kind": "schema",
+      "sha256": "0f9987332ca4265df2aaa1ab18d9ab69a5dd3bf31eac7f549d0cd405513cae67",
+      "creates": [
+        "housing_live_item_storage",
+        "housing_live_storage_receipts"
+      ],
+      "alters": [],
+      "references": [
+        "housing_live_item_custody",
+        "housing_native_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/008_native_catalog.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/022_live_item_transfers.sql",
+      "kind": "schema",
+      "sha256": "0bd6968f4fce730af11a475a6fd3228cda81403df71de924335b3b5455106c4e",
+      "creates": [
+        "housing_live_transfer_receipts"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/023_crate_binding.sql",
+      "kind": "schema",
+      "sha256": "f60d638e0a32307b4de63077affc8dc38b7123435b7005be6857d4a4b1b418f5",
+      "creates": [
+        "housing_crate_instances",
+        "housing_crate_locations",
+        "housing_crate_estates",
+        "housing_crate_members"
+      ],
+      "alters": [],
+      "references": [
+        "housing_catalogs",
+        "housing_crate_estates",
+        "housing_crate_instances",
+        "housing_estates",
+        "housing_house_interiors",
+        "housing_live_item_custody",
+        "housing_live_item_receipts",
+        "housing_native_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/008_native_catalog.sql",
+        "utils/sql/housing/016_house_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/024_crate_storage.sql",
+      "kind": "schema",
+      "sha256": "932693567e422f78830448757e4a2ae8bbc2a86a1711a4c2aa11d1315527ca47",
+      "creates": [
+        "housing_crate_storage_receipts"
+      ],
+      "alters": [],
+      "references": [
+        "housing_crate_instances"
+      ],
+      "requires": [
+        "utils/sql/housing/023_crate_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/025_crate_batches.sql",
+      "kind": "schema",
+      "sha256": "6ce5b18c92e134ddec12ecf4ceca39e54f0391fd99927df3f4b65fae6e0ca0f3",
+      "creates": [
+        "housing_crate_batch_receipts"
+      ],
+      "alters": [],
+      "references": [
+        "housing_crate_instances"
+      ],
+      "requires": [
+        "utils/sql/housing/023_crate_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/026_crate_house_relocations.sql",
+      "kind": "schema",
+      "sha256": "9edcbae89a3f81804579d87b38044254ef271421573d1494d555b10cf3efe9f1",
+      "creates": [
+        "housing_crate_house_relocations"
+      ],
+      "alters": [],
+      "references": [
+        "housing_crate_instances",
+        "housing_house_instances",
+        "housing_live_item_receipts"
+      ],
+      "requires": [
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/016_house_binding.sql",
+        "utils/sql/housing/023_crate_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/027_house_catalog_relocation_effects.sql",
+      "kind": "schema",
+      "sha256": "fc48e3c235dd10a40627d4f746923023dc05487b1391924b795b7c775cebd9f0",
+      "creates": [],
+      "alters": [
+        "housing_house_receipt_effects"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/housing/016_house_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/housing/028_large_room_regions.sql",
+      "kind": "schema",
+      "sha256": "7cd66f2db94971497d7c416d77e91054eca96b8614b0f043bec938b4b337b667",
+      "creates": [],
+      "alters": [
+        "housing_catalogs",
+        "housing_house_room_profiles"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/housing/008_native_catalog.sql",
+        "utils/sql/housing/019_house_room_profiles.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/housing/029_layout_batches.sql",
+      "kind": "schema",
+      "sha256": "e65966390bf477d1148870eda92e04edad32dc30bd007392de9fde712b31a98d",
+      "creates": [
+        "housing_layout_batches"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/030_layout_inventory_batches.sql",
+      "kind": "schema",
+      "sha256": "e8c6667020333e8024fe0df5b8e0d334d698627d53cd36707b44cb9e4f3848fe",
+      "creates": [
+        "housing_layout_inventory_batches"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/031_layout_mixed_batches.sql",
+      "kind": "schema",
+      "sha256": "d1f84376e90f077e9c61d2825e5c4511754a060a97ce281ca5a938b32d014943",
+      "creates": [
+        "housing_layout_mixed_batches"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/032_upkeep_selection.sql",
+      "kind": "schema",
+      "sha256": "a6714f637f031e0d6b0a086ccc3213f34c8da4d74374ddfbbd33612cb04d7b7b",
+      "creates": [
+        "housing_upkeep_selection",
+        "housing_upkeep_selection_receipts"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/033_estate_retirement.sql",
+      "kind": "schema",
+      "sha256": "eddafbf4aeb3dd1f4776309ceaf1f3066ee434f01e74e8938585d706f67248dc",
+      "creates": [
+        "housing_estate_retirements"
+      ],
+      "alters": [
+        "housing_estates"
+      ],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/housing/034_crate_house_ownership_recovery.sql",
+      "kind": "schema",
+      "sha256": "89f5577f802527b15c2809e45c5585d675675d8274de68d0dfbc2a65728e6579",
+      "creates": [],
+      "alters": [
+        "housing_crate_house_relocations"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/housing/026_crate_house_relocations.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/housing/035_catalog_crate_upgrade_journal.sql",
+      "kind": "schema",
+      "sha256": "ab66b081ddb6fd4e2ea3b6fb0a0918ac502359cf412b0b212fc79eaf76e0f09e",
+      "creates": [
+        "housing_catalog_crate_upgrades"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_16_housing_placement_flags.sql",
+      "kind": "schema",
+      "sha256": "ebff8d53a3af94f4c3026fcb699f78493ef5a3cdceb619f39b05a5c07c061af6",
+      "creates": [],
+      "alters": [
+        "items"
+      ],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_16_housing_npc_item_metadata.sql",
+      "kind": "schema",
+      "sha256": "b5e14464509f8e19e9994c87c853dadd756f1a11e61020f09d2eb309334ca3a7",
+      "creates": [
+        "housing_native_npc_item_sources"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_16_housing_npc_runtime.sql",
+      "kind": "schema",
+      "sha256": "57e5d57da53c788242858aeb0a0ee9857a39efba6f4647bb718b93b510a9cadb",
+      "creates": [],
+      "alters": [
+        "housing_native_npc_item_sources"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_16_housing_npc_item_metadata.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/git/optional/2026_10_16_housing_npc_frames.sql",
+      "kind": "schema",
+      "sha256": "2b5b63bb37fa58f127f6b0872b219946887d32b44f32c2651026a50822ec726c",
+      "creates": [
+        "housing_live_npc_frames"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_16_housing_ownership_transfer.sql",
+      "kind": "schema",
+      "sha256": "86ff079e51167a456428e08373182a4feffb0ef09cdc39118d7bb2060efe66fe",
+      "creates": [
+        "housing_ownership_state",
+        "housing_ownership_transfer_receipts"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_16_housing_native_plot_purchase.sql",
+      "kind": "schema",
+      "sha256": "6c1310c7a42a668556ab0c22c5814251faaabbe358a939e6154d5306d233dbb7",
+      "creates": [
+        "housing_native_plot_purchase_policies",
+        "housing_native_plot_purchase_receipts",
+        "housing_native_plot_purchase_pending",
+        "housing_native_plot_purchase_reconciliations"
+      ],
+      "alters": [],
+      "references": [
+        "housing_native_plot_purchase_receipts"
+      ],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_16_housing_native_guild_plot_purchase.sql",
+      "kind": "schema",
+      "sha256": "c1eebc6f333ac413bd14fc24044e09b87664de5645cf28ba5a9b817c8be070df",
+      "creates": [],
+      "alters": [
+        "housing_native_plot_purchase_policies"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_16_housing_native_plot_purchase.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_17_housing_estate_preferences.sql",
+      "kind": "schema",
+      "sha256": "41167bb7a7c6cc5659943370136d8ad01ea805e96781b46c93de0c006fd711f0",
+      "creates": [
+        "housing_estate_preferences"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_17_housing_house_storage.sql",
+      "kind": "schema",
+      "sha256": "1a86bb112a540a22e70e89beb242fb75b578db882e991ad5ba984c39d3edb717",
+      "creates": [
+        "housing_house_storage_reservations"
+      ],
+      "alters": [],
+      "references": [
+        "housing_live_placement_reservations"
+      ],
+      "requires": [
+        "utils/sql/housing/010_live_furniture_placement.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_17_housing_house_swaps.sql",
+      "kind": "schema",
+      "sha256": "61a12fc19baa2ed36788a6f3d8fcb94353239419d54b2a91c5b771bfaa338a82",
+      "creates": [
+        "housing_house_swap_receipts"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/housing_vault_storage.sql",
+      "kind": "schema",
+      "sha256": "b885e4bdb218bd7f12384c27d1b14724f4014a319437484c3328972e8f753b67",
+      "creates": [
+        "housing_live_vault_items",
+        "housing_live_vault_transfers"
+      ],
+      "alters": [],
+      "references": [
+        "housing_live_item_custody",
+        "housing_live_placement_reservations"
+      ],
+      "requires": [
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/010_live_furniture_placement.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_17_housing_vault_partitions.sql",
+      "kind": "schema",
+      "sha256": "4e983012d75ca0f774fc7cc305db5395345f86e208d340152ab20a8a13a1fa0f",
+      "creates": [
+        "housing_live_vault_partitions"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/036_crate_vault_members.sql",
+      "kind": "schema",
+      "sha256": "c42ba4aa0c59460ebdde58b49a0e197f73317ab1b85a4c1418d3d8836499fdb0",
+      "creates": [
+        "housing_crate_vault_members"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/housing_vault_storage.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/housing_upkeep_cycles.sql",
+      "kind": "schema",
+      "sha256": "68ea10f419620a98e7b6b6d15cdb49c9425614b48efe7decc2397c6ac1f077a0",
+      "creates": [
+        "housing_upkeep_contracts",
+        "housing_upkeep_cycles",
+        "housing_upkeep_cycle_items",
+        "housing_upkeep_item_state"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates",
+        "housing_upkeep_cycles"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/housing_upkeep_full_property.sql",
+      "kind": "schema",
+      "sha256": "97ec695e8c7c52bd5297b87e9663118b790e90ae4500b9cd855fd466aa6ce174",
+      "creates": [
+        "housing_upkeep_property_state",
+        "housing_upkeep_property_cycles",
+        "housing_upkeep_cycle_scopes",
+        "housing_upkeep_reactivation_policy"
+      ],
+      "alters": [],
+      "references": [
+        "housing_upkeep_cycle_items",
+        "housing_upkeep_cycles"
+      ],
+      "requires": [
+        "utils/sql/optional/housing_upkeep_cycles.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql",
+      "kind": "schema",
+      "sha256": "40743b4de1173d952fe3dc5f550324571dafa213872c37032e6cfa517cce3e3e",
+      "creates": [
+        "housing_upkeep_rounding_policy",
+        "housing_upkeep_enrollment_policy",
+        "housing_inactivity_policy",
+        "housing_inactivity_retirements"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_escrow_bulk_controls.sql",
+      "kind": "schema",
+      "sha256": "b0cae3c30c93b6a7460021bc6b95ac55df8b590a84e0e028e40f12516e43e235",
+      "creates": [
+        "housing_escrow_bulk_policy",
+        "housing_escrow_bulk_death_reconciliations"
+      ],
+      "alters": [
+        "housing_upkeep_enrollment_policy"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_witnessed_upkeep_catchup.sql",
+      "kind": "schema",
+      "sha256": "3176a0dc4cfd98146b4bcf71ef406908952aaa8c06d95858fc491f5fe7f6afdc",
+      "creates": [
+        "housing_upkeep_catchup_policy",
+        "housing_upkeep_catchup_checkpoints",
+        "housing_upkeep_catchup_audits"
+      ],
+      "alters": [
+        "housing_live_escrow_receipts",
+        "housing_upkeep_enrollment_policy"
+      ],
+      "references": [
+        "housing_estates",
+        "housing_upkeep_cycles"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/015_live_cursor_escrow.sql",
+        "utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql",
+        "utils/sql/optional/housing_upkeep_cycles.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_paid_guild_plot_purchase.sql",
+      "kind": "schema",
+      "sha256": "f6f56ad402069289e221158c068ae8d2a49ba8a786caaffa22061a87dc0933a2",
+      "creates": [],
+      "alters": [
+        "housing_native_plot_purchase_policies"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_16_housing_native_plot_purchase.sql",
+        "utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_crate_creation_origins.sql",
+      "kind": "schema",
+      "sha256": "ae6b96b3da000f54aaee3742654cc00c31bd84fc23a64209418b6f22451af43e",
+      "creates": [
+        "housing_crate_creation_origins"
+      ],
+      "alters": [
+        "housing_crate_instances"
+      ],
+      "references": [
+        "housing_crate_creation_origins",
+        "housing_estates",
+        "housing_live_item_receipts"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/023_crate_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_offline_property_delivery.sql",
+      "kind": "schema",
+      "sha256": "61e81e1995901681aafa71d32974f9c84bc64d70feb83a3fb1465538f0b1719f",
+      "creates": [
+        "housing_inactivity_delivery_policy",
+        "housing_inactivity_deliveries"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates",
+        "housing_inactivity_retirements"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_offline_property_packing.sql",
+      "kind": "schema",
+      "sha256": "e49447d77d3c0f86dc337e021e1bddfe765f54a00ba96ebcdb9dd9d5ba148e6e",
+      "creates": [
+        "housing_inactivity_packing_policy",
+        "housing_inactivity_packings"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates",
+        "housing_inactivity_deliveries"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_property_delivery.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_offline_crate_creation.sql",
+      "kind": "schema",
+      "sha256": "93ed8d5b51a7b2da13cedfe8f44206812a94aff59d9f5b6046caec43b6631f88",
+      "creates": [
+        "housing_inactivity_crate_creation_policy",
+        "housing_inactivity_crate_creations"
+      ],
+      "alters": [
+        "housing_inactivity_deliveries"
+      ],
+      "references": [
+        "housing_crate_instances",
+        "housing_estates",
+        "housing_inactivity_deliveries",
+        "housing_native_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/008_native_catalog.sql",
+        "utils/sql/housing/023_crate_binding.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_property_delivery.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_guild_inactivity_returns.sql",
+      "kind": "schema",
+      "sha256": "8230fdb747e9ef36db17d1686e8b21659ea9e9bd91f6d5a81e061798e9260131",
+      "creates": [
+        "housing_guild_inactivity_policy",
+        "housing_guild_inactivity_retirements",
+        "housing_guild_inactivity_deliveries",
+        "housing_guild_inactivity_packings",
+        "housing_guild_inactivity_crate_creations"
+      ],
+      "alters": [
+        "housing_crate_creation_origins",
+        "housing_guild_inactivity_crate_creations",
+        "housing_guild_inactivity_deliveries",
+        "housing_guild_inactivity_packings"
+      ],
+      "references": [
+        "housing_estates",
+        "housing_guild_inactivity_retirements",
+        "housing_inactivity_crate_creations",
+        "housing_inactivity_deliveries",
+        "housing_inactivity_packings"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/optional/2026_10_18_housing_crate_creation_origins.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_crate_creation.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_property_delivery.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_property_packing.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_character_save_compatibility.sql",
+      "kind": "schema",
+      "sha256": "eb1a53797ddd6d1022fbdffbba9a9a6dd1134cc4a1a73ae15835a3f95f24a12e",
+      "creates": [],
+      "alters": [
+        "housing_guild_inactivity_policy"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_18_housing_guild_inactivity_returns.sql"
+      ],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_offline_direct_returns.sql",
+      "kind": "schema",
+      "sha256": "1ac0b2c34d1294ced74df1d79854afdf1d061f3fc753abb97ad469a84a575be2",
+      "creates": [
+        "housing_offline_return_items"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_return_settlement.sql",
+      "kind": "schema",
+      "sha256": "042d354e50cfaf31806b341c274d9d720f22934b941ba67f460a77fce09fe06f",
+      "creates": [
+        "housing_return_settlement_items",
+        "housing_return_settlement_crates",
+        "housing_return_settlements"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_mixed_return_batches.sql",
+      "kind": "schema",
+      "sha256": "9bfd35161a22e5ad54b602badf344b53d30e20de9439dad825e9e345b55bd327",
+      "creates": [
+        "housing_offline_return_batch_policy",
+        "housing_offline_return_finance"
+      ],
+      "alters": [
+        "housing_crate_creation_origins"
+      ],
+      "references": [
+        "housing_estates"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/optional/2026_10_18_housing_crate_creation_origins.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/housing/037_return_parcels.sql",
+      "kind": "schema",
+      "sha256": "3f2e0ae1c2e6dfa5dd05233044e7b7861a0e9dd3cb212353df7976265670e3c9",
+      "creates": [
+        "housing_return_parcels"
+      ],
+      "alters": [
+        "housing_crate_locations",
+        "housing_offline_return_batch_policy",
+        "housing_return_settlement_items"
+      ],
+      "references": [
+        "housing_crate_instances",
+        "housing_estates",
+        "housing_return_parcels"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/023_crate_binding.sql",
+        "utils/sql/optional/2026_10_18_housing_mixed_return_batches.sql",
+        "utils/sql/optional/2026_10_18_housing_return_settlement.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/housing_occupied_refund_review_policy.sql",
+      "kind": "schema",
+      "sha256": "666fcee12e2083eca229a87a26b541963602a3f14fa2a9a31aa3efe8c5b11dbd",
+      "creates": [
+        "housing_occupied_refund_policy",
+        "housing_occupied_refund_death_reconciliations"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates",
+        "housing_live_escrow_receipts"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/015_live_cursor_escrow.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_19_housing_catalog_pricing_upgrade.sql",
+      "kind": "schema",
+      "sha256": "5b112d89e1f4d99facc49f4839385624160342f6f3c2dd546ab08ec1b1ac5e65",
+      "creates": [
+        "housing_catalog_pricing_upgrades"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/housing/039_house_capacity_policies.sql",
+      "kind": "schema",
+      "sha256": "256745cd946cd7685e2cb8c9914d40ca76a67ca7ed4927f7254db65b188742e8",
+      "creates": [
+        "housing_house_capacity_policies",
+        "housing_house_capacity_heads",
+        "housing_house_capacity_templates"
+      ],
+      "alters": [],
+      "references": [
+        "housing_house_capacity_policies",
+        "housing_house_room_profiles"
+      ],
+      "requires": [
+        "utils/sql/housing/019_house_room_profiles.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_evolving_custody.sql",
+      "kind": "schema",
+      "sha256": "86a0a6bf0ac8750dcc8799e989a69e6bc8f098a9d5c9e02ee1229a0418dd8f05",
+      "creates": [
+        "housing_evolving_item_locations"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_guild_portal_alignment.sql",
+      "kind": "schema",
+      "sha256": "b08f8720be1294333ea11c8d8529868ac9f7be71cdbf1054a7d8e61bbfea668a",
+      "creates": [
+        "housing_guild_portal_alignments"
+      ],
+      "alters": [],
+      "references": [
+        "housing_estates",
+        "housing_house_instances"
+      ],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/016_house_binding.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_runtime_activation.sql",
+      "kind": "schema",
+      "sha256": "1a018b228169b150684aa16985462c2f8a98a33f6105638223a3a2247160a2d2",
+      "creates": [
+        "housing_runtime_activation",
+        "housing_content_installations"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/common/housing/trophy_benefits.sql",
+      "kind": "schema",
+      "sha256": "dd0a628bd8a062d4150e7d87eea0e8d57eb1e26d09daf33b8c75ebc6f87d612e",
+      "creates": [
+        "housing_trophy_benefit_sources",
+        "housing_trophy_benefit_state",
+        "housing_trophy_benefit_selections"
+      ],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "CREATE IF NOT EXISTS; validate final schema before activation"
+    },
+    {
+      "path": "overlay/common/housing/guild_trophies.sql",
+      "kind": "schema",
+      "sha256": "7a4f5a985e31866ee5a9981e70b20adfeba3e790924afda80b23595be469d177",
+      "creates": [
+        "housing_guild_trophy_state",
+        "housing_guild_trophy_selections",
+        "housing_guild_trophy_billing_policy",
+        "housing_guild_trophy_favor_charges"
+      ],
+      "alters": [
+        "guild_members"
+      ],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/common/housing/trophy_billing.sql",
+      "kind": "schema",
+      "sha256": "fae5ccb99c43438e437acdef223e57f9ed9c4d7a2d83d67befae6432d9f2ad56",
+      "creates": [
+        "housing_trophy_billing_policy",
+        "housing_trophy_favor_charges"
+      ],
+      "alters": [
+        "housing_trophy_benefit_state"
+      ],
+      "references": [],
+      "requires": [
+        "common/housing/trophy_benefits.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "statement-aware schema adoption plus final contracts required"
+    },
+    {
+      "path": "overlay/common/housing/trophy_supported_catalogue.sql",
+      "kind": "seed",
+      "sha256": "ac4224197930c95643b4d44f4cd813c837113ee891825c46e09bb71dddb434b5",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [
+        "common/housing/guild_trophies.sql",
+        "common/housing/trophy_billing.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "exact-row seed adoption required"
+    },
+    {
+      "path": "overlay/common/housing/trophy_verified_catalogue_correction_20261020.sql",
+      "kind": "seed",
+      "sha256": "accf6067a7c5e0e2f131069c7333a7903253d56563d1ea84a07975b289450301",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_20_housing_verified_personal_trophy_placement.sql",
+      "kind": "seed",
+      "sha256": "cf35a6d1a8f0f214eeaaac3c81d8833d28c876fba7a2f1c18c989b4985ca9051",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [
+        "common/housing/trophy_supported_catalogue.sql"
+      ],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_18_housing_sunrise_guild_markers.sql",
+      "kind": "seed",
+      "sha256": "c35b82630f5c6f7ec4a3425cb3e869e12d762ad9a8380e3890d71254f8a12720",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/housing/038_standard_guild_hall_door.sql",
+      "kind": "seed",
+      "sha256": "854a21b8841952455f6d22c0a28e40b928dca25d864e5fca6d401596264e143b",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "exact-row seed adoption required"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_evantil_metadata.sql",
+      "kind": "seed",
+      "sha256": "750b8c4e8f15d281694b7c3f634d09a8f1e9647c42412e160af5b2eb20ece48e",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_evantil_zone.sql",
+      "kind": "seed",
+      "sha256": "5d759ceaf2a9a5d4171e9c9f5d9e6f95efcc907eea30a47d8a6f31f8bb8923e5",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_hermit_metadata.sql",
+      "kind": "seed",
+      "sha256": "2070ad6a445ff27b041a013f9ffc71d09aaca075eeb6898b3a4db9c9a57039e4",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_hermit_zone.sql",
+      "kind": "seed",
+      "sha256": "e8ed405631177ef97f87a6697e6dee89f456251f26076a75be84edaae9ed637c",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_supported_guild_zones.sql",
+      "kind": "seed",
+      "sha256": "6e4a427ba58e9a41d356fc15ec95e5181a627f8c11c16acdb6720a79989f9a05",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_holgresh_npc_binding.sql",
+      "kind": "seed",
+      "sha256": "382cc1118fde77032538ac3dbd317a7cab48dd5421e5f373ef33bdfac9dae52b",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_16_housing_npc_runtime.sql"
+      ],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_service_contracts.sql",
+      "kind": "seed",
+      "sha256": "9b5bab3b82280dfc32a9f48c3d1a851a5d1d7e78a30b0cc0dec53cad876140c8",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_16_housing_npc_runtime.sql"
+      ],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_21_housing_service_vendor.sql",
+      "kind": "seed",
+      "sha256": "8bde1456b3a834752ca74f363aafe5f9081b70d99b25264f5f2f7968ca0244dc",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [
+        "utils/sql/optional/2026_10_21_housing_service_contracts.sql"
+      ],
+      "guarded_procedure": true,
+      "idempotence": "guarded source/state procedure"
+    },
+    {
+      "path": "overlay/utils/sql/housing/040_complete_item_payload_receipts.sql",
+      "kind": "schema",
+      "sha256": "00ec1d7c9532a828e850c41f9a1044453cfbdf8dd201f9001121e716ee8cfa8a",
+      "creates": [],
+      "alters": [
+        "housing_catalog_crate_upgrades",
+        "housing_crate_batch_receipts",
+        "housing_crate_storage_receipts",
+        "housing_guild_inactivity_deliveries",
+        "housing_guild_inactivity_packings",
+        "housing_house_inventory_receipts",
+        "housing_house_swap_receipts",
+        "housing_inactivity_deliveries",
+        "housing_inactivity_packings",
+        "housing_inventory_death_reconciliations",
+        "housing_layout_inventory_batches",
+        "housing_layout_mixed_batches",
+        "housing_live_item_receipts",
+        "housing_live_pose_moves",
+        "housing_live_transfer_receipts",
+        "housing_live_vault_transfers",
+        "housing_offline_return_items",
+        "housing_ownership_transfer_receipts",
+        "housing_return_parcels",
+        "housing_return_settlement_items",
+        "housing_upkeep_cycle_scopes"
+      ],
+      "references": [],
+      "requires": [
+        "utils/sql/housing/001_milestone_b_persistence.sql",
+        "utils/sql/housing/002_vendor_prices.sql",
+        "utils/sql/housing/003_personal_plot_purchase_foundation.sql",
+        "utils/sql/housing/004_personal_estate_acl.sql",
+        "utils/sql/housing/005_isolated_coin_escrow.sql",
+        "utils/sql/housing/006_isolated_item_custody.sql",
+        "utils/sql/housing/007_live_inventory_custody.sql",
+        "utils/sql/housing/008_native_catalog.sql",
+        "utils/sql/housing/009_inventory_session_reservation.sql",
+        "utils/sql/housing/010_live_furniture_placement.sql",
+        "utils/sql/housing/011_supervised_inventory_recovery.sql",
+        "utils/sql/housing/012_typed_scene_acl.sql",
+        "utils/sql/housing/013_placement_content_binding.sql",
+        "utils/sql/housing/014_native_acl_receipts.sql",
+        "utils/sql/housing/015_live_cursor_escrow.sql",
+        "utils/sql/housing/016_house_binding.sql",
+        "utils/sql/housing/017_house_inventory_transition.sql",
+        "utils/sql/housing/018_house_item_scope.sql",
+        "utils/sql/housing/019_house_room_profiles.sql",
+        "utils/sql/housing/020_interior_placement_reservations.sql",
+        "utils/sql/housing/021_live_item_storage.sql",
+        "utils/sql/housing/022_live_item_transfers.sql",
+        "utils/sql/housing/023_crate_binding.sql",
+        "utils/sql/housing/024_crate_storage.sql",
+        "utils/sql/housing/025_crate_batches.sql",
+        "utils/sql/housing/026_crate_house_relocations.sql",
+        "utils/sql/housing/027_house_catalog_relocation_effects.sql",
+        "utils/sql/housing/028_large_room_regions.sql",
+        "utils/sql/housing/029_layout_batches.sql",
+        "utils/sql/housing/030_layout_inventory_batches.sql",
+        "utils/sql/housing/031_layout_mixed_batches.sql",
+        "utils/sql/housing/032_upkeep_selection.sql",
+        "utils/sql/housing/033_estate_retirement.sql",
+        "utils/sql/housing/034_crate_house_ownership_recovery.sql",
+        "utils/sql/housing/035_catalog_crate_upgrade_journal.sql",
+        "utils/sql/optional/2026_10_16_housing_placement_flags.sql",
+        "utils/sql/optional/2026_10_16_housing_npc_item_metadata.sql",
+        "utils/sql/optional/2026_10_16_housing_npc_runtime.sql",
+        "utils/sql/git/optional/2026_10_16_housing_npc_frames.sql",
+        "utils/sql/optional/2026_10_16_housing_ownership_transfer.sql",
+        "utils/sql/optional/2026_10_16_housing_native_plot_purchase.sql",
+        "utils/sql/optional/2026_10_16_housing_native_guild_plot_purchase.sql",
+        "utils/sql/optional/2026_10_17_housing_estate_preferences.sql",
+        "utils/sql/optional/2026_10_17_housing_house_storage.sql",
+        "utils/sql/optional/2026_10_17_housing_house_swaps.sql",
+        "utils/sql/optional/housing_vault_storage.sql",
+        "utils/sql/optional/2026_10_17_housing_vault_partitions.sql",
+        "utils/sql/housing/036_crate_vault_members.sql",
+        "utils/sql/optional/housing_upkeep_cycles.sql",
+        "utils/sql/optional/housing_upkeep_full_property.sql",
+        "utils/sql/optional/2026_10_18_housing_upkeep_rounding.sql",
+        "utils/sql/optional/2026_10_18_housing_escrow_bulk_controls.sql",
+        "utils/sql/optional/2026_10_18_housing_witnessed_upkeep_catchup.sql",
+        "utils/sql/optional/2026_10_18_housing_paid_guild_plot_purchase.sql",
+        "utils/sql/optional/2026_10_18_housing_crate_creation_origins.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_property_delivery.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_property_packing.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_crate_creation.sql",
+        "utils/sql/optional/2026_10_18_housing_guild_inactivity_returns.sql",
+        "utils/sql/optional/2026_10_21_housing_character_save_compatibility.sql",
+        "utils/sql/optional/2026_10_18_housing_offline_direct_returns.sql",
+        "utils/sql/optional/2026_10_18_housing_return_settlement.sql",
+        "utils/sql/optional/2026_10_18_housing_mixed_return_batches.sql",
+        "utils/sql/housing/037_return_parcels.sql",
+        "utils/sql/optional/housing_occupied_refund_review_policy.sql",
+        "utils/sql/optional/2026_10_19_housing_catalog_pricing_upgrade.sql",
+        "utils/sql/housing/039_house_capacity_policies.sql",
+        "utils/sql/optional/2026_10_21_housing_evolving_custody.sql",
+        "utils/sql/optional/2026_10_21_housing_guild_portal_alignment.sql",
+        "utils/sql/optional/2026_10_21_housing_runtime_activation.sql",
+        "common/housing/trophy_benefits.sql",
+        "common/housing/guild_trophies.sql",
+        "common/housing/trophy_billing.sql",
+        "common/housing/trophy_supported_catalogue.sql",
+        "common/housing/trophy_verified_catalogue_correction_20261020.sql",
+        "utils/sql/optional/2026_10_20_housing_verified_personal_trophy_placement.sql",
+        "utils/sql/optional/2026_10_18_housing_sunrise_guild_markers.sql",
+        "utils/sql/housing/038_standard_guild_hall_door.sql",
+        "utils/sql/optional/2026_10_21_housing_evantil_metadata.sql",
+        "utils/sql/optional/2026_10_21_housing_evantil_zone.sql",
+        "utils/sql/optional/2026_10_21_housing_hermit_metadata.sql",
+        "utils/sql/optional/2026_10_21_housing_hermit_zone.sql",
+        "utils/sql/optional/2026_10_21_housing_supported_guild_zones.sql",
+        "utils/sql/optional/2026_10_21_housing_holgresh_npc_binding.sql",
+        "utils/sql/optional/2026_10_21_housing_service_contracts.sql",
+        "utils/sql/optional/2026_10_21_housing_service_vendor.sql"
+      ],
+      "guarded_procedure": false,
+      "idempotence": "Final widening after all earlier receipt/lifecycle/layout definitions; exact existing final column types adopted without rewriting historical bytes"
+    }
+  ],
+  "required_native_tables": [
+    "account",
+    "character_currency",
+    "character_data",
+    "character_evolving_items",
+    "character_parcels",
+    "character_parcels_containers",
+    "character_tribute",
+    "damageshieldtypes",
+    "doors",
+    "guild_bank",
+    "guild_members",
+    "guild_tributes",
+    "guilds",
+    "instance_list",
+    "inventory",
+    "items",
+    "items_evolving_details",
+    "merchantlist",
+    "merchantlist_temp",
+    "npc_types",
+    "sharedbank",
+    "spawn2",
+    "spawnentry",
+    "spawngroup",
+    "spells_new",
+    "tribute_levels",
+    "tributes",
+    "zone"
+  ],
+  "prerequisites": [
+    "Stopped world, zones and all inventory/SQL writers; operator-owned backup.",
+    "MariaDB-compatible DDL/procedure/JSON/CHECK support; validate actual backend capabilities.",
+    "Native tables named above exist with compatible columns/keys and required transactional engines; do not invent missing PEQ content.",
+    "Use final named constraint declarations across the complete sequence; suppress superseded intermediate checks during adoption.",
+    "Apply DELIMITER, SET/PREPARE and procedure bodies in one connection per complete source file.",
+    "Preserve historical receipt/custody bytes and referenced identities; no DROP TABLE or truncate/reset.",
+    "Existing trophy catalogue INSERT rows must match exact supported data or refuse; no overwrite, synthetic actors or guessed benefit seeds."
+  ]
+}

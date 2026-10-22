@@ -1,5 +1,6 @@
 #ifndef EQEMU_HOUSING_OFFLINE_NPC_RETURN_DB_H
 #define EQEMU_HOUSING_OFFLINE_NPC_RETURN_DB_H
+#include "runtime_activation_db.h"
 #include "live_item_service.h"
 #include "custody_codec.h"
 #include "catalog_content_db.h"
@@ -78,7 +79,7 @@ inline Validated InspectUnderTransaction(Database& db,const LiveItems::Stored& s
  }else{
   Require(!reviewed_room&&source.estate_id==retiring_estate&&binding&&(binding->version==ContentBinding::NpcClassVersion||binding->version==ContentBinding::GenericNpcClassVersion));
   auto target=Q(db,"SELECT n.definition_id,c.revision,c.origin,c.client_build,HEX(c.definitions_blob),HEX(c.regions_blob),h.zone_id,h.zone_version,h.instance_id FROM housing_native_estates n JOIN housing_current_estates e ON e.id=n.ownership_estate_id AND e.plot_id=n.plot_id JOIN housing_catalogs c ON c.catalog_key=n.catalog_key JOIN housing_neighborhoods h ON h.id=n.neighborhood_id WHERE n.native_id="+I(r.native_estate_id)+" AND n.ownership_estate_id="+I(retiring_estate)+" AND n.active=1 AND n.catalog_key='"+db.Escape(r.catalog_key)+"' FOR UPDATE");Require(target.RowCount()==1);auto t=target.begin();Require(N(t[1])==r.catalog_revision&&(N(t[2])==1||N(t[2])==2)&&N(t[3])==20130510);
-  if(N(t[2])==2){auto name=Q(db,"SELECT DATABASE()");Require(name.RowCount()==1&&name.begin()[0]);std::string value=name.begin()[0];Require(value=="peq_housing_test"||value.rfind("peq_housing_test_",0)==0);}
+  if(N(t[2])==2){auto name=Q(db,"SELECT DATABASE()");Require(name.RowCount()==1&&name.begin()[0]);std::string value=name.begin()[0];Require(Housing::RuntimeActivation::AllowsReconstructedContent(db));}
   auto bundle=Catalog::DecodePayloads(Unhex(t[4]),Unhex(t[5]));Require(N(t[6])<=UINT32_MAX&&N(t[7])<=UINT8_MAX&&N(t[8])&&N(t[8])<=32000);Route route{uint32_t(N(t[6])),uint8_t(N(t[7])),uint16_t(N(t[8]))};auto fresh=ContentBinding::Current(db,r.catalog_key,bundle,r.native_estate_id,route,v.item_id);Require(ContentBinding::Same(*binding,fresh));
   auto definition=std::find_if(bundle.definitions.begin(),bundle.definitions.end(),[&](const auto& d){return d.id==N(t[0]);});Require(definition!=bundle.definitions.end()&&(definition->type==4||definition->type==8));auto region=std::find_if(bundle.regions.begin(),bundle.regions.end(),[&](const auto& a){return a.id==definition->area_id;});Require(region!=bundle.regions.end());Require(source.stowed||bool(PlacementPolicy::Check(GeometryContext(r.native_estate_id,definition->type,region->id),item,geometry,*region,placed.transform,PlacementPolicy::Operation::Add)));
  }

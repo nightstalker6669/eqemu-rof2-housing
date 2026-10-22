@@ -53,7 +53,7 @@ Bytes Unhex(const char* text){
                 Error::DatabaseFailure
             };
             const std::string s=text;
-            if(s.size()%2||s.size()>140000)throw Failure{
+            if(s.size()%2||s.size()>2*CustodyCodec::MaximumPayload)throw Failure{
                 Error::DatabaseFailure
             };
             auto nibble=[](char c)->uint8_t{

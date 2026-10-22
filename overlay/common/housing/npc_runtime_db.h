@@ -14,7 +14,7 @@ inline uint64_t Count(Database& db,uint32_t native,uint64_t house=0){
  sql+=CrateMemberScope::VaultPredicate(db,"p");
  auto rows=NpcItemMetadata::Query(db,sql+" ORDER BY p.custody_id LIMIT 16385 FOR UPDATE");if(rows.RowCount()>16384)throw std::runtime_error("NPC count envelope");uint64_t count=0;
  for(auto r=rows.begin();r.operator!=(rows.end());++r){
-  if(!r[0])throw std::runtime_error("NPC count raw custody missing");std::string hex=r[0];if(hex.size()%2||hex.size()>131300)throw std::runtime_error("NPC count custody framing");
+  if(!r[0])throw std::runtime_error("NPC count raw custody missing");std::string hex=r[0];if(hex.size()%2||hex.size()>2*CustodyCodec::MaximumPayload)throw std::runtime_error("NPC count custody framing");
   std::vector<uint8_t> bytes;auto digit=[](char c)->uint8_t{if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;throw std::runtime_error("NPC count custody hex");};for(size_t i=0;i<hex.size();i+=2)bytes.push_back((digit(hex[i])<<4)|digit(hex[i+1]));
   auto row=CustodyCodec::Decode(bytes);if((row.null_fields&LiveItems::NullItemId)||!row.values.item_id||!row.values.character_id||!r[1]||!r[2]||NpcItemMetadata::Number(r[1])!=row.values.character_id||!NpcItemMetadata::Number(r[2]))throw std::runtime_error("NPC count custody identity mismatch");auto source=NpcItemMetadata::ReadUnderTransaction(db,row.values.item_id);if(r[3]&&(NpcItemMetadata::Number(r[3])==ContentBinding::NpcClassVersion||NpcItemMetadata::Number(r[3])==ContentBinding::GenericNpcClassVersion)&&(!source||!Review(*source)))throw std::runtime_error("NPC count source changed under retained class");if(source&&!source->filename.empty()&&!source->interactive)++count;
  }

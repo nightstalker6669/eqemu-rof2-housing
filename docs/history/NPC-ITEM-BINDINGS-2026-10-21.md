@@ -25,7 +25,7 @@ emits6 while retaining zero/unknown in the source height field and `null` for th
 historical raw height in provenance. **Historical Live item size was not
 recovered.** This is an authenticated original model-default sizing policy.
 
-[The reviewed source registry](../overlay/common/housing/npc_reviewed_item_bindings.json)
+[The reviewed source registry](../../overlay/common/housing/npc_reviewed_item_bindings.json)
 pins the original executable, model archive, resource manifest, race defaults,
 collector record, opaque respawn field4500 and selected policy. The compiled
 binding and SQL seed use that exact JSON hash. The raw respawn field is preserved
@@ -59,7 +59,7 @@ Stop world, every zone and concurrent item writers. Retain a backup and inspect
 any pre-existing item77408 custody using the versioned custody codec before
 activation; do not rewrite retained contents to fit changed metadata.
 Apply the existing NPC metadata/runtime migrations first, then
-[the guarded Holgresh seed](../overlay/utils/sql/optional/2026_10_21_housing_holgresh_npc_binding.sql).
+[the guarded Holgresh seed](../../overlay/utils/sql/optional/2026_10_21_housing_holgresh_npc_binding.sql).
 It accepts only the exact empty physical metadata or exact reviewed postimage,
 refuses conflicting source data, preserves unrelated fields and retries exactly.
 
@@ -87,9 +87,9 @@ and properties; it does not establish a fresh purchase or all non-admin roles.
 The original renderer tests its animated collision box against native regions,
 while the outgoing NPC request uses the original fixed ground/height envelope.
 A tight room envelope can therefore reject an otherwise valid floor placement.
-The [source-derived animation envelope](provenance/housing-npc/HLG-PREVIEW-ENVELOPE.md)
+The [source-derived animation envelope](../provenance/housing-npc/HLG-PREVIEW-ENVELOPE.md)
 covers all13 original clips and their controller/rounding behavior. A separate
-[native admission policy](../overlay/common/housing/npc_native_admission.json)
+[native admission policy](../../overlay/common/housing/npc_native_admission.json)
 creates finite temporary presentation geometry for the reviewed Holgresh only.
 
 Begin and Move preserve the complete native region collection and add a checked

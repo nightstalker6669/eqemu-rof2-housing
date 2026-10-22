@@ -14,4 +14,4 @@ The current implementation uses 55 mapped values from a catalogue of 67 document
 
 The original client consumes server-supplied `0x21ec` menu parameters and text IDs; outgoing request fields depend on the selected action. The executable does not contain the original server's choice of those menu records or their effects. Further static repetition cannot recover data absent from that executable. Matching-build original menu records or attributed captures are needed before these requests can be given safe gameplay handlers. Current Live observations may inform behavior, but do not independently establish May2013 wire layouts.
 
-The Standard guild-hall model door uses the existing normal door-click message and the verified housing exit service. It does not require inventing a custom interaction, new opcode, or new wire struct. See [guild routing](../docs/GUILD-ACCESS-ROUTING-2026-10-19.md).
+The Standard guild-hall model door uses the existing normal door-click message and the verified housing exit service. It does not require inventing a custom interaction, new opcode, or new wire struct. See [guild routing](../docs/history/GUILD-ACCESS-ROUTING-2026-10-19.md).

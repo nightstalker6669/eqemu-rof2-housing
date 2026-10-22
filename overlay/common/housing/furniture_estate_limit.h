@@ -24,7 +24,7 @@ inline bool AvailableUnderTransaction(Database& db,uint32_t native_estate,uint32
  uint64_t same=0;
  for(auto row=rows.begin();row.operator!=(rows.end());++row){
   if(!row[0])throw std::invalid_argument("Furniture estate cap custody absent");
-  const std::string hex=row[0];if(hex.size()>131300||hex.size()%2)throw std::invalid_argument("Invalid furniture estate cap row");
+  const std::string hex=row[0];if(hex.size()>2*CustodyCodec::MaximumPayload||hex.size()%2)throw std::invalid_argument("Invalid furniture estate cap row");
   auto digit=[](char c)->uint8_t{if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;throw std::invalid_argument("Invalid furniture estate cap hex");};
   std::vector<uint8_t> bytes;bytes.reserve(hex.size()/2);for(size_t i=0;i<hex.size();i+=2)bytes.push_back(uint8_t((digit(hex[i])<<4)|digit(hex[i+1])));
   if(CustodyCodec::Decode(bytes).values.item_id==item)++same;

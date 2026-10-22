@@ -14,7 +14,7 @@ The private checks above remain SQL, transaction and reload results. A subsequen
 
 Limits remain: existing interior crate roots; unsupported evolving, augmented and NPC payloads; later partial-quantity or certified-death recovery lineage; destroyed typed containers; nested bag reconstruction; parcel overflow; and insufficient inventory slots defer safely. The feature does not retroactively invent settlement proofs for legacy returns.
 
-See [batch implementation](../overlay/common/housing/offline_return_batches.md), [direct returns](../overlay/common/housing/offline_direct_return.md), and the optional direct-return, settlement and mixed-return SQL migrations. Explicit reviews and supported content are required before enabling the job.
+See [batch implementation](../../overlay/common/housing/offline_return_batches.md), [direct returns](../../overlay/common/housing/offline_direct_return.md), and the optional direct-return, settlement and mixed-return SQL migrations. Explicit reviews and supported content are required before enabling the job.
 
 
 ## Native admission and settlement follow-up
@@ -26,4 +26,4 @@ The subsequent guild-disband attempt correctly refused when its earlier settleme
 
 The final native run covered both recipients, the rightful direct stack and room-chair deliveries, two generated loose-furniture crates, personal destination placement, unpack and chair pickup, followed by real guarded guild deletion. The retained furnished-hall crate remained carried with its permanent room and stored room object unchanged; this run did not place, replace or unpack the hall. Protected original ownership, inventory, currency, custody, poses and house/crate graph passed the final conservation audit. Administrative cleanup of the isolated refund is separate from this gameplay claim.
 
-Later update: interior crate roots, recognized NPCs and optional native parcel overflow are implemented in [current retirement and returns](RETIREMENT-RETURNS.md). The limits above describe the earlier milestone.
+Later update: interior crate roots, recognized NPCs and optional native parcel overflow are implemented in [current retirement and returns](../RETIREMENT-RETURNS.md). The limits above describe the earlier milestone.

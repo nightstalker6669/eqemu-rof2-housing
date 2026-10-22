@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #include "house_operation_authority.h"
 #include "catalog_service.h"
 #include "../database.h"
@@ -64,7 +65,7 @@ Result<Decision> AuthorizeUnderTransaction(Database& db,const Request& request,c
         auto catalog=Q(db,"SELECT revision,origin,client_build,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key='"+db.Escape(plot.catalog)+"' AND OCTET_LENGTH(definitions_blob)<=4000000 AND OCTET_LENGTH(regions_blob)<=4000000 FOR UPDATE");
         if(catalog.RowCount()!=1)throw Failure{Error::InvalidRoute};auto c=catalog.begin();ctx.catalog_revision=N(c[0],UINT64_MAX);
         if(!ctx.catalog_revision||N(c[2])!=20130510)throw Failure{Error::InvalidRoute};
-        auto origin=N(c[1]);if(origin==2){auto name=Q(db,"SELECT DATABASE()");if(name.RowCount()!=1||!name.begin()[0])throw Failure{Error::DatabaseFailure};std::string n=name.begin()[0];if(n!="peq_housing_test"&&n.rfind("peq_housing_test_",0)!=0)throw Failure{Error::Unauthorized};}else if(origin!=1)throw Failure{Error::InvalidRoute};
+        auto origin=N(c[1]);if(origin==2){auto name=Q(db,"SELECT DATABASE()");if(name.RowCount()!=1||!name.begin()[0])throw Failure{Error::DatabaseFailure};std::string n=name.begin()[0];if(!Housing::RuntimeActivation::AllowsReconstructedContent(db))throw Failure{Error::Unauthorized};}else if(origin!=1)throw Failure{Error::InvalidRoute};
         auto decoded=Catalog::DecodePayloads(Bytes(c[3]),Bytes(c[4]));
         ctx.plot_definition=Definition(decoded,plot.definition);
         const auto& root_definition=Definition(decoded,root.definition);

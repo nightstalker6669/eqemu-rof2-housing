@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #include "native_access_service.h"
 #include "catalog_service.h"
 #include <algorithm>
@@ -240,7 +241,7 @@ namespace Housing::NativeAccess {
             if(Number(cr[0])==2){
                 auto database=Query(db,"SELECT DATABASE()");
                 const std::string name=database.begin()[0];
-                if(name!="peq_housing_test"&&name.rfind("peq_housing_test_",0)!=0)throw Failure{
+                if(!Housing::RuntimeActivation::AllowsReconstructedContent(db))throw Failure{
                     Error::Unauthorized
                 };
             }

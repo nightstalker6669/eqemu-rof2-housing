@@ -64,4 +64,4 @@ All 67 recovered layouts and explicit unknown fields are in [STRUCTS.md](STRUCTS
 
 Project opcode names are integration labels. Internal ServerOP_Housing messages are emulator coordination, not original-client discoveries.
 
-The service integration activates previously recovered `0x21ea`; it adds no new recovered number. The canonical server profile is 32 bytes with a 16-character GUID plus NUL and a zero-filled unobserved gap. The original exclusive emitted length remains unknown. Representative Grand hall service placement and transactions passed; see [service acceptance](../docs/SERVICE-NPCS-2026-10-21.md) for remaining boundaries.
+The service integration activates previously recovered `0x21ea`; it adds no new recovered number. The canonical server profile is 32 bytes with a 16-character GUID plus NUL and a zero-filled unobserved gap. The original exclusive emitted length remains unknown. Representative Grand hall service placement and transactions passed; see [service acceptance](../docs/history/SERVICE-NPCS-2026-10-21.md) for remaining boundaries.

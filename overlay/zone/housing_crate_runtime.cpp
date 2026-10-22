@@ -1,3 +1,5 @@
+#include "../common/housing/crate_content_manifest.h"
+#include "../common/housing/runtime_activation_db.h"
 #include "housing_crate_runtime.h"
 #include "housing_inventory_bridge.h"
 #include "housing_house_runtime.h"
@@ -5,7 +7,7 @@
 #include "client.h"
 #include "zone.h"
 #include "../common/eqemu_config.h"
-#include "../common/housing/crate_content_loader.h"
+#include "../common/housing/crate_test_content.h"
 #include "../common/housing/crate_placement_model.h"
 #include "../common/housing/reviewed_crate_runtime.h"
 #include <fstream>
@@ -16,7 +18,7 @@ namespace {
 using Content=CrateTest::Content;
 std::shared_ptr<const Content> selected;bool initialized=false;
 std::string Lower(std::string s){for(auto& c:s)if(c>='A'&&c<='F')c=char(c-'A'+'a');return s;}
-bool DatabaseReady(){const auto* config=EQEmuConfig::get();return config&&config->DatabaseDB=="peq_housing_test"&&InventoryBridge::IsRegisteredZoneThread()&&RuleB(Housing,EnablePlayerHousing);}
+bool DatabaseReady(){const auto* config=EQEmuConfig::get();return config&&Housing::RuntimeActivation::AllowsReconstructedContent(database)&&InventoryBridge::IsRegisteredZoneThread()&&RuleB(Housing,EnablePlayerHousing);}
 bool Metadata(Database& db,const Content& s){
  try{
   auto r=db.QueryDatabase(std::string("SELECT idfile,UNK224,UNK227,UNK228,UNK229,itemclass,bagslots,stackable,UNK226 FROM items WHERE id=62586 FOR UPDATE"),false);if(!r.Success()||r.RowCount()!=1)return false;auto row=r.begin();for(size_t i=0;i<9;++i)if(!row[i])return false;
@@ -96,9 +98,10 @@ public:
 std::string FileDigest(const char* path){std::ifstream file(path,std::ios::binary);if(!file)throw std::invalid_argument("Missing crate resource");SHA256_CTX c;SHA256_Init(&c);char b[65536];while(file.read(b,sizeof b)||file.gcount())SHA256_Update(&c,b,size_t(file.gcount()));if(file.bad())throw std::invalid_argument("Unreadable crate resource");std::array<uint8_t,32> sum;SHA256_Final(sum.data(),&c);std::string out;const char* h="0123456789abcdef";for(auto v:sum){out+=h[v>>4];out+=h[v&15];}return out;}
 }
 bool LoadAtSafeStartup(){
- if(initialized||!InventoryBridge::IsRegisteredZoneThread())return false;initialized=true;std::ifstream input(".crate-test.json",std::ios::binary);
- if(!input){std::error_code error;const bool present=std::filesystem::exists(".crate-test.json",error);return !present&&!error;}
- try{if(!DatabaseReady())return false;std::string raw;char b[4096];while(input.read(b,sizeof b)||input.gcount()){raw.append(b,size_t(input.gcount()));if(raw.size()>262144)return false;}if(input.bad())return false;auto parsed=CrateTest::Parse(raw);if(!parsed||FileDigest("housing-test-assets/furniture06.eqg")!=CrateGeometry::Original.archive_sha256||FileDigest("maps/base/neighborhood.map")!=parsed->map_sha256)return false;selected=std::make_shared<const Content>(std::move(*parsed));return true;}catch(...){return false;}
+ if(initialized||!InventoryBridge::IsRegisteredZoneThread())return false;initialized=true;
+ const bool legacy=std::filesystem::exists(".crate-test.json");const char* path=legacy?".crate-test.json":"housing-crate-content.json";std::ifstream input(path,std::ios::binary);
+ if(!input){std::error_code error;const bool present=std::filesystem::exists(path,error);return !present&&!error;}
+ try{if(!DatabaseReady())return false;std::string raw;char b[4096];while(input.read(b,sizeof b)||input.gcount()){raw.append(b,size_t(input.gcount()));if(raw.size()>262144)return false;}if(input.bad())return false;auto parsed=legacy?CrateTest::Parse(raw):CrateContentManifest::Parse(raw);if(!parsed||FileDigest("housing-test-assets/furniture06.eqg")!=CrateGeometry::Original.archive_sha256||FileDigest("maps/base/neighborhood.map")!=parsed->map_sha256)return false;selected=std::make_shared<const Content>(std::move(*parsed));return true;}catch(...){return false;}
 }
 std::shared_ptr<const CrateBinding::ReloadPolicy> ReloadPolicy(const std::vector<std::shared_ptr<const HouseRuntime::PersonalTestSelection>>&){return selected?std::make_shared<const Reload>(selected):nullptr;}
 std::unique_ptr<CrateBinding::CustodyContext> MakeForClient(Client& c,LiveItems::InventorySessionFence& f,std::shared_ptr<const HouseRuntime::PersonalTestSelection>){return selected&&ClientReady(c)?std::make_unique<Custody>(c,f,selected):nullptr;}

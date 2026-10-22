@@ -298,7 +298,7 @@ namespace Housing::HouseInventory {
                 s.slot=reader.N(4);
                 auto exists=reader.N(1);
                 if(exists>1)Reject(Error::DatabaseFailure);
-                if(exists)s.row=CustodyCodec::Decode(reader.Blob(70000));
+                if(exists)s.row=CustodyCodec::Decode(reader.Blob(CustodyCodec::MaximumPayload));
                 states.push_back(std::move(s));
             }return states;
         }

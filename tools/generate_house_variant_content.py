@@ -314,7 +314,7 @@ def generate(args):
             integer(item, 'capacity template item', 1)
             if item not in compiled:
                 excluded.append(dict(item_id=item, reason='Capacity evidence alone does not admit an unresolved template/model/route association'))
-    require(rows, 'No new reviewed templates remain after exclusions')
+    require(catalogue_rows, 'No reviewed templates are available for the catalogue')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix='.housing-variant-content-', dir=args.output.parent))
     try:

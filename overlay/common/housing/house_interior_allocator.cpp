@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #include "house_interior_allocator.h"
 #include "catalog_content_db.h"
 #include "current_estate_access.h"
@@ -33,7 +34,7 @@ Result<HouseBinding::Interior> AllocateUnderTransaction(Database& db,const House
   if(!m[2]||std::string(m[2])!=reservation.catalog_key||N(m[3])!=N(m[6])||N(m[4])!=N(m[7])||N(m[8])!=1||!fence.PlacementContextMatches(request.estate_id,reservation.native_estate_id,uint16_t(N(m[5],32000))))Bad(Error::Unauthorized);
   auto catalog=Q(db,"SELECT revision,origin,client_build,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key="+Quote(db,reservation.catalog_key)+" FOR UPDATE");
   if(catalog.RowCount()!=1||N(catalog.begin()[2])!=20130510)Bad(Error::Conflict);auto c=catalog.begin();const auto revision=N(c[0]);if(!revision)Bad(Error::Conflict);
-  if(N(c[1])==2){auto current=Q(db,"SELECT DATABASE()");std::string name=current.begin()[0]?current.begin()[0]:"";if(name!="peq_housing_test"&&name.rfind("peq_housing_test_",0)!=0)Bad(Error::Unauthorized);}else if(N(c[1])!=1)Bad(Error::Unauthorized);
+  if(N(c[1])==2){auto current=Q(db,"SELECT DATABASE()");std::string name=current.begin()[0]?current.begin()[0]:"";if(!Housing::RuntimeActivation::AllowsReconstructedContent(db))Bad(Error::Unauthorized);}else if(N(c[1])!=1)Bad(Error::Unauthorized);
   auto bundle=Catalog::DecodePayloads(Unhex(c[3]),Unhex(c[4]));
   const EstateWire::Definition *plot=nullptr,*house=nullptr;
   for(const auto& d:bundle.definitions){if(d.id==N(m[0]))plot=&d;if(d.id==route.definition_id)house=&d;}

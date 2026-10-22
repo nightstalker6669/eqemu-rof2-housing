@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #include "house_binding_service.h"
 #include "house_relocation_preflight.h"
 #include "rent_state_db.h"
@@ -283,7 +284,7 @@ EstateWire::Definition InteriorFacts(Database& db, const Interior& interior) {
     if (origin == 2) {
         auto database = Q(db, "SELECT DATABASE()");
         const std::string name = database.begin()[0] ? database.begin()[0] : "";
-        if (name != "peq_housing_test" && name.rfind("peq_housing_test_", 0) != 0) Reject(Error::Unauthorized);
+        if (!Housing::RuntimeActivation::AllowsReconstructedContent(db)) Reject(Error::Unauthorized);
     } else if (origin != 1) Reject(Error::Conflict);
     Catalog::Bundle decoded;
     try { decoded = Catalog::DecodePayloads(Unhex(catalog.begin()[3]), Unhex(catalog.begin()[4])); }
@@ -352,7 +353,7 @@ Effect DecodeEffect(const Bytes& bytes) {
         out.request_key = reader.Text(96); out.action = Action(reader.N(1));
         auto minted = reader.N(1); if (minted > 1) Reject(Error::DatabaseFailure); out.minted = minted;
         out.before = DecodeBinding(reader); out.after = DecodeBinding(reader);
-        out.source = CustodyCodec::Decode(reader.Blob(70000)); out.destination = CustodyCodec::Decode(reader.Blob(70000));
+        out.source = CustodyCodec::Decode(reader.Blob(CustodyCodec::MaximumPayload)); out.destination = CustodyCodec::Decode(reader.Blob(CustodyCodec::MaximumPayload));
         if (reader.at != bytes.size() || EncodeEffect(out) != bytes || !Key(out.request_key)
             || (out.action != Action::Store && out.action != Action::Return) || !out.before.house_id
             || out.before.house_id != out.after.house_id || out.before.revision == UINT64_MAX

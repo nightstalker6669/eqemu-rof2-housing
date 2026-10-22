@@ -14,7 +14,7 @@ metadata and model as reviewed 61913, while retaining its own physical identity.
 Evantil uses original registered interior 766 (`phinteriortree`) and the
 `COL_IT23651` collision resource explicitly selected by the original EQLOD;
 its much larger decorative visual mesh is not the collision box.
-See [resource provenance](provenance/house-variants/IT23651-COL-witness.json).
+See [resource provenance](../provenance/house-variants/IT23651-COL-witness.json).
 
 The runtime now checks each guild template's exact reviewed interior association;
 being any registered guild interior is insufficient. The existing explicit
@@ -25,10 +25,10 @@ manifest bytes or durable bindings.
 
 ## Portable content generation
 
-The production [generator](../tools/generate_house_variant_content.py) uses the
+The production [generator](../../tools/generate_house_variant_content.py) uses the
 operator's matching original client and prepared collision maps, plus the
-[capacity registry](../overlay/common/housing/house_variant_capacities.json) and
-[source-bound geometry blueprints](../overlay/common/housing/house_variant_geometry.json).
+[capacity registry](../../overlay/common/housing/house_variant_capacities.json) and
+[source-bound geometry blueprints](../../overlay/common/housing/house_variant_geometry.json).
 It authenticates the executable, renderer, source resources and maps before
 writing a fresh private directory. The output contains no actor, property,
 allocated native-estate or instance identity. Region IDs are profile-local
@@ -73,10 +73,10 @@ containing only the new entry is not a replacement for their active registry.
 ## Capacity and geometry boundaries
 
 The researched evidence registry remains unchanged, including its historical
-unknowns. A separate [configurable capacity policy](../overlay/common/housing/house_variant_capacity_defaults.json)
+unknowns. A separate [configurable capacity policy](../../overlay/common/housing/house_variant_capacity_defaults.json)
 records every effective field and its source classification. Personal totals
 are300/500, Manor500 and Evantil600. Hermit uses the researched400 total and the reviewed723 route described
-in its [provenance guide](provenance/house-variants/HERMIT-HIDEAWAY.md). Standard1000 and Modest1500 use the stated
+in its [provenance guide](../provenance/house-variants/HERMIT-HIDEAWAY.md). Standard1000 and Modest1500 use the stated
 later placeable-derived budget; Palatial2000 has period player evidence.
 **Grand1500 is an explicit server default**, not a recovered historical total.
 
@@ -94,14 +94,14 @@ require the checked capacity ledger upgrade; changing a file alone does not
 reconfigure them. The 18 later Manor aliases reuse exact structured model/definition metadata;
 contradictory lore remains untouched. Hermit's723 association is an explicitly
 reviewed reconstruction, not a captured original server definition. See the
-[Manor evidence](provenance/house-variants/MANOR-ALIASES.md) and
-[Hermit evidence](provenance/house-variants/HERMIT-HIDEAWAY.md).
+[Manor evidence](../provenance/house-variants/MANOR-ALIASES.md) and
+[Hermit evidence](../provenance/house-variants/HERMIT-HIDEAWAY.md).
 
 ### Existing rooms and future preserved templates
 
-[Migration039](../overlay/utils/sql/housing/039_house_capacity_policies.sql) adds
+[Migration039](../../overlay/utils/sql/housing/039_house_capacity_policies.sql) adds
 append-only house policy history, a current head and exact template/base grants.
-The checked [maintenance API](../overlay/common/housing/interior_capacity_policy_db.h)
+The checked [maintenance API](../../overlay/common/housing/interior_capacity_policy_db.h)
 requires the caller's transaction and stopped, quiescent runtime for existing
 rooms. It pins original profile revision, manifest, definition and region hashes;
 checks current usage; permits only monotone capacity changes and retained or
@@ -151,10 +151,10 @@ profiles. Administrative ownership used for development is distinct from native
 purchase acceptance.
 
 Stop world and every zone before metadata repair, configuration deployment and
-shared-item regeneration. The optional [Evantil item repair](../overlay/utils/sql/optional/2026_10_21_housing_evantil_metadata.sql) changes only reviewed
+shared-item regeneration. The optional [Evantil item repair](../../overlay/utils/sql/optional/2026_10_21_housing_evantil_metadata.sql) changes only reviewed
 item77407 fields and refuses conflicting content or pre-existing bindings.
-The [Evantil zone registration](../overlay/utils/sql/optional/2026_10_21_housing_evantil_zone.sql) supplies original zone766 identity with explicitly technical
-entry/noncombat policies. The [supported guild-zone repair](../overlay/utils/sql/optional/2026_10_21_housing_supported_guild_zones.sql) removes existing admin255 gating only from
+The [Evantil zone registration](../../overlay/utils/sql/optional/2026_10_21_housing_evantil_zone.sql) supplies original zone766 identity with explicitly technical
+entry/noncombat policies. The [supported guild-zone repair](../../overlay/utils/sql/optional/2026_10_21_housing_supported_guild_zones.sql) removes existing admin255 gating only from
 matched737/738/751 rows, or creates missing matched identities with stated technical
 defaults. It preserves their existing safe points and other columns and covers the approved Grand room as well. These access settings are operator housing policy,
 not recovered Live restrictions. Generic player zoning restrictions remain active.
@@ -226,7 +226,7 @@ This establishes the service path, not a new native timer or purchase cycle.
 
 An opt-in guild recipient policy exposed an incompatible foreign key: upstream
 character saves use `REPLACE`, which transiently deletes the character row.
-The [guarded compatibility migration](../overlay/utils/sql/optional/2026_10_21_housing_character_save_compatibility.sql) removes only that exact constraint,
+The [guarded compatibility migration](../../overlay/utils/sql/optional/2026_10_21_housing_character_save_compatibility.sql) removes only that exact constraint,
 retains all policies and receipts, and leaves current-recipient validation with
 the checked retirement service. Fresh policy creation omits the constraint.
 The migration was applied with policy rows conserved. Ordinary native zoning

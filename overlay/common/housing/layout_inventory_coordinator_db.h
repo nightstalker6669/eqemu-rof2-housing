@@ -1,3 +1,4 @@
+#include "item_payload_db.h"
 #ifndef EQEMU_HOUSING_LAYOUT_INVENTORY_COORDINATOR_DB_H
 #define EQEMU_HOUSING_LAYOUT_INVENTORY_COORDINATOR_DB_H
 #include "layout_inventory_application.h"
@@ -23,14 +24,14 @@ inline LiveItems::Result<Staged> StageUnderTransaction(Database& db,bool enabled
   auto prior=LayoutInventoryJournal::ReadUnderTransaction(db,true,binding,fence);if(prior){Staged out;out.receipt=std::move(prior.value);return {std::move(out),Error::None};}if(prior.error!=Error::NotFound)return {{},prior.error};
   auto load=*LayoutInventoryJournal::Detail::Wire(binding);std::set<uint32_t> slots;
   for(const auto& operation:load.operations){const auto& op=std::get<LayoutWire::PlacementOperation>(operation);auto slot=LayoutInventory::ResolveSlot(inv,op.source_kind,op.source_slots);if(!slot)return {{},Error::UnsupportedItem};slots.insert(*slot);if(op.source_slots[1]!=0xffff)slots.insert(op.source_slots[0]);}
-  std::vector<LiveItems::InventoryRow> rows;for(auto slot:slots){auto selected=LayoutInventoryJournal::Detail::Q(db,"SELECT "+std::string(InventoryRowDB::Columns)+" FROM inventory WHERE character_id="+std::to_string(binding.lease.actor.character_id)+" AND slot_id="+std::to_string(slot)+" FOR UPDATE");if(selected.RowCount()!=1)return {{},Error::Conflict};rows.push_back(InventoryRowDB::Decode(selected.begin()));}
+  std::vector<LiveItems::InventoryRow> rows;for(auto slot:slots){auto selected=LayoutInventoryJournal::Detail::Q(db,"SELECT "+std::string(InventoryRowDB::Columns)+" FROM inventory WHERE character_id="+std::to_string(binding.lease.actor.character_id)+" AND slot_id="+std::to_string(slot)+" FOR UPDATE");if(selected.RowCount()!=1)return {{},Error::Conflict};auto captured=InventoryRowDB::Decode(selected.begin());auto* memory=inv.GetItem(int16_t(slot));if(!memory)return {{},Error::Conflict};captured.evolving_payload=EvolvingItemCustody::Capture(db,captured.values.character_id,slot,*memory);rows.push_back(std::move(captured));}
   auto plan=LayoutInventory::Build(load,binding.lease,rows,inv,fence);if(!plan)return {{},plan.error};auto prepared=LayoutInventory::PrepareOrdinary(plan.value,binding.lease,inv,fence);if(!prepared)return {{},prepared.error};
   std::vector<LiveItems::LayoutUnitPlacement> placements;placements.reserve(prepared.value.units.size());
   for(size_t i=0;i<prepared.value.units.size();++i){const auto ordinal=prepared.value.units[i].operation_index;auto target=targets[ordinal];target.lease=binding.lease;target.transform=LayoutWire::PlacementTransform(std::get<LayoutWire::PlacementOperation>(load.operations[ordinal]));
    const auto member=binding.request_key+":"+std::to_string(ordinal);std::array<uint8_t,SHA256_DIGEST_LENGTH> digest;SHA256(reinterpret_cast<const unsigned char*>(member.data()),member.size(),digest.data());target.request_key="layout-unit:"+LayoutInventoryJournal::Detail::Hex(std::vector<uint8_t>(digest.begin(),digest.end()));
    auto placed=LiveItems::Service::PlaceLayoutUnitUnderTransaction(db,true,target,plan.value,prepared.value,i,inv,fence,houses,rooms,crates);if(!placed)return {{},placed.error};placements.push_back(std::move(placed.value));
   }
-  auto consumed=LayoutInventory::ConsumeSourcesUnderTransaction(db,true,binding.lease,plan.value,prepared.value,inv,fence);if(!consumed)return {{},consumed.error};auto completed=LayoutInventoryJournal::CompleteUnderTransaction(db,true,binding,plan.value,prepared.value,consumed.value,placements,inv,fence);if(!completed)return {{},completed.error};
+  auto consumed=LayoutInventory::ConsumeSourcesUnderTransaction(db,true,binding.lease,plan.value,prepared.value,inv,fence);if(!consumed)return {{},consumed.error};for(const auto& placed:placements)ItemPayload::Hold(db,placed.stored.row,placed.stored.custody_id);auto completed=LayoutInventoryJournal::CompleteUnderTransaction(db,true,binding,plan.value,prepared.value,consumed.value,placements,inv,fence);if(!completed)return {{},completed.error};
   Staged out;out.receipt=std::move(completed.value);out.plan=std::move(plan.value);out.prepared=std::move(prepared.value);return {std::move(out),Error::None};
  }catch(const LayoutInventoryJournal::Detail::Failure& e){return {{},e.error};}catch(const std::invalid_argument&){return {{},Error::InvalidArgument};}catch(...){return {{},Error::DatabaseFailure};}
 }

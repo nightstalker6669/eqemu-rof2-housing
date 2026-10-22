@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 // Optional clone-only helper. This program cannot mint or certify process death.
 // The direct parent supervisor records exact owned-child wait evidence first.
 #include "inventory_process_recovery.h"
@@ -18,13 +19,14 @@ int main(int argc,char** argv)
   // This standalone helper is launched with cwd=server; PathManager is not initialized.
   if(!EQEmuConfig::LoadConfig(".")) return 3;
   const auto* cfg=EQEmuConfig::get();
-  if(!cfg||cfg->DatabaseDB!="peq_housing_test") return 3;
+  if(!cfg) return 3;
   auto connect=[&] {
    auto db=std::make_unique<Database>();
    if(!db->Connect(cfg->DatabaseHost,cfg->DatabaseUsername,cfg->DatabasePassword,cfg->DatabaseDB,cfg->DatabasePort,"supervised-recovery")) throw std::runtime_error("connect");
    return db;
   };
   auto db=connect();
+  if(!Housing::RuntimeActivation::AllowsReconstructedContent(*db))return 3;
   auto rows=db->QueryDatabase("SELECT character_id,account_id,epoch,HEX(token),client_key,zone_id,instance_id FROM housing_inventory_sessions WHERE process_key='"+process+"' AND active=1 ORDER BY character_id",false);
   if(!rows.Success())return 4;
   std::vector<Housing::InventorySessions::Lease> leases;

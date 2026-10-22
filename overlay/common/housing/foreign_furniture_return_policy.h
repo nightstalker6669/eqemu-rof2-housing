@@ -2,6 +2,7 @@
 #define EQEMU_HOUSING_FOREIGN_FURNITURE_RETURN_POLICY_H
 #include "live_item_service.h"
 #include "custody_codec.h"
+#include "item_payload_db.h"
 #include "static_furniture_registry.h"
 #include "../rulesys.h"
 namespace Housing::ForeignFurnitureReturn {
@@ -21,7 +22,7 @@ inline bool Eligible(const LiveItems::InventoryRow& row,const LiveItems::Catalog
 // future admission registry or current ACL. New mutations must use Eligible.
 inline bool Outcome(const LiveItems::Receipt& receipt,uint32_t recipient){
  if(receipt.action!=LiveItems::Action::Return||!receipt.stored.placement||receipt.house_effect_required||receipt.house_effect||receipt.crate_before||receipt.crate_allocation||!Shape(receipt.stored.row,receipt.stored.catalog))return false;
- auto expected=receipt.stored.row;expected.values.character_id=recipient;expected.values.slot_id=receipt.inventory_after.values.slot_id;
+ auto expected=receipt.stored.row;ItemPayload::Owner(expected,recipient);expected.values.slot_id=receipt.inventory_after.values.slot_id;
  return CustodyCodec::Encode(expected)==CustodyCodec::Encode(receipt.inventory_after);
 }
 }

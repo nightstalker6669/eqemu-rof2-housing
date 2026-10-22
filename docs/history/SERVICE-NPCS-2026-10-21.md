@@ -34,7 +34,7 @@ The representative Grand service flows, ordinary furniture coexistence, direct s
 
 The item keys identify server content; they are not renderer model names. Reviewed later collector records provide placement mask2, interactive flag1, fixed scale1 and opaque respawn value750. The six assistants have the signed unlimited per-template sentinel; the device has a per-estate maximum of1. They still consume the applicable total item budget. They are excluded from the ordinary housing-pet quota, matching the original client's interactive-versus-pet classifier. The respawn number is retained as opaque metadata; this addition does not invent its units or an NPC respawn scheduler.
 
-Bindings and evidence classifications are published in [service_item_bindings.json](../overlay/common/housing/service_item_bindings.json) and [the provenance guide](provenance/housing-services/SOURCES.md).
+Bindings and evidence classifications are published in [service_item_bindings.json](../../overlay/common/housing/service_item_bindings.json) and [the provenance guide](../provenance/housing-services/SOURCES.md).
 
 ## Real NPCs and housing identity
 
@@ -107,20 +107,20 @@ The current destination catalogue deliberately follows the deployed basic hall i
 |88739|Plane of Time|
 |88740|Brell's Rest|
 
-This is 21 supported destinations, not the full modern Live portal catalogue. Guild-banner stone 88737 has an unimplemented placeholder in the basic quests, and 76008 has no supported destination there. Both are refused rather than consuming a crystal for an invented or placeholder route. The implementation does not claim the later expansion destinations absent from that baseline. See [guild_portal_service.h](../overlay/common/housing/guild_portal_service.h).
+This is 21 supported destinations, not the full modern Live portal catalogue. Guild-banner stone 88737 has an unimplemented placeholder in the basic quests, and 76008 has no supported destination there. Both are refused rather than consuming a crystal for an invented or placeholder route. The implementation does not claim the later expansion destinations absent from that baseline. See [guild_portal_service.h](../../overlay/common/housing/guild_portal_service.h).
 
 ## Acquisition and installation
 
-[Brent Harnak's November 2011 entry](https://everquest.allakhazam.com/db/npc.html?id=38576) identifies the Guildhall Accessories merchant in Sunrise Hills and lists all six assistant contracts. The optional [service vendor migration](../overlay/utils/sql/optional/2026_10_21_housing_service_vendor.sql) restores that six-item stock and the documented location, plus one explicitly labelled server stock addition for the device. It labels the missing original NPC appearance and heading as server equivalents. Existing item prices and normal merchant price calculations are retained.
+[Brent Harnak's November 2011 entry](https://everquest.allakhazam.com/db/npc.html?id=38576) identifies the Guildhall Accessories merchant in Sunrise Hills and lists all six assistant contracts. The optional [service vendor migration](../../overlay/utils/sql/optional/2026_10_21_housing_service_vendor.sql) restores that six-item stock and the documented location, plus one explicitly labelled server stock addition for the device. It labels the missing original NPC appearance and heading as server equivalents. Existing item prices and normal merchant price calculations are retained.
 
 The original [Collection of Standard Guild Services66653](https://items.sodeq.org/item.php?id=66653) description includes all six assistants, Guild Regeneration Pool66645 and Guild Teleportation Device66646. The complete guild-hall packages include that service collection. The exact original direct device vendor remains unresolved.
 
 For ordinary acquisition without an administrator grant, the Brent migration adds the genuine device as a seventh stock item using its existing 1000-copper base price. **This seventh slot is explicit server stock policy, not a claim about Brent's historical inventory.** The service addition does not implement all package-opening/furnishing or regeneration-pool behavior. No automatic device or service contract is installed when a guild hall is placed.
 
-Install the matching production overlay, integration patch and prerequisites from [INSTALL.md](INSTALL.md), then:
+Install the matching production overlay, integration patch and prerequisites from [INSTALL.md](../INSTALL.md), then:
 
 1. Stop all world, zone and shared-item writers. Apply the existing housing NPC metadata/runtime schemas and capacity prerequisites first.
-2. Apply guarded [service contract metadata/templates](../overlay/utils/sql/optional/2026_10_21_housing_service_contracts.sql), [guild portal alignment storage](../overlay/utils/sql/optional/2026_10_21_housing_guild_portal_alignment.sql), and the optional Brent stock migration. Conflicting existing rows or reserved IDs cause refusal; the migrations do not overwrite unrelated content.
+2. Apply guarded [service contract metadata/templates](../../overlay/utils/sql/optional/2026_10_21_housing_service_contracts.sql), [guild portal alignment storage](../../overlay/utils/sql/optional/2026_10_21_housing_guild_portal_alignment.sql), and the optional Brent stock migration. Conflicting existing rows or reserved IDs cause refusal; the migrations do not overwrite unrelated content.
 3. Rebuild and deploy all affected common/world/zone components together. The canonical spawn structure and Mob binding fields change the server ABI; a zone-only rebuild against older shared components is insufficient.
 4. Regenerate shared items using the same item-cache prefix loaded by every world and zone. The authentic interactive metadata, source hash and original height-unknown field must agree across SQL, cache and wire serialization.
 5. Deploy the source RoF2 mapping containing `OP_RealEstateBindSpawn=0x21ea`, restart the affected processes, and use the matching original client/resources already required by the housing overlay.

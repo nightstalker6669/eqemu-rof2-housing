@@ -5,6 +5,7 @@
 #include <array>
 #include <string_view>
 #include <memory>
+#include <vector>
 #include "placement_policy.h"
 #include "npc_native_frame.h"
 #include "catalog_content_binding.h"
@@ -19,7 +20,13 @@ namespace Housing::LayoutInventory {struct Plan;struct Prepared;}
 namespace EQ {class InventoryProfile;}
 namespace Housing::LiveItems {
 inline constexpr uint8_t NullItemId=1,NullCharges=2,NullCustomData=4,NullGuid=8;
-struct InventoryRow { InventoryRepository::Inventory values{}; uint8_t null_fields=0; };
+struct InventoryRow {
+ InventoryRepository::Inventory values{}; uint8_t null_fields=0;
+ // Versioned custody-only state. Children use relative native bag slots0..9;
+ // ordinary SQL rows retain their exact original fields and v1 byte encoding.
+ std::vector<uint8_t> evolving_payload;
+ std::vector<InventoryRow> children;
+};
 struct Lease { AuthenticatedPurchaser actor; uint64_t epoch=0; std::string session_key; std::array<uint8_t,32> token{}; std::string pending_key; };
 struct Catalog { int32_t item_class=0,bag_slots=0,lore_group=0,no_drop=0; };
 struct Reservation {uint32_t native_item_id=0,native_estate_id=0;EstateId estate_id=0;std::string catalog_key;uint64_t catalog_revision=0;std::optional<ContentBinding::Identity> content_binding;};

@@ -8,7 +8,7 @@ Admission reads the estate, room, item metadata, custody subject and published c
 
 The scene combines authenticated original terrain, authored static actors, published furniture and the recipient's actual outgoing actor ledger. The ledger observes packets at stream handoff and invalidates changed geometry. Supported original player/Eye, invisible-marker and furnishing-NPC classes have explicit collision filtering; unsupported published sources remain unavailable rather than disappearing from the query.
 
-The generic furniture provider covers 948 reviewed static item records. Original asset bytes are supplied privately by the operator, authenticated against compiled hashes and never distributed here. [Install original geometry](INSTALL-ORIGINAL-GEOMETRY.md) before using the original-scene path.
+The generic furniture provider covers 948 reviewed static item records. Original asset bytes are supplied privately by the operator, authenticated against compiled hashes and never distributed here. [Install original geometry](../INSTALL-ORIGINAL-GEOMETRY.md) before using the original-scene path.
 
 New Wall additions use V8 contact admission: exact centre-subtraction preimages, authenticated finite source contact, original thin-axis radius/normal rules and full-body containment in the advertised room regions. The native Wall path does not require a complete supported picture footprint, an artificial inward corridor or an oriented-box collision test. Those extra server restrictions falsely refused a green native preview near a lower-wall bevel; V8 removes them. Existing stored V7 and older policies preserve their original identities and behavior.
 

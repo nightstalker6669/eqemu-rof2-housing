@@ -3,6 +3,7 @@
 #include "layout_inventory_outcome.h"
 #include "catalog_content_db.h"
 #include "item_storage_db.h"
+#include "item_payload_db.h"
 #include "crate_member_scope_db.h"
 namespace Housing::LayoutInventory {
 // Exact INVENTORY COMPONENT postimage check only. Caller must authenticate the
@@ -19,7 +20,7 @@ inline LiveItems::Result<bool> ValidateOutcomeUnderTransaction(Database& db,cons
   // The actor's reservation is already held by the parent validator. Stable
   // native identities are sorted before locking all per-piece postimages.
   std::map<uint32_t,const OutcomePiece*> ordered;for(const auto& p:outcome.pieces)ordered.emplace(p.placement.stored.placement->reservation.native_item_id,&p);
-  for(const auto& [id,pointer]:ordered){const auto& piece=*pointer;const auto& s=piece.placement.stored;const auto& placed=*s.placement;const auto& reservation=placed.reservation;const auto custody=std::to_string(s.custody_id);
+  for(const auto& [id,pointer]:ordered){const auto& piece=*pointer;const auto& s=piece.placement.stored;const auto& placed=*s.placement;const auto& reservation=placed.reservation;const auto custody=std::to_string(s.custody_id);ItemPayload::ValidateHeld(db,s.row,s.custody_id);
    auto metadata=query("SELECT itemclass,bagslots,loregroup,nodrop,UNK226,UNK227 FROM items WHERE id="+std::to_string(s.row.values.item_id)+" FOR UPDATE");if(metadata.RowCount()!=1)return {false,Error::Conflict};auto m=metadata.begin();
    if(!equal(m[0],std::to_string(s.catalog.item_class))||!equal(m[1],std::to_string(s.catalog.bag_slots))||!equal(m[2],std::to_string(s.catalog.lore_group))||!equal(m[3],std::to_string(s.catalog.no_drop))||!equal(m[4],"0")||!equal(m[5],"0"))return {false,Error::Conflict};
    auto current_catalog=query("SELECT revision FROM housing_catalogs WHERE BINARY catalog_key=x'"+hex(CustodyCodec::Bytes(reservation.catalog_key.begin(),reservation.catalog_key.end()))+"' FOR UPDATE");if(current_catalog.RowCount()!=1||!equal(current_catalog.begin()[0],std::to_string(s.current_catalog_revision)))return {false,Error::Conflict};

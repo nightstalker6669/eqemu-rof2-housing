@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #ifndef EQEMU_HOUSING_INTERIOR_PROFILE_UPGRADE_H
 #define EQEMU_HOUSING_INTERIOR_PROFILE_UPGRADE_H
 #include "interior_item_content_db.h"
@@ -27,7 +28,7 @@ inline UpgradeResult UpgradeRegionsUnderTransaction(Database& db,const Profile& 
   auto number=[](const char* value){if(!value)throw std::invalid_argument("Missing upgrade numeric field");size_t end=0;std::string s=value;auto n=std::stoull(s,&end);if(end!=s.size())throw std::invalid_argument("Invalid upgrade numeric field");return n;};
   auto unhex=[](const char* value){if(!value)throw std::invalid_argument("Missing upgrade bytes");std::string s=value;if(s.size()%2||s.size()>std::max(size_t(262600),2*RegionWire::MaximumPayload))throw std::invalid_argument("Invalid upgrade bytes");std::vector<uint8_t> out;auto digit=[](char c)->uint8_t{if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;if(c>='a'&&c<='f')return c-'a'+10;throw std::invalid_argument("Invalid upgrade hex");};for(size_t i=0;i<s.size();i+=2)out.push_back((digit(s[i])<<4)|digit(s[i+1]));return out;};
   auto tx=query("SELECT @@in_transaction,DATABASE()");require(tx.RowCount()==1&&number(tx.begin()[0])==1&&tx.begin()[1],"Profile upgrade needs owning transaction");
-  std::string schema=tx.begin()[1];require(schema=="peq_housing_test"||schema.rfind("peq_housing_test_",0)==0,"Experimental profile schema required");
+  std::string schema=tx.begin()[1];require(Housing::RuntimeActivation::AllowsReconstructedContent(db),"Experimental profile schema required");
   require(before_revision&&before_revision!=UINT64_MAX&&after_revision==before_revision+1,"Profile revision must advance once");
   require(before.house_id&&before.house_id==after.house_id&&before.native_estate_id==after.native_estate_id&&before.route.zone_id==after.route.zone_id&&before.route.zone_version==after.route.zone_version&&before.route.instance_id==after.route.instance_id&&before.zone_short_name==after.zone_short_name&&before.client_asset_sha256==after.client_asset_sha256&&before.collision_map_sha256==after.collision_map_sha256&&before.origin==Catalog::Origin::Experimental&&after.origin==before.origin&&before.client_build==20130510&&after.client_build==before.client_build&&before.region.id==after.region.id,"Profile identity/assets changed");
   require(OriginalInteriors::Matches(before.route.zone_id,before.zone_short_name)&&ContentBinding::Detail::RouteShape(before.route)&&before.native_estate_id&&before.native_estate_id!=UINT32_MAX,"Invalid profile route");

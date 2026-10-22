@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #include "crate_binding.h"
 #include "crate_creation_origin_db.h"
 #include "crate_vault_members_db.h"
@@ -245,7 +246,7 @@ static LiveItems::Result<Binding> BindPlacedUnderTransaction(Database& db,const 
   auto catalog=Q(db,"SELECT revision,origin,client_build,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key="+S(db,reserved.catalog_key)+" FOR UPDATE");
   if(catalog.RowCount()!=1)Bad(Error::Conflict);auto c=catalog.begin();const auto revision=N(c[0]);
   if(!revision||revision!=reserved.catalog_revision||N(c[2])!=20130510)Bad(Error::Conflict);
-  if(N(c[1])==2){auto name=Q(db,"SELECT DATABASE()");if(name.RowCount()!=1||!name.begin()[0])Bad(Error::DatabaseFailure);std::string current=name.begin()[0];if(current!="peq_housing_test"&&current.rfind("peq_housing_test_",0)!=0)Bad(Error::Unauthorized);}else if(N(c[1])!=1)Bad(Error::Unauthorized);
+  if(N(c[1])==2){auto name=Q(db,"SELECT DATABASE()");if(name.RowCount()!=1||!name.begin()[0])Bad(Error::DatabaseFailure);std::string current=name.begin()[0];if(!Housing::RuntimeActivation::AllowsReconstructedContent(db))Bad(Error::Unauthorized);}else if(N(c[1])!=1)Bad(Error::Unauthorized);
   auto bundle=Catalog::DecodePayloads(Unhex(c[3]),Unhex(c[4]));
   auto metadata=Q(db,"SELECT idfile,UNK227,UNK224,UNK228,UNK229,UNK231,itemclass,bagslots,stackable FROM items WHERE id="+std::to_string(r.expected.values.item_id)+" FOR UPDATE");
   if(metadata.RowCount()!=1||!metadata.begin()[0])Bad(Error::UnsupportedItem);auto m=metadata.begin();

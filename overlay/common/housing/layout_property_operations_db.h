@@ -86,7 +86,7 @@ inline bool Compatible(LiveItems::InventoryRow a,LiveItems::InventoryRow b){
  return CustodyCodec::Encode(a)==CustodyCodec::Encode(b);
 }
 inline uint32_t StackMaximum(Database& db,const LiveItems::Stored& item){
- if(item.catalog.item_class||item.catalog.bag_slots||item.catalog.lore_group)throw Failure{Error::UnsupportedItem};
+ if(!item.row.children.empty()||!item.row.evolving_payload.empty()||item.row.values.augment_one||item.row.values.augment_two||item.row.values.augment_three||item.row.values.augment_four||item.row.values.augment_five||item.row.values.augment_six||item.catalog.item_class||item.catalog.bag_slots||item.catalog.lore_group)throw Failure{Error::UnsupportedItem};
  auto r=db.QueryDatabase("SELECT stackable,stacksize FROM items WHERE id="+std::to_string(item.row.values.item_id)+" FOR UPDATE",false);
  if(!r.Success())throw Failure{Error::DatabaseFailure};if(r.RowCount()!=1||!r.begin()[0]||!r.begin()[1])throw Failure{Error::UnsupportedItem};
  const auto maximum=std::stoll(r.begin()[1]);if(!std::stoul(r.begin()[0])||maximum<=1||maximum>=32767)throw Failure{Error::UnsupportedItem};return uint32_t(maximum);
@@ -227,7 +227,7 @@ inline SplitDestination ReviewSplitDestination(Database& db,const LiveItems::Lea
   checked.mount_contact_verified=stowed||!geometry.mounting_type||fence.MountSurfaceWithSubjectUnderTransaction(db,lease,source.stored.row,pose,target,LiveItems::MountSubject::NewSource());
   if(!stowed&&!PlacementPolicy::CheckAny(checked,metadata,geometry,views.yard.region,views.yard.additional_regions,pose,PlacementPolicy::Operation::Add))throw Failure{Error::Conflict};
   auto catalog=Query(db,"SELECT revision,HEX(definitions_blob),HEX(regions_blob) FROM housing_catalogs WHERE catalog_key='"+db.Escape(reservation.catalog_key)+"' FOR UPDATE");if(catalog.RowCount()!=1||!catalog.begin()[0]||std::stoull(catalog.begin()[0])!=reservation.catalog_revision)throw Failure{Error::Conflict};
-  auto unhex=[](const char* raw){if(!raw)throw Failure{Error::DatabaseFailure};std::string s=raw;CustodyCodec::Bytes out;if(s.size()%2||s.size()>262140)throw Failure{Error::DatabaseFailure};auto n=[](char c)->uint8_t{if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;throw Failure{Error::DatabaseFailure};};for(size_t i=0;i<s.size();i+=2)out.push_back((n(s[i])<<4)|n(s[i+1]));return out;};
+  auto unhex=[](const char* raw){if(!raw)throw Failure{Error::DatabaseFailure};std::string s=raw;CustodyCodec::Bytes out;if(s.size()%2||s.size()>2*CustodyCodec::MaximumPayload)throw Failure{Error::DatabaseFailure};auto n=[](char c)->uint8_t{if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;throw Failure{Error::DatabaseFailure};};for(size_t i=0;i<s.size();i+=2)out.push_back((n(s[i])<<4)|n(s[i+1]));return out;};
   if(ContentBinding::ColumnsInstalled(db))reservation.content_binding=ContentBinding::Current(db,reservation.catalog_key,Catalog::DecodePayloads(unhex(catalog.begin()[1]),unhex(catalog.begin()[2])),target,views.yard.route,source.stored.row.values.item_id);
  }
  return result;

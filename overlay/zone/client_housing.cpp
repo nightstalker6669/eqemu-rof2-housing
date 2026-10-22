@@ -1,4 +1,5 @@
 #include "housing_service_npcs.h"
+#include "../common/housing/item_payload_db.h"
 #include "housing_service_authority.h"
 #include "../common/housing/centered_wall_policy.h"
 #include "housing_plot_marker.h"
@@ -475,7 +476,7 @@ bool SourceGuid(const Housing::PlacementWire::Source& source,const EQ::ItemInsta
 const Housing::StaticFurniture::Record* FurnitureModel(const EQ::ItemInstance& item){
  const auto* d=item.GetUnscaledItem();if(!d||!Housing::NpcItemMetadata::Ordinary(*d))return nullptr;
  const auto* model=Housing::StaticFurniture::Lookup(d->ID,std::string(d->IDFile));
- return model&&d->ItemClass==EQ::item::ItemClassCommon&&!item.IsScaling()&&!d->EvolvingItem&&
+ return model&&d->ItemClass==EQ::item::ItemClassCommon&&!item.IsScaling()&&
   Housing::StaticFurniture::PlacementTypeMatches(d->ID,d->HousingPlacementType)&&Housing::StaticFurniture::NativeProfile(d->ID,d->Placeable,d->HousingIgnoreCollisions,d->HousingDefinitionID,d->HousingMinimumScale,d->HousingMaximumScale,d->HousingUpkeepID,d->HousingMaxPerEstate)&&!d->BagSlots&&(d->Placeable&142)!=0&&std::isfinite(d->HousingMinimumScale)&&
   std::isfinite(d->HousingMaximumScale)&&d->HousingMinimumScale>0&&d->HousingMinimumScale<=1&&d->HousingMaximumScale>=1?model:nullptr;
 }
@@ -511,6 +512,8 @@ Housing::PlacementPolicy::ItemMetadata FurnitureMetadata(const EQ::ItemInstance&
 std::optional<Housing::LiveItems::InventoryRow> FurnitureInventory(Client* c,uint32_t slot=33){
  if((slot<23||slot>32)&&slot!=33)return {};
  auto db=HousingConnection();if(!db)return {};
+ if(!QueryView(*db,"START TRANSACTION").Success())return {};
+ struct SnapshotRollback {Database& db;~SnapshotRollback(){db.QueryDatabase(std::string("ROLLBACK"),false);}} rollback{*db};
  auto result=QueryView(*db,"SELECT character_id,slot_id,item_id,charges,color,augment_one,augment_two,augment_three,augment_four,augment_five,augment_six,instnodrop,HEX(custom_data),ornament_icon,ornament_idfile,ornament_hero_model,guid FROM inventory WHERE character_id="+std::to_string(c->CharacterID())+" AND slot_id="+std::to_string(slot));
  if(!result.Success()||result.RowCount()!=1)return {};
  auto row=result.begin();Housing::LiveItems::InventoryRow out;auto& v=out.values;
@@ -523,7 +526,7 @@ std::optional<Housing::LiveItems::InventoryRow> FurnitureInventory(Client* c,uin
  v.ornament_icon=number(13,UINT32_MAX);v.ornament_idfile=number(14,UINT32_MAX);
  if(!row[15])return {};size_t end=0;std::string hero=row[15];auto h=std::stoll(hero,&end);if(end!=hero.size()||h<INT32_MIN||h>INT32_MAX)return {};v.ornament_hero_model=h;
  v.guid=number(16,UINT64_MAX);if(!row[2])out.null_fields|=Housing::LiveItems::NullItemId;if(!row[3])out.null_fields|=Housing::LiveItems::NullCharges;if(!row[12])out.null_fields|=Housing::LiveItems::NullCustomData;if(!row[16])out.null_fields|=Housing::LiveItems::NullGuid;
- return out;
+ auto full=Housing::ItemPayload::Complete(*db,std::move(out));auto* memory=c->GetInv().GetItem(int16_t(slot));if(!memory)return {};Housing::ItemPayload::Capture(*db,full,*memory);return full;
 }
 struct FurnitureTarget {Housing::Catalog::Node node;Housing::EstateWire::Definition definition;Housing::RegionWire::Region region;uint32_t root=0;std::string key;uint64_t revision=0;uint32_t house_definition_type=0;std::optional<Housing::Scene::InteriorSnapshot> room;};
 std::optional<Housing::InteriorContent::Profile> FurnitureAdmissionRoom(const FurnitureTarget& target,const EQ::ItemInstance& item,uint32_t native,const std::optional<std::array<uint8_t,SHA256_DIGEST_LENGTH>>& reserved_digest={}){
@@ -682,7 +685,7 @@ std::optional<VaultRealm> VaultRealmFor(Client* c,Session& session,Housing::Inve
 }
 Bytes FurnitureVaultEntry(const Housing::VaultStorage::Item& row,const EQ::ItemInstance& item){
  const auto* data=item.GetUnscaledItem();if(!data||data->Placeable||!Housing::InventoryProjection::VaultCandidate(*data)||row.stored.placement||!Housing::InventoryBridge::MatchesProjection(row.stored.row,const_cast<EQ::ItemInstance&>(item)))throw std::invalid_argument("Invalid vault list-only item");
- auto embedded=RoF2::SerializeHousingItem(item,EQ::invslot::slotCursor);if(!embedded)throw std::invalid_argument("Invalid vault ItemPtr");Bytes bytes;auto word=[&](uint32_t v){Housing::NeighborhoodWire::Detail::Write32(bytes,v);};word(row.native_estate_id);word(row.native_item_id);bytes.push_back(0);word(0); // Unplaced state; NOT a world actor.
+ auto embedded=RoF2::SerializeHousingItemListEntry(item,EQ::invslot::slotCursor);if(!embedded)throw std::invalid_argument("Invalid vault ItemPtr");Bytes bytes;auto word=[&](uint32_t v){Housing::NeighborhoodWire::Detail::Write32(bytes,v);};word(row.native_estate_id);word(row.native_item_id);bytes.push_back(0);word(0); // Unplaced state; NOT a world actor.
  for(float v:{0.f,0.f,0.f,1.f,0.f,0.f,0.f})Housing::PlacementWire::Detail::Float(bytes,v);
  for(unsigned i=0;i<2;++i){word(row.creator_name.size());bytes.insert(bytes.end(),row.creator_name.begin(),row.creator_name.end());}bytes.insert(bytes.end(),embedded->begin(),embedded->end());return bytes;
 }
@@ -922,8 +925,8 @@ bool FurnitureVaultOperation(Client* c,Session& session,Housing::InventoryBridge
   if(previous!=session.vault_actions.end()&&previous->second.completed&&item){session.vault_actions.erase(previous);previous=session.vault_actions.end();}
   if(action!=2&&action!=3&&action!=6){FurnitureResult(c,17);return true;}
   if(previous==session.vault_actions.end()){
-   if(!slot||source.estate_id!=UINT32_MAX||source.item_id!=UINT32_MAX||!item||!data||!Housing::InventoryProjection::VaultCandidate(*data)||!SourceGuid(source,*item)||!VaultQuantity(source,*item)||(*slot==33&&c->GetInv().CursorSize()!=1)){FurnitureResult(c,data&&data->NoTransfer?43:9);return true;}
-   auto row=FurnitureInventory(c,*slot);if(!row||!Housing::InventoryBridge::MatchesProjection(*row,*item)||!VaultRoomRetrySpace(session)){FurnitureResult(c,9);return true;}
+   if(!slot||source.estate_id!=UINT32_MAX||source.item_id!=UINT32_MAX||!item||!data||!Housing::InventoryProjection::VaultCandidate(*data)||!SourceGuid(source,*item)||!VaultQuantity(source,*item)||(*slot==33&&c->GetInv().CursorSize()!=1)){LogInfo("Native vault source rejected actor [{}] slot [{}] item [{}] guid_match [{}] locations [{},{},{}]",c->CharacterID(),slot?*slot:UINT32_MAX,data?data->ID:0,item?SourceGuid(source,*item):false,source.location[0],source.location[1],source.location[2]);FurnitureResult(c,data&&data->NoTransfer?43:9);return true;}
+   auto row=FurnitureInventory(c,*slot);if(!row||!Housing::InventoryBridge::MatchesProjection(*row,*item)||!VaultRoomRetrySpace(session)){LogInfo("Native vault inventory projection rejected actor [{}] slot [{}] row [{}]",c->CharacterID(),*slot,bool(row));FurnitureResult(c,9);return true;}
    auto view=LoadHousingView(c);auto target=view?VaultRealmFor(c,session,bridge,*view,action):std::nullopt;if(!target){FurnitureResult(c,23);return true;}
    Session::VaultPending pending;pending.key=FurnitureKey("vault-store:");pending.row=*row;pending.serial=item->GetSerialNumber();pending.context=target->context;previous=session.vault_actions.emplace(incoming,std::move(pending)).first;
   }
@@ -1368,7 +1371,7 @@ void Client::Handle_OP_RealEstateItemInspect(const EQApplicationPacket* app){
   auto current=FurnitureCurrentScene(this,session,*bridge,*target);
   if(!current||current->estate!=request->estate_id||!current->entries.count(request->item_id))return;
   cached=session.presentations.find(request->item_id);if(cached==session.presentations.end()||!cached->second)return;
-  auto body=RoF2::SerializeHousingItem(*cached->second,EQ::invslot::slotCursor);if(!body)return;
+  auto body=RoF2::SerializeHousingItemListEntry(*cached->second,EQ::invslot::slotCursor);if(!body)return;
   // Original58c7 consumes a direct FullItemPtr: no estate IDs, result or item-type prefix.
   SendEstatePayload(this,OP_RealEstateItemInspect,*body);
   LogInfo("Native housing item inspection actor [{}] estate [{}] item [{}] bytes [{}]",CharacterID(),request->estate_id,request->item_id,body->size());
@@ -1840,7 +1843,7 @@ void Client::Handle_OP_RealEstateItemOperation(const EQApplicationPacket* app){
   }
   auto changed=bridge->ChangeStorage(prior->second);if(!changed){FurnitureResult(this,1);return;}
   FurnitureResult(this,0);FurnitureBroadcastScenes();
- }catch(...){FurnitureResult(this,durable_success?0:1);}
+ }catch(const std::exception& error){LogError("Native item storage operation rejected [{}]",error.what());FurnitureResult(this,durable_success?0:1);}catch(...){FurnitureResult(this,durable_success?0:1);}
 }
 
 void Client::Handle_OP_RealEstatePickup(const EQApplicationPacket* app){

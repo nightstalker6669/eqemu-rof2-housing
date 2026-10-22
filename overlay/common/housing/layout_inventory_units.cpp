@@ -1,5 +1,6 @@
 #include "layout_inventory_units.h"
 #include "inventory_row_db.h"
+#include "item_payload_db.h"
 #include "../database.h"
 namespace Housing::LayoutInventory {
 namespace {
@@ -11,9 +12,7 @@ void Metadata(Database& db,EQ::ItemInstance& item,bool parent){
  if(rows.RowCount()!=1)throw Failure{Error::UnsupportedItem};auto row=rows.begin();for(size_t i=0;i<6;++i)if(!row[i])throw Failure{Error::UnsupportedItem};
  if(std::stoll(row[0])!=data->ItemClass||std::stoll(row[1])!=data->BagSlots||std::stoll(row[2])!=int(data->Stackable)||(data->Stackable&&std::stoll(row[3])!=data->StackSize)||std::stoll(row[4])!=data->HousingPlacementType||std::stoll(row[5])!=data->HousingDefinitionID)throw Failure{Error::Conflict};
  if(parent){if(data->ItemClass!=EQ::item::ItemClassBag||!data->BagSlots)throw Failure{Error::UnsupportedItem};}
- else{
-  auto evolving=Q(db,"SELECT id FROM items_evolving_details WHERE item_id="+std::to_string(data->ID)+" FOR UPDATE");if(evolving.RowCount())throw Failure{Error::UnsupportedItem};
- }
+
 }
 }
 LiveItems::Result<SourceReview> ReviewSourcesUnderTransaction(Database& db,bool enabled,const LiveItems::Lease& lease,
@@ -35,6 +34,7 @@ LiveItems::Result<SourceReview> ReviewSourcesUnderTransaction(Database& db,bool 
    if(rows.RowCount()!=1)throw Failure{Error::Conflict};auto current=InventoryRowDB::Decode(rows.begin());
    const auto source=source_slots.find(slot);
    if(source!=source_slots.end()){
+    current=ItemPayload::Complete(db,std::move(current),&source->second->before);ItemPayload::ValidateInventory(db,current);ItemPayload::Metadata(db,current);
     if(CustodyCodec::Encode(current)!=CustodyCodec::Encode(source->second->before))throw Failure{Error::Conflict};
     Metadata(db,*source->second->original,false);
     // A top-level ordinary source must not leave SQL-only children behind.
@@ -46,7 +46,7 @@ LiveItems::Result<SourceReview> ReviewSourcesUnderTransaction(Database& db,bool 
      auto children=Q(db,"SELECT slot_id FROM inventory WHERE character_id="+std::to_string(lease.actor.character_id)+" AND slot_id BETWEEN "+std::to_string(first)+" AND "+std::to_string(last)+" FOR UPDATE");
      if(children.RowCount())throw Failure{Error::UnsupportedItem};
     }
-    auto active=Q(db,"SELECT id FROM character_evolving_items WHERE character_id="+std::to_string(lease.actor.character_id)+" AND item_id="+std::to_string(current.values.item_id)+" AND deleted_at IS NULL FOR UPDATE");if(active.RowCount())throw Failure{Error::UnsupportedItem};
+
    }else{
     const auto parent=parent_slots.find(slot);if(parent==parent_slots.end()||!parent->second->GetItem()||current.values.item_id!=parent->second->GetItem()->ID)throw Failure{Error::Conflict};
     Metadata(db,*parent->second,true);
@@ -66,7 +66,7 @@ LiveItems::Result<Consumption> ConsumeSourcesUnderTransaction(Database& db,bool 
    // Preflight holds every source and parent lock. Recheck the complete raw
    // preimage immediately before its CAS, preserving nullable/binary fields.
    auto rows=Q(db,"SELECT "+std::string(InventoryRowDB::Columns)+" FROM inventory WHERE "+where+" FOR UPDATE");
-   if(rows.RowCount()!=1||CustodyCodec::Encode(InventoryRowDB::Decode(rows.begin()))!=CustodyCodec::Encode(source.before))throw Failure{Error::Conflict};
+   if(rows.RowCount()!=1||CustodyCodec::Encode(ItemPayload::Complete(db,InventoryRowDB::Decode(rows.begin()),&source.before))!=CustodyCodec::Encode(source.before))throw Failure{Error::Conflict};
    const auto charge_guard=(source.before.null_fields&LiveItems::NullCharges)?" AND charges IS NULL":" AND charges="+std::to_string(source.before.values.charges);
    auto changed=Q(db,source.after?"UPDATE inventory SET charges="+std::to_string(source.after->values.charges)+" WHERE "+where+charge_guard:"DELETE FROM inventory WHERE "+where+charge_guard);
    if(changed.RowsAffected()!=1)throw Failure{Error::Conflict};
@@ -95,7 +95,7 @@ LiveItems::Result<bool> ValidateSourcePostimagesUnderTransaction(Database& db,co
    if(changed!=changes.end())expected=changed->second->after?&*changed->second->after:nullptr;
    auto rows=Q(db,"SELECT "+std::string(InventoryRowDB::Columns)+" FROM inventory WHERE character_id="+std::to_string(lease.actor.character_id)+" AND slot_id="+std::to_string(slot)+" FOR UPDATE");
    if(!expected){if(rows.RowCount())return {false,Error::Conflict};}
-   else if(rows.RowCount()!=1||CustodyCodec::Encode(InventoryRowDB::Decode(rows.begin()))!=CustodyCodec::Encode(*expected))return {false,Error::Conflict};
+   else if(rows.RowCount()!=1||CustodyCodec::Encode(changed==changes.end()?InventoryRowDB::Decode(rows.begin()):ItemPayload::Complete(db,InventoryRowDB::Decode(rows.begin()),expected))!=CustodyCodec::Encode(*expected))return {false,Error::Conflict};
   }
   return {true,Error::None};
  }catch(const Failure& failure){return {false,failure.error};}catch(...){return {false,Error::DatabaseFailure};}

@@ -133,7 +133,7 @@ S2C minimum32 accessible bytes:spawnID:u32@0;accepted canonicalGUID is16 chars+N
 Remaining limits: 32 accessed bytes established, including unobserved gap21..23; original full emitted length unknown
 
 
-The implemented per-viewer publisher emits canonical 32 bytes with gap21..23 zero-filled after the housing item list. This integration reuses the recovered number. Representative Grand hall service placement and transactions passed; see [service acceptance](../docs/SERVICE-NPCS-2026-10-21.md) for remaining boundaries.
+The implemented per-viewer publisher emits canonical 32 bytes with gap21..23 zero-filled after the housing item list. This integration reuses the recovered number. Representative Grand hall service placement and transactions passed; see [service acceptance](../docs/history/SERVICE-NPCS-2026-10-21.md) for remaining boundaries.
 
 ## 0x21ec — OP_RealEstateItemMenu
 
@@ -217,7 +217,7 @@ Direction: C2S. Mapped: yes. Layout: complete; meaning: partial.
 
 C2S exact48: OperationSource44 plus destination actionu32@44; concrete buttons2closet,3shed,6crate, context-derived supertype values retain same framing.
 
-Implementation follow-up: typed nonplaceable members in a placed crate now use the existing source quantity for individual Shed/Crate transfers and `0x2036` Inventory retrieval. A representative native personal-yard whole/partial cycle passed. Container/member revisions are internal server witnesses, not added packet fields. See [scope](../docs/INDIVIDUAL-VAULT-CRATE-2026-10-19.md).
+Implementation follow-up: typed nonplaceable members in a placed crate now use the existing source quantity for individual Shed/Crate transfers and `0x2036` Inventory retrieval. A representative native personal-yard whole/partial cycle passed. Container/member revisions are internal server witnesses, not added packet fields. See [scope](../docs/history/INDIVIDUAL-VAULT-CRATE-2026-10-19.md).
 
 Remaining limits: Zero quantity and context-derived actions0/1/4/5/7/8/9 do not establish complete custody operations or destination policy.
 

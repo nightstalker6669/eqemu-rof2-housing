@@ -1,5 +1,6 @@
 #ifndef EQEMU_HOUSING_OFFLINE_ROOM_CONTENT_DB_H
 #define EQEMU_HOUSING_OFFLINE_ROOM_CONTENT_DB_H
+#include "runtime_activation_db.h"
 #include "offline_npc_return_db.h"
 // Reuse the exact startup file/asset verifier. No Client, online policy, lease,
 // or startup-registration entry point is invoked by this offline resolver.
@@ -7,7 +8,7 @@
 namespace Housing::OfflineRoomContent {
 inline InteriorContent::Profile ReadUnderTransaction(Database& db,uint64_t house,uint32_t retiring_estate){
  using namespace OfflineNpcReturn::Detail;NpcNativeFrame::Transaction(db);Require(house&&retiring_estate);
- auto name=Q(db,"SELECT DATABASE()");Require(name.RowCount()==1&&name.begin()[0]);std::string database=name.begin()[0];Require(database=="peq_housing_test"||database.rfind("peq_housing_test_",0)==0);
+ auto name=Q(db,"SELECT DATABASE()");Require(name.RowCount()==1&&name.begin()[0]);std::string database=name.begin()[0];Require(Housing::RuntimeActivation::AllowsReconstructedContent(db));
  std::vector<HouseRuntime::PersonalTestSelection> entries;std::optional<HouseRuntime::PersonalTestSelection> personal,guild;
  Require(HouseRuntime::ContentLoader::ReadManifest(".house-personal-test.json",false,personal)&&HouseRuntime::ContentLoader::ReadManifest(".house-guild-test.json",true,guild));if(personal)entries.push_back(std::move(*personal));if(guild)entries.push_back(std::move(*guild));
  Require(HouseRuntime::ContentLoader::ReadRegistry(".house-personal-content-registry-test.json",entries)&&HouseRuntime::ContentLoader::ReadRegistry(".house-guild-content-registry-test.json",entries,true)&&HouseRuntime::ContentLoader::ReadRegistry("housing-personal-content-registry.json",entries)&&HouseRuntime::ContentLoader::ReadRegistry("housing-guild-content-registry.json",entries,true)&&HouseRuntime::ContentLoader::ValidSelections(entries));

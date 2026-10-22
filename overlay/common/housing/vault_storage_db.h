@@ -2,6 +2,7 @@
 #define EQEMU_HOUSING_VAULT_STORAGE_DB_H
 #include "vault_storage.h"
 #include "custody_codec.h"
+#include "item_payload_db.h"
 #include "scene_service.h"
 #include "interior_profile_db.h"
 #include "crate_member_scope_db.h"
@@ -12,13 +13,14 @@ namespace Housing::VaultStorage {
 inline auto Query(Database& db,const std::string& sql){auto result=db.QueryDatabase(sql,false);if(!result.Success())throw std::invalid_argument("Vault query failed");return result;}
 inline bool Installed(Database& db){auto r=Query(db,"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND engine='InnoDB' AND table_name IN ('housing_live_vault_items','housing_live_vault_transfers')");return r.RowCount()==1&&std::stoul(r.begin()[0])==2;}
 inline std::string Hex(const std::vector<uint8_t>& b){std::string s;constexpr char h[]="0123456789abcdef";for(auto v:b){s+=h[v>>4];s+=h[v&15];}return s;}
-inline std::vector<uint8_t> Unhex(const char* raw){if(!raw)throw std::invalid_argument("Missing vault bytes");std::string s=raw;if(s.size()%2||s.size()>140000)throw std::invalid_argument("Invalid vault bytes");std::vector<uint8_t>b;auto nib=[](char c){if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;if(c>='a'&&c<='f')return c-'a'+10;throw std::invalid_argument("Invalid vault hex");};for(size_t i=0;i<s.size();i+=2)b.push_back(uint8_t(nib(s[i])*16+nib(s[i+1])));return b;}
+inline std::vector<uint8_t> Unhex(const char* raw){if(!raw)throw std::invalid_argument("Missing vault bytes");std::string s=raw;if(s.size()%2||s.size()>2*CustodyCodec::MaximumPayload)throw std::invalid_argument("Invalid vault bytes");std::vector<uint8_t>b;auto nib=[](char c){if(c>='0'&&c<='9')return c-'0';if(c>='A'&&c<='F')return c-'A'+10;if(c>='a'&&c<='f')return c-'a'+10;throw std::invalid_argument("Invalid vault hex");};for(size_t i=0;i<s.size();i+=2)b.push_back(uint8_t(nib(s[i])*16+nib(s[i+1])));return b;}
 inline bool SameRoute(Route a,Route b){return a.zone_id==b.zone_id&&a.zone_version==b.zone_version&&a.instance_id==b.instance_id;}
 // All supported payload fields are preserved by the existing canonical row.
-// Empty bags/books are list-only. Children/augments/evolution require their own
-// complete custody payload and remain rejected by the owning Store transaction.
+// Bags/books are list-only; complete child, augment and evolving capsules retain
+// their identity through the owning fenced Store/Return transaction.
 inline LiveItems::Catalog Profile(Database& db,const LiveItems::InventoryRow& row){
- const auto& v=row.values;if(!CustodyCodec::Valid(row)||!v.item_id||row.null_fields&LiveItems::NullItemId||v.augment_one||v.augment_two||v.augment_three||v.augment_four||v.augment_five||v.augment_six)throw std::invalid_argument("Unsupported vault payload");
+ const auto& v=row.values;if(!CustodyCodec::Valid(row)||!v.item_id||row.null_fields&LiveItems::NullItemId)throw std::invalid_argument("Unsupported vault payload");
+ ItemPayload::Metadata(db,row);
  auto m=Query(db,"SELECT itemclass,bagslots,loregroup,nodrop,notransfer,UNK224 FROM items WHERE id="+std::to_string(v.item_id)+" FOR UPDATE");if(m.RowCount()!=1)throw std::invalid_argument("Missing vault item");auto r=m.begin();for(unsigned i=0;i<6;++i)if(!r[i])throw std::invalid_argument("Missing vault metadata");
  const auto kind=std::stol(r[0]),bags=std::stol(r[1]);
  // notransfer is the existing serializer's exact native ItemDefinition+0x584
@@ -41,7 +43,7 @@ inline std::vector<Item> Items(Database& db,EstateId estate,uint32_t native,uint
  if(house?((options.detached_room_scope||carried)?r[20]!=nullptr:(!r[20]||!r[21]||std::stoull(r[20])!=house||!std::stoull(r[21]))):r[20]!=nullptr)throw std::invalid_argument("Invalid vault house scope");if(r[16]&&!options.include_pending)continue;
   Item item;item.stored.custody_id=std::stoull(r[0]);item.native_item_id=std::stoul(r[1]);item.revision=std::stoull(r[2]);item.native_estate_id=native;item.house_id=r[14]?std::stoull(r[14]):0;item.realm_estate_id=r[22]?std::stoul(r[22]):0;if(!item.realm_estate_id)throw std::invalid_argument("Missing vault realm identity");item.stored.estate_id=r[17]?std::stoul(r[17]):0;
   if(!item.revision||!item.native_item_id||item.native_item_id==UINT32_MAX||std::string(r[4])!=LiveItems::Service::SchemaDescriptor()||std::stoul(r[7])!=native||std::stoul(r[8])!=item.stored.estate_id||std::stoul(r[9])!=1||std::stoull(r[10])!=item.stored.custody_id||r[12]||r[13])throw std::invalid_argument("Changed vault identity");
-  item.stored.row=CustodyCodec::Decode(Unhex(r[5]));if(item.stored.row.values.character_id!=std::stoul(r[3])||Unhex(r[11])!=CustodyCodec::Encode(item.stored.row))throw std::invalid_argument("Changed vault source");
+  item.stored.row=CustodyCodec::Decode(Unhex(r[5]));ItemPayload::ValidateHeld(db,item.stored.row,item.stored.custody_id);if(item.stored.row.values.character_id!=std::stoul(r[3])||Unhex(r[11])!=CustodyCodec::Encode(item.stored.row))throw std::invalid_argument("Changed vault source");
   auto cat=Unhex(r[6]);if(cat.size()!=16)throw std::invalid_argument("Changed vault catalog");CustodyCodec::Reader c{cat};item.stored.catalog={int32_t(c.N(4)),int32_t(c.N(4)),int32_t(c.N(4)),int32_t(c.N(4))};auto current=Profile(db,item.stored.row);
   if(current.item_class!=item.stored.catalog.item_class||current.bag_slots!=item.stored.catalog.bag_slots||current.lore_group!=item.stored.catalog.lore_group||current.no_drop!=item.stored.catalog.no_drop)throw std::invalid_argument("Changed vault item metadata");
   if(packed){auto m=packed->begin();if(!std::stoull(m[0])||!std::stoull(m[1])||std::stoul(m[2])!=native||(m[3]?std::stoull(m[3]):0)!=house||std::stoul(m[4])!=item.realm_estate_id||std::stoull(m[5])!=item.revision||Unhex(m[6])!=CustodyCodec::Encode(item.stored.row)||Unhex(m[7])!=cat||std::string(m[8])!=LiveItems::Service::SchemaDescriptor()||std::stoul(m[9])!=item.stored.row.values.character_id||(carried&&std::stoul(m[12])!=item.stored.row.values.character_id))throw std::invalid_argument("Changed hidden vault containment");item.contained_in_crate=std::stoull(m[0]);item.membership_revision=std::stoull(m[1]);if(!options.include_contained)continue;}

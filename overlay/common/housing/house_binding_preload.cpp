@@ -1,3 +1,4 @@
+#include "runtime_activation_db.h"
 #include "house_binding_preload.h"
 #include "crate_placement_model.h"
 #include "house_inventory_transition.h"
@@ -282,7 +283,7 @@ namespace Housing::HousePreload {
                     if(origin==2){
                         auto database=Q(db,"SELECT DATABASE()");
                         std::string name=database.begin()[0];
-                        if(name!="peq_housing_test"&&name.rfind("peq_housing_test_",0)!=0)Reject(Error::Unauthorized);
+                        if(!Housing::RuntimeActivation::AllowsReconstructedContent(db))Reject(Error::Unauthorized);
                     }else if(origin!=1)Reject(Error::Conflict);
                     Catalog::Bundle decoded;
                     try{

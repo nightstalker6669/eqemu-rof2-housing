@@ -1,0 +1,11 @@
+{
+  "format": "housing-quest-overlay-v1",
+  "files": {
+    "guildhall/player.lua": {
+      "sha256": "a62cbeed02593f3615dc2c0367834ce33f09239c96922c08cc221c1bb75d17ab",
+      "accepted_base_sha256": [
+        "64b1e1f682c1f99c7d003a4accde283c26fc3c2d3d42e8b35e6a570284ed80f8"
+      ]
+    }
+  }
+}
