@@ -2,6 +2,8 @@
 
 `tools/install_housing.py` installs the production housing package as one ordered operation. Manual SQL filename sorting and separate feature activation are not required.
 
+Existing installations receive the [October 22 fixes](UPDATES.md) through this same driver, including both door/border content migrations and the recognized unused Palatial catalogue repair. Use a new backup directory for each upgrade. Custom door conflicts or bound conflicting Palatial interiors are refused rather than overwritten.
+
 ## Choose your server
 
 | Your server | Start here |

@@ -293,6 +293,15 @@ bool HandleHousingPlotSearch(Client* c,const EQApplicationPacket* app){
 
 }
 namespace Housing::PlotMarker {
+std::optional<uint32_t> InspectionEstate(Client* client,uint32_t static_id,float maximum,bool within_distance){
+ try{
+  if(!client||!client->Connected()||!client->ClientDataLoaded()||!HousingZone(client)||!zone||zone->GetZoneID()!=712||zone->GetInstanceVersion()||!zone->GetInstanceID())return std::nullopt;
+  auto view=LoadHousingView(client);if(!view)return std::nullopt;
+  const auto* plot=Resolve(view->data.catalog,view->neighborhood,view->root,static_id);
+  if(!plot||(!within_distance&&!CatalogInRange(view->data.catalog,view->neighborhood,view->root,static_id,{client->GetX(),client->GetY(),client->GetZ()},maximum)))return std::nullopt;
+  return plot->native_id.value;
+ }catch(...){return std::nullopt;}
+}
 bool InRange(Client* client,uint32_t static_id,float maximum){
  try{
   if(!client||!client->Connected()||!client->ClientDataLoaded()||!HousingZone(client)||!zone||zone->GetZoneID()!=712||zone->GetInstanceVersion())return false;
@@ -1039,6 +1048,9 @@ void Client::Handle_OP_RealEstatePlacementBegin(const EQApplicationPacket* app){
   const auto reject=[&](uint32_t code,const char* stage,int backend=-1){
    LogInfo("Native inventory Begin rejected actor [{}] slot [{}] template [{}] stage [{}] result [{}] backend [{}]",CharacterID(),*source_slot,source&&source->GetUnscaledItem()?source->GetUnscaledItem()->ID:0,stage,code,backend);FurnitureResult(this,code);
   };
+  if(*source_slot==EQ::invslot::slotCursor&&GetInv().CursorSize()!=1){
+   Message(Chat::Red,"Put the queued items on your cursor into inventory, then pick up just one item to place.");reject(9,"queued-cursor");return;
+  }
   const bool cursor_compatible=*source_slot!=uint32_t(EQ::invslot::slotCursor)||GetInv().CursorSize()==1;
   if(m_housing_placement_session)m_housing_placement_session->geometry_preview_only=false;
   if(source&&*source_slot==uint32_t(EQ::invslot::slotCursor)&&cursor_compatible&&SourceGuid(request->source,*source)&&!KnownFurniture(*source)&&HouseGeometryPreviewScope(this)){
@@ -1302,17 +1314,24 @@ bool Client::TryHousingHouseExit(bool allow_absent){
 }
 
 bool Client::HandleHousingInteriorDoor(uint8_t door_id,bool within_distance){
- if(!RuleB(Housing,EnablePlayerHousing)||ClientVersion()!=EQ::versions::ClientVersion::RoF2||!zone||zone->GetZoneID()!=345||zone->GetInstanceVersion()!=0||!zone->GetInstanceID())return false;
+ if(!RuleB(Housing,EnablePlayerHousing)||ClientVersion()!=EQ::versions::ClientVersion::RoF2||!zone||zone->GetInstanceVersion()!=0||!zone->GetInstanceID())return false;
+ if(zone->GetZoneID()!=345&&zone->GetZoneID()!=737)return false;
  auto* door=entity_list.FindDoor(door_id);
- // Original-client observation binds this model door, not every guild-hall
- // switch or every door using legacy Lobby destinations.
- if(!door||door_id!=4||std::string(door->GetDoorName())!="OBJ_GUILD_DOOR"||door->GetOpenType()!=58||!(door->GetClientVersionMask()&ClientVersionBit()))return false;
- if(!Connected()||!ClientDataLoaded()||!HasInventorySessionReservation())return true;
- if(!within_distance)return true;
- // ExitHouse proves the current physical interior and parent independently.
- // It deliberately permits safe egress after Enter is revoked. Only a genuine
- // absent housing identity falls back to the ordinary basic-hall door path.
- LogInfo("Native Standard guild hall model-door request actor [{}] door [{}]",CharacterID(),door_id);
+ if(!door||door->GetOpenType()!=58||!(door->GetClientVersionMask()&ClientVersionBit()))return false;
+ // Standard retains its original observed door. Palatial's front entrance
+ // uses original OBJ_FrontEntrance with its leaf aligned to the collision-map
+ // floor/lintel (the authored static origin is below this floor), corroborated by the
+ // player's native doorway position. Other internal doors are not exits.
+ const bool standard=zone->GetZoneID()==345&&door_id==4&&std::string(door->GetDoorName())=="OBJ_GUILD_DOOR";
+ const auto& position=door->GetPosition();
+ const bool palatial=zone->GetZoneID()==737&&door_id==1&&std::string(door->GetDoorName())=="OBJ_FRONTENTRANCE"&&
+  std::abs(position.x-88.89984894f)<0.05f&&std::abs(position.y-0.68527031f)<0.05f&&std::abs(position.z-8.25539354f)<0.05f;
+ if(!standard&&!palatial)return false;
+ if(!Connected()||!ClientDataLoaded()||!HasInventorySessionReservation()||!within_distance)return true;
+ // ExitHouse proves the current physical interior and its current parent;
+ // safe egress remains available after Enter is revoked. Only absent housing
+ // identity falls back to normal door handling for an ordinary basic hall.
+ LogInfo("Native guild hall entrance exit request actor [{}] zone [{}] door [{}]",CharacterID(),zone->GetZoneID(),door_id);
  return TryHousingHouseExit(true);
 }
 

@@ -2488,7 +2488,7 @@ index 77c29a4..bfcc5b3 100644
  	SendEvolvingPacket(EvolvingItems::Actions::UPDATE_ITEMS, item);
  }
 diff --git a/zone/client_packet.cpp b/zone/client_packet.cpp
-index a059bef..4a6717c 100644
+index a059bef..949b168 100644
 --- a/zone/client_packet.cpp
 +++ b/zone/client_packet.cpp
 @@ -43,6 +43,15 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -2507,15 +2507,7 @@ index a059bef..4a6717c 100644
  #include "dynamic_zone.h"
  #include "event_codes.h"
  #include "guild_mgr.h"
-@@ -62,6 +71,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- #include "gm_commands/door_manipulation.h"
- #include "gm_commands/object_manipulation.h"
- #include "client.h"
-+#include "../common/housing/plot_search_open.h"
- #include "../common/repositories/account_repository.h"
- #include "../common/repositories/character_corpses_repository.h"
- #include "../common/repositories/guild_tributes_repository.h"
-@@ -128,6 +138,36 @@ void MapOpcodes()
+@@ -128,6 +137,36 @@ void MapOpcodes()
  	ConnectedOpcodes[OP_AdventureMerchantRequest] = &Client::Handle_OP_AdventureMerchantRequest;
  	ConnectedOpcodes[OP_AdventureMerchantSell] = &Client::Handle_OP_AdventureMerchantSell;
  	ConnectedOpcodes[OP_AdventureRequest] = &Client::Handle_OP_AdventureRequest;
@@ -2552,7 +2544,7 @@ index a059bef..4a6717c 100644
  	ConnectedOpcodes[OP_AdventureStatsRequest] = &Client::Handle_OP_AdventureStatsRequest;
  	ConnectedOpcodes[OP_AggroMeterLockTarget] = &Client::Handle_OP_AggroMeterLockTarget;
  	ConnectedOpcodes[OP_AltCurrencyMerchantRequest] = &Client::Handle_OP_AltCurrencyMerchantRequest;
-@@ -533,6 +573,7 @@ void Client::CompleteConnect()
+@@ -533,6 +572,7 @@ void Client::CompleteConnect()
  	UpdateWho();
  	client_state = CLIENT_CONNECTED;
  	SendAllPackets();
@@ -2560,7 +2552,7 @@ index a059bef..4a6717c 100644
  	hpupdate_timer.Start();
  	autosave_timer.Start();
  	SetDuelTarget(0);
-@@ -887,9 +928,16 @@ void Client::CompleteConnect()
+@@ -887,9 +927,16 @@ void Client::CompleteConnect()
  
  	CalcItemScale();
  	DoItemEnterZone();
@@ -2578,7 +2570,7 @@ index a059bef..4a6717c 100644
  
  	if (ClientVersion() >= EQ::versions::ClientVersion::SoD)
  		entity_list.SendFindableNPCList(this);
-@@ -1261,6 +1309,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
+@@ -1261,6 +1308,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
  
  void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  {
@@ -2586,7 +2578,7 @@ index a059bef..4a6717c 100644
  	if (app->size != sizeof(ClientZoneEntry_Struct))
  		return;
  	ClientZoneEntry_Struct *cze = (ClientZoneEntry_Struct *)app->pBuffer;
-@@ -1282,6 +1331,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1282,6 +1330,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	Client* client = entity_list.GetClientByName(cze->char_name);
  	if (!zone->GetAuth(ip, cze->char_name, &WID, &account_id, &character_id, &admin, lskey, &tellsoff)) {
  		LogClientLogin("[{}] failed zone auth check", cze->char_name);
@@ -2599,7 +2591,7 @@ index a059bef..4a6717c 100644
  		if (nullptr != client) {
  			client->Save();
  			client->Kick("Failed auth check");
-@@ -1289,6 +1344,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1289,6 +1343,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  		return;
  	}
  
@@ -2625,7 +2617,7 @@ index a059bef..4a6717c 100644
  	strcpy(name, cze->char_name);
  	/* Check for Client Spoofing */
  	if (client != 0) {
-@@ -1370,7 +1444,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1370,7 +1443,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	// set to full support in case they're a gm with items in disabled expansion slots...but, have their gm flag off...
  	// item loss will occur when they use the 'empty' slots, if this is not done
  	m_inv.SetGMInventory(true);
@@ -2652,7 +2644,7 @@ index a059bef..4a6717c 100644
  	database.LoadCharacterBandolier(cid, &m_pp); /* Load Character Bandolier */
  	database.LoadCharacterBindPoint(cid, &m_pp); /* Load Character Bind */
  	database.LoadCharacterMaterialColor(cid, &m_pp); /* Load Character Material */
-@@ -1504,7 +1596,9 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1504,7 +1595,9 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  		if (guild_mgr.GetCharInfo(CharacterID(), cgi)) {
  			m_pp.guildrank = cgi.rank;
  		}
@@ -2663,25 +2655,24 @@ index a059bef..4a6717c 100644
  			GuildBanker = (guild_mgr.IsGuildLeader(GuildID(), CharacterID()) ||
  				guild_mgr.GetBankerFlag(CharacterID()) ||
  				ClientVersion() >= EQ::versions::ClientVersion::RoF ? true : false
-@@ -4705,7 +4799,35 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
+@@ -4705,7 +4798,34 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
  		);
  	}
  
 +	if (Housing::HouseRuntime::HandleVerifiedGuildLobbyDoor(*this,currentdoor->GetDoorID(),within_distance)) return;
 +	if (HandleHousingInteriorDoor(currentdoor->GetDoorID(),within_distance)) return;
 +
-+	// Original type160 housing markers send ordinary ClickDoor. Open the
-+	// native neighborhood list in inspect mode; selection sends796c and the
-+	// existing purchase handler independently authorizes the selected plot.
++	// Original type160 markers identify one plot. Inspect that plot directly;
++	// the normal inspection handler publishes its authoritative purchase offer.
 +	if (RuleB(Housing, EnablePlayerHousing) && zone && zone->GetZoneID() == 712 &&
 +		!zone->GetInstanceVersion() && zone->GetInstanceID() &&
 +		ClientVersion() == EQ::versions::ClientVersion::RoF2 && currentdoor->GetOpenType() == 160) {
-+		if ((within_distance || Housing::PlotMarker::InRange(this,currentdoor->GetDoorID(),RuleI(Range, MaxDistanceToClickDoors))) && Connected() && ClientDataLoaded() && SendHousingZoneCatalogChecked()) {
-+			const auto payload = Housing::PlotSearchOpen::InspectMode();
-+			auto *open = new EQApplicationPacket(OP_RealEstatePlotSearchOpen, payload.size());
-+			std::memcpy(open->pBuffer, payload.data(), payload.size()); // Set AFTER native Show resets the mode byte.
-+			FastQueuePacket(&open);
-+			LogInfo("Native housing plot marker opened inspect-mode search actor [{}] door [{}]", CharacterID(), currentdoor->GetDoorID());
++		const auto estate = Housing::PlotMarker::InspectionEstate(this,currentdoor->GetDoorID(),RuleI(Range, MaxDistanceToClickDoors),within_distance);
++		if (estate && SendHousingZoneCatalogChecked()) {
++			EQApplicationPacket inspect(OP_RealEstateInspect,4);
++			for (size_t i=0;i<4;++i) inspect.pBuffer[i]=uint8_t(*estate>>(8*i));
++			Handle_OP_RealEstateInspect(&inspect);
++			LogInfo("Native housing plot marker inspected actor [{}] door [{}] estate [{}]",CharacterID(),currentdoor->GetDoorID(),*estate);
 +		}
 +		return;
 +	}
@@ -2699,7 +2690,7 @@ index a059bef..4a6717c 100644
  	if (within_distance) {
  		int quest_return = 0;
  		if (parse->PlayerHasQuestSub(EVENT_CLICK_DOOR)) {
-@@ -6470,8 +6592,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
+@@ -6470,8 +6590,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
  	return;
  }
  
@@ -2711,7 +2702,7 @@ index a059bef..4a6717c 100644
  	if (app->size != sizeof(FindPersonRequest_Struct))
  		printf("Error in FindPersonRequest_Struct. Expected size of: %zu, but got: %i\n", sizeof(FindPersonRequest_Struct), app->size);
  	else {
-@@ -7671,12 +7796,11 @@ void Client::Handle_OP_GroupUpdate(const EQApplicationPacket *app)
+@@ -7671,12 +7794,11 @@ void Client::Handle_OP_GroupUpdate(const EQApplicationPacket *app)
  
  void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  {
@@ -2728,7 +2719,7 @@ index a059bef..4a6717c 100644
  		Message(Chat::Red, "The Guild Bank is not available in this zone.");
  		GuildBankAck();
  		return;
-@@ -7705,7 +7829,37 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7705,7 +7827,37 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  		return;
  	}
  
@@ -2767,7 +2758,7 @@ index a059bef..4a6717c 100644
  	{
  		if (Action != GuildBankDeposit && Action != GuildBankViewItem && Action != GuildBankWithdraw)
  		{
-@@ -7780,7 +7934,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7780,7 +7932,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  			const auto cursor_item_inst = GetInv().GetItem(EQ::invslot::slotCursor);
  			bool       allowed          = true;
  
@@ -2776,7 +2767,7 @@ index a059bef..4a6717c 100644
  				Message(Chat::Red, "No Item on the cursor.");
  				GuildBankDepositAck(true, sentAction);
  				return;
-@@ -7800,6 +7954,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7800,6 +7952,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  
  			if (!cursor_item->NoDrop ||
  				cursor_item_inst->IsAttuned() ||
@@ -2784,7 +2775,7 @@ index a059bef..4a6717c 100644
  				cursor_item_inst->IsNoneEmptyContainer() ||
  				cursor_item->NoRent == 0 ||
  				(cursor_item->LoreFlag && GuildBanks->HasItem(GuildID(), cursor_item->ID))
-@@ -7915,9 +8070,9 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7915,9 +8068,9 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  				gbwis->Quantity = inst->GetCharges();
  			}
  
@@ -2796,7 +2787,7 @@ index a059bef..4a6717c 100644
  
  			if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::GUILD_BANK_WITHDRAWAL)) {
  				PlayerEvent::GuildBankTransaction log{};
-@@ -11016,7 +11171,8 @@ void Client::Handle_OP_OpenGuildTributeMaster(const EQApplicationPacket *app)
+@@ -11016,7 +11169,8 @@ void Client::Handle_OP_OpenGuildTributeMaster(const EQApplicationPacket *app)
  		StartTribute_Struct* st = (StartTribute_Struct*)app->pBuffer;
  		Mob* tribmast = entity_list.GetMob(st->tribute_master_id);
  		if (tribmast && tribmast->IsNPC() && tribmast->GetClass() == Class::GuildTributeMaster
@@ -2806,7 +2797,7 @@ index a059bef..4a6717c 100644
  			st->response = 1;
  			QueuePacket(app);
  			tribute_master_id = st->tribute_master_id;
-@@ -11046,7 +11202,8 @@ void Client::Handle_OP_OpenTributeMaster(const EQApplicationPacket *app)
+@@ -11046,7 +11200,8 @@ void Client::Handle_OP_OpenTributeMaster(const EQApplicationPacket *app)
  		StartTribute_Struct* st = (StartTribute_Struct*)app->pBuffer;
  		Mob* tribmast = entity_list.GetMob(st->tribute_master_id);
  		if (tribmast && tribmast->IsNPC() && tribmast->GetClass() == Class::TributeMaster
@@ -2816,7 +2807,7 @@ index a059bef..4a6717c 100644
  			st->response = 1;
  			QueuePacket(app);
  			tribute_master_id = st->tribute_master_id;
-@@ -11989,6 +12146,7 @@ void Client::Handle_OP_PickZone(const EQApplicationPacket *app)
+@@ -11989,6 +12144,7 @@ void Client::Handle_OP_PickZone(const EQApplicationPacket *app)
  
  void Client::Handle_OP_PopupResponse(const EQApplicationPacket *app)
  {
@@ -2824,7 +2815,7 @@ index a059bef..4a6717c 100644
  
  	if (app->size != sizeof(PopupResponse_Struct)) {
  		LogDebug("Size mismatch in OP_PopupResponse expected [{}] got [{}]", sizeof(PopupResponse_Struct), app->size);
-@@ -14059,6 +14217,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
+@@ -14059,6 +14215,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
  		tmp == 0 ||
  		!tmp->IsNPC() ||
  		tmp->GetClass() != Class::Merchant ||
@@ -2832,7 +2823,7 @@ index a059bef..4a6717c 100644
  		mp->quantity < 1 ||
  		DistanceSquared(m_Position, tmp->GetPosition()) > USE_NPC_RANGE2
  	) {
-@@ -14297,7 +14456,7 @@ void Client::Handle_OP_ShopPlayerSell(const EQApplicationPacket *app)
+@@ -14297,7 +14454,7 @@ void Client::Handle_OP_ShopPlayerSell(const EQApplicationPacket *app)
  
  	Mob* vendor = entity_list.GetMob(mp->npcid);
  
@@ -2841,7 +2832,7 @@ index a059bef..4a6717c 100644
  		return;
  
  	//you have to be somewhat close to them to be properly using them
-@@ -14498,7 +14657,7 @@ void Client::Handle_OP_ShopRequest(const EQApplicationPacket *app)
+@@ -14498,7 +14655,7 @@ void Client::Handle_OP_ShopRequest(const EQApplicationPacket *app)
  	int tabs_to_display = None;
  	Mob *tmp            = entity_list.GetMob(mc->npc_id);
  
@@ -2850,7 +2841,7 @@ index a059bef..4a6717c 100644
  		return;
  	}
  
-@@ -15850,7 +16009,7 @@ void Client::Handle_OP_TributeItem(const EQApplicationPacket *app)
+@@ -15850,7 +16007,7 @@ void Client::Handle_OP_TributeItem(const EQApplicationPacket *app)
  		tribute_master_id = t->tribute_master_id;
  		//make sure they are dealing with a valid tribute master
  		Mob* tribmast = entity_list.GetMob(t->tribute_master_id);
@@ -2859,7 +2850,7 @@ index a059bef..4a6717c 100644
  			return;
  		if (DistanceSquared(m_Position, tribmast->GetPosition()) > USE_NPC_RANGE2)
  			return;
-@@ -15877,7 +16036,7 @@ void Client::Handle_OP_TributeMoney(const EQApplicationPacket *app)
+@@ -15877,7 +16034,7 @@ void Client::Handle_OP_TributeMoney(const EQApplicationPacket *app)
  		tribute_master_id = t->tribute_master_id;
  		//make sure they are dealing with a valid tribute master
  		Mob* tribmast = entity_list.GetMob(t->tribute_master_id);
@@ -2868,7 +2859,7 @@ index a059bef..4a6717c 100644
  			return;
  		if (DistanceSquared(m_Position, tribmast->GetPosition()) > USE_NPC_RANGE2)
  			return;
-@@ -17067,24 +17226,18 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
+@@ -17067,24 +17224,18 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
  
  	auto in = (GuildTributeDonateItemRequest_Struct *) app->pBuffer;
  
@@ -2904,7 +2895,7 @@ index a059bef..4a6717c 100644
  
  		SendGuildTributeDonateItemReply(in, favor);
  
-@@ -17125,16 +17278,19 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
+@@ -17125,16 +17276,19 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
  
  	auto in = (GuildTributeDonatePlatRequest_Struct *) app->pBuffer;
  

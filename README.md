@@ -21,6 +21,8 @@ Build a home, decorate a yard, and give your guild a place of its own. This proj
 
 This is the **complete production housing package**: server source changes, ordered SQL migrations, content profiles, quest integration, opcodes and installation tools. Features are installed together; you do not need to assemble a collection of optional feature patches.
 
+**Latest update:** [October 22 housing fixes](docs/UPDATES.md) — direct plot management, Palatial placement and exit repairs, clearer escrow messages, and the Brimming Way entrance correction.
+
 ## Installing or upgrading your server
 
 Choose the guide for the machine **running your server**. Playing EverQuest on Windows does not mean your server is a Windows server.

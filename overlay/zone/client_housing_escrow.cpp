@@ -80,10 +80,13 @@ void Client::Handle_OP_RealEstateEscrow(const EQApplicationPacket* app){
   if(request->action==3||request->action==4||request->action==7){
    // Recovered empty requests have no cursor assignment or funding selector.
    // Explicit carried-only policy, amount/rate witness and journal live in the TX.
+   if(!Housing::InventoryBridge::CoinProfile::CursorItemsEmpty(GetInv())||!Housing::CoinWallet::Empty(Housing::InventoryBridge::CoinProfile::Snapshot(GetPP()).cursor)){
+    Message(Chat::Red,"Put all items and coins from your cursor into inventory before using Add a Day, Add a Week, or Withdraw All.");EscrowRejected(this,*request);return;
+   }
    Housing::EscrowWire::Message response;response.action=request->action;response.estate_id=request->estate_id;response.response_flag=1;
    auto success=EscrowPacket(Housing::EscrowWire::Encode(response));
    auto result=bridge->TransferCoin(EscrowKey(),*estate,*request,true);
-   if(!result){Message(Chat::Red,"The escrow request could not be completed. Check carried funds and the property's payment policy.");EscrowRejected(this,*request);return;}
+   if(!result){LogInfo("Native bulk escrow rejected actor [{}] estate [{}] action [{}] backend [{}]",CharacterID(),request->estate_id,request->action,int(result.error));Message(Chat::Red,"The escrow request could not be completed. Check carried funds and the property's payment policy.");EscrowRejected(this,*request);return;}
    committed=true;EscrowQueue(this,std::move(success));SendMoneyUpdate();SendHousingZoneCatalog();SendHousingPlacedScene();EscrowBroadcast();return;
   }
   const auto denomination=Housing::CoinWallet::Denomination(request->values[0].subtype);

@@ -1578,6 +1578,28 @@
       ],
       "guarded_procedure": false,
       "idempotence": "Final widening after all earlier receipt/lifecycle/layout definitions; exact existing final column types adopted without rewriting historical bytes"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_22_housing_palatial_front_exit.sql",
+      "kind": "seed",
+      "sha256": "b8a01b9b61692f55f6ea4ef7d62ff784ee410f5ee4a3ac6986413616afb03700",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": true,
+      "idempotence": "guarded original-model content correction"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_22_housing_brimming_guild_marker_orientation.sql",
+      "kind": "seed",
+      "sha256": "3b5928e9f2fe2d1a468fe12eed2f8d14f1991649aafb10356ab10039df93e93a",
+      "creates": [],
+      "alters": [],
+      "references": [],
+      "requires": [],
+      "guarded_procedure": false,
+      "idempotence": "guarded original-model content correction"
     }
   ],
   "required_native_tables": [

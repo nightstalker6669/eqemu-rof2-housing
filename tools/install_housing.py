@@ -436,6 +436,9 @@ def main():
         db.query("INSERT INTO housing_runtime_activation(id,database_name,client_build,policy_revision,allow_reconstructed_content,review_reference) VALUES(1,DATABASE(),20130510,1,1,'Production housing installer; labelled reconstructed content/defaults') ON DUPLICATE KEY UPDATE database_name=VALUES(database_name),client_build=VALUES(client_build),policy_revision=VALUES(policy_revision),allow_reconstructed_content=1,review_reference=VALUES(review_reference);")
         if a.schema_only:
             print('SCHEMA_INSTALL_PASS '+str(count)+' migrations; services remain stopped.');return
+        from housing_catalog_repairs import repair_unused_palatial_routes
+        repairs=repair_unused_palatial_routes(db)
+        write_utf8(a.backup/'catalog-route-repairs.json',json.dumps(repairs,indent=2)+'\n')
         package_hash=sha(ROOT/'source-manifest.json')[:16]
         original_source=a.source
         a.build.mkdir(parents=True,exist_ok=True)

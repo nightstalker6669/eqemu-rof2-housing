@@ -26,8 +26,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6443,
-      "sha256": "fabae21411f1a31610fe57f8c641dc9118c9417ef38680f3655e20238aa939d5"
+      "bytes": 6639,
+      "sha256": "9e487e6a9a722700981981d40f123f7d163e1caec8f1c9f61d3f7b032c7eb0d8"
     },
     {
       "path": "deploy/akk-stack.housing.yml",
@@ -51,8 +51,8 @@
     },
     {
       "path": "docs/INSTALL.md",
-      "bytes": 11073,
-      "sha256": "8639a29d433609a4f63c11216078358d72f0f17869abd21387881bba3df8bb97"
+      "bytes": 11409,
+      "sha256": "b7222f9b552da9e1a40ed7b6c54fc3ae5d9a33ae743a5abb2b8099c8b394d459"
     },
     {
       "path": "docs/ITEM-SUPPORT.md",
@@ -71,8 +71,13 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 4212,
-      "sha256": "c5d5e101da179f3981231c6da398842d41dda0311443aa68a9be9b697c93c0fe"
+      "bytes": 4639,
+      "sha256": "b6f3fd1e5995d48bc9e35a03254c29cddc6ad3bba93c5dfa891fc8d0aad83c63"
+    },
+    {
+      "path": "docs/UPDATES.md",
+      "bytes": 2652,
+      "sha256": "3b7558e1616d6024038f01d1d98ce234c0ffe3c88dd6af17cd19e3570108d3f8"
     },
     {
       "path": "docs/UPGRADE-AKK-STACK.md",
@@ -266,8 +271,8 @@
     },
     {
       "path": "installer-migrations.json",
-      "bytes": 58750,
-      "sha256": "77bb16b8ef8873c9823f66f4314acafc2f834f948dd52faad4443ae180b869c9"
+      "bytes": 59547,
+      "sha256": "d3822fd26bdcfb72937e7c6cda4a56075bc529bcb683d451ac1c64f4af33f73d"
     },
     {
       "path": "overlay/common/housing/README.md",
@@ -1681,8 +1686,8 @@
     },
     {
       "path": "overlay/common/housing/sunrise_neighborhood_defaults.h",
-      "bytes": 7506,
-      "sha256": "c0f03fee22eb2bbe0730a0272200824f87a84d8f07269a31d5a1f5f192fd2ad5"
+      "bytes": 7929,
+      "sha256": "38eea5cc956dbe223008aee0d0759ae8207e423252ba697660909b05e4736ee4"
     },
     {
       "path": "overlay/common/housing/sunrise_neighborhood_defaults.md",
@@ -2210,6 +2215,16 @@
       "sha256": "6e4a427ba58e9a41d356fc15ec95e5181a627f8c11c16acdb6720a79989f9a05"
     },
     {
+      "path": "overlay/utils/sql/optional/2026_10_22_housing_brimming_guild_marker_orientation.sql",
+      "bytes": 646,
+      "sha256": "3b5928e9f2fe2d1a468fe12eed2f8d14f1991649aafb10356ab10039df93e93a"
+    },
+    {
+      "path": "overlay/utils/sql/optional/2026_10_22_housing_palatial_front_exit.sql",
+      "bytes": 2005,
+      "sha256": "b8a01b9b61692f55f6ea4ef7d62ff784ee410f5ee4a3ac6986413616afb03700"
+    },
+    {
       "path": "overlay/utils/sql/optional/housing_occupied_refund_review_policy.sql",
       "bytes": 1600,
       "sha256": "666fcee12e2083eca229a87a26b541963602a3f14fa2a9a31aa3efe8c5b11dbd"
@@ -2236,8 +2251,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 218551,
-      "sha256": "0f66db8e8cb999f766fc44427a6065b79d659d27251f5566c7c514a1f2f29926"
+      "bytes": 220075,
+      "sha256": "0202761ad4a6e1c9236480e0ecb8def9b9fea8c246f1348ba84a7008ddbc51b5"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",
@@ -2246,8 +2261,8 @@
     },
     {
       "path": "overlay/zone/client_housing_escrow.cpp",
-      "bytes": 11524,
-      "sha256": "d1a387d9437f0ec8c8266985da3598e0e6806448f394d21721138119bc65a797"
+      "bytes": 12024,
+      "sha256": "f09bd15266f11c58144d4f9bfc3595cd5e6fbfdc129eecc1df2329d6b2e26a05"
     },
     {
       "path": "overlay/zone/client_housing_guild_trophies.cpp",
@@ -2371,8 +2386,8 @@
     },
     {
       "path": "overlay/zone/housing_house_runtime.cpp",
-      "bytes": 31372,
-      "sha256": "fca05ba59e90fae28fa4ed12e96d4cbf14d772832d7c0a47b5cbb764ea9e864b"
+      "bytes": 32239,
+      "sha256": "4acceacab7bd3e4c3b7b1192b85b3369c72e28c25af2a19a0487d1a5bb864138"
     },
     {
       "path": "overlay/zone/housing_house_runtime.h",
@@ -2421,8 +2436,8 @@
     },
     {
       "path": "overlay/zone/housing_plot_marker.h",
-      "bytes": 2864,
-      "sha256": "b688d6969f898d4186de9f260cd334cac9368640d099ca1b218a8483d9c43ef4"
+      "bytes": 3510,
+      "sha256": "340144a1857bd18c1108b657a4447a9ee83139dfd3d90f8ae45a4a987637691a"
     },
     {
       "path": "overlay/zone/housing_service_authority.cpp",
@@ -2486,8 +2501,8 @@
     },
     {
       "path": "patches/eqemu-housing.patch",
-      "bytes": 214239,
-      "sha256": "61fb60885a6edd78366402535000c7560b84423c097e598cc8065655b64faaf0"
+      "bytes": 213619,
+      "sha256": "5107e69af6cf6b89965befb40a7b283c9dff3de47b6a906942096a18274af3a1"
     },
     {
       "path": "patches/rof2-housing-finance-width.patch",
@@ -2511,8 +2526,8 @@
     },
     {
       "path": "protocol/README.md",
-      "bytes": 2175,
-      "sha256": "00a6128ba1d9f65afbacd36f6a1b150f2fa194ea25376d46405499b442ec90f7"
+      "bytes": 2452,
+      "sha256": "db33b82be824387ddf0c66ee49811705f9df94136beed8bcc29a33ff32a1ac8c"
     },
     {
       "path": "protocol/STRUCTS.md",
@@ -2560,6 +2575,11 @@
       "sha256": "a2032b113fde9e2df9027fae1d56c2f05e573de42ea087cf1443b094528b6fd0"
     },
     {
+      "path": "tools/housing_catalog_repairs.py",
+      "bytes": 5128,
+      "sha256": "dfc84470914c2cadc23db06503532340b22592a8796788c3c6a5706e4ae76bb9"
+    },
+    {
       "path": "tools/housing_platform.py",
       "bytes": 18340,
       "sha256": "829a8a41c84510b8cd5f5ae08af73029ed3423713cb3633139ffe3a266e40e4e"
@@ -2571,8 +2591,8 @@
     },
     {
       "path": "tools/install_housing.py",
-      "bytes": 43240,
-      "sha256": "c818e25ca212edb50717b8f84fc2e3d0b7466075aa6b78789a2af0f85b3469fb"
+      "bytes": 43456,
+      "sha256": "962aedba6da89b839db1d70287d91071dfaa8fbf4e399f0f70617a08f4c2b06f"
     },
     {
       "path": "tools/install_original_geometry.py",

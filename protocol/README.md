@@ -22,3 +22,5 @@ The inventory contains **67 documented opcode numbers** and **55 active mappings
 For a starting example, compare `OP_RealEstateItemOperation` in the opcode inventory with its source44-plus-action layout in the structure reference and the matching code in `placement_wire.h`. Nearby definitions include `estate_wire.h`, `item_list_wire.h`, `interaction_wire.h`, `layout_wire.h` and `guild_trophy_wire.h`.
 
 Applying opcode mappings alone does not add housing gameplay. Server operators should use the [complete installation guide](../docs/INSTALL.md).
+
+The [October 22 gameplay fixes](../docs/UPDATES.md) reuse the existing opcodes and structures: pedestal clicks resolve the selected plot through the normal inspection/purchase flow; the Palatial front door uses the checked current-house exit. No new opcode number is claimed.

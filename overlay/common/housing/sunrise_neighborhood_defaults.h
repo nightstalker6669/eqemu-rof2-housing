@@ -33,7 +33,15 @@ inline std::array<Marker,4> GuildMarkers(){
  std::array<Marker,4> out{};size_t i=0;
  for(const auto& p:SunrisePlotReconstruction::GuildPlots){
   float heading=std::fmod(128.f-p.heading_radians*256.f/3.14159265358979323846f,512.f);if(heading<0)heading+=512;
-  out[i]={uint32_t(199+i),"OBP_GUILDSQUARE",p.x,p.y,p.reference_floor_z,heading};++i;
+  float marker_x=p.x,marker_y=p.y;
+  // Brimming's opening faces its valley ramp. Compensate the original mesh's
+  // off-center pivot using all698vertices so its world XY bounds stay fixed;
+  // this visual transform never rotates or translates the legal plot region.
+  if(p.address=="200 Brimming Way"){
+   marker_x-=2.96590555516104f;marker_y+=9.83795808445734f;
+   heading=std::fmod(heading+256.f,512.f);
+  }
+  out[i]={uint32_t(199+i),"OBP_GUILDSQUARE",marker_x,marker_y,p.reference_floor_z,heading};++i;
  }
  return out;
 }
