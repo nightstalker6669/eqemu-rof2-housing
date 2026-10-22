@@ -26,8 +26,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6300,
-      "sha256": "a91d5e88cb4cf2bac2d14c0ef07929ecbe282ec5bdee0a65a35df4b1bafe6e67"
+      "bytes": 6443,
+      "sha256": "fabae21411f1a31610fe57f8c641dc9118c9417ef38680f3655e20238aa939d5"
     },
     {
       "path": "deploy/akk-stack.housing.yml",
@@ -55,9 +55,14 @@
       "sha256": "8639a29d433609a4f63c11216078358d72f0f17869abd21387881bba3df8bb97"
     },
     {
+      "path": "docs/ITEM-SUPPORT.md",
+      "bytes": 3014,
+      "sha256": "aca3edf1b6ebc0a1ecc1e6d67cda3cddfa79766741f5a1c97983bc4602669c82"
+    },
+    {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 2820,
-      "sha256": "b8d5e1064b258b038b64f526b9496bb560fe31ad03101c4b7e334435f83b0692"
+      "bytes": 2843,
+      "sha256": "ffd787d838ba77c611b557707e9daef91119677acf11ab763cb07f73a4e70fd2"
     },
     {
       "path": "docs/RETIREMENT-RETURNS.md",
@@ -66,8 +71,8 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 4032,
-      "sha256": "6d85a05bad7168e7a35b389a74d7302a582460c10372380ed3770f7a47a0af34"
+      "bytes": 4212,
+      "sha256": "c5d5e101da179f3981231c6da398842d41dda0311443aa68a9be9b697c93c0fe"
     },
     {
       "path": "docs/UPGRADE-AKK-STACK.md",
@@ -491,8 +496,8 @@
     },
     {
       "path": "overlay/common/housing/evolving_trophy_custody.md",
-      "bytes": 3486,
-      "sha256": "18ce71876d29d0f8671788ed9e5a72b64c048d1e7af375150a9c9b8b7f489fee"
+      "bytes": 3529,
+      "sha256": "80e0c853f3bf7998d252b558828e9e05e86301e24e0ffedb4bf6a4c58e2fdcbd"
     },
     {
       "path": "overlay/common/housing/exterior_exit_geometry.h",
@@ -861,8 +866,8 @@
     },
     {
       "path": "overlay/common/housing/inventory_projection.h",
-      "bytes": 4235,
-      "sha256": "d1a969956c566a09d0762473057c854f247eee0b415f436a60c3371c0def2503"
+      "bytes": 3835,
+      "sha256": "2cae4f2f3e04a97146501d018bd8abe1ce4867c1d405d3b897cedf2a7726bc32"
     },
     {
       "path": "overlay/common/housing/inventory_recovery_cli.cpp",
@@ -891,8 +896,8 @@
     },
     {
       "path": "overlay/common/housing/item_payload_db.h",
-      "bytes": 13296,
-      "sha256": "bfa377b8d7fed42a1dac4ec2950e7c7751f53c1b79a9a593d558645e561a401b"
+      "bytes": 13447,
+      "sha256": "27a4121173b84a2da1858fd0acb84d8c5fc5d6bc8617370bd32385e149cfdef8"
     },
     {
       "path": "overlay/common/housing/item_service.cpp",
@@ -1033,6 +1038,11 @@
       "path": "overlay/common/housing/layout_wire.h",
       "bytes": 4533,
       "sha256": "fd01f94a76997f77079562e06707d0de463202004b28d9dae649b92b59c8dfa2"
+    },
+    {
+      "path": "overlay/common/housing/legacy_scaling_state.h",
+      "bytes": 5148,
+      "sha256": "03325b7e97f3e3c7fd883d027e29c986b0c1e89392b2e644e71ae6075568e017"
     },
     {
       "path": "overlay/common/housing/live_escrow_service.cpp",
@@ -2401,8 +2411,8 @@
     },
     {
       "path": "overlay/zone/housing_item_reconstruction.cpp",
-      "bytes": 2559,
-      "sha256": "9d5305be01ef5f92488b9e85076711b889827924a9cf1e2bbdd1e728e5e520c2"
+      "bytes": 2665,
+      "sha256": "cd2976978240fd9dc18adbbead235420538cb3928c5f64baac8a13a17f4fde5f"
     },
     {
       "path": "overlay/zone/housing_item_reconstruction.h",
@@ -2476,8 +2486,8 @@
     },
     {
       "path": "patches/eqemu-housing.patch",
-      "bytes": 208288,
-      "sha256": "cdfbfa0432525b72eac0098540e1607ffb664b6f3a05ce3a61bd21aa39691ab1"
+      "bytes": 214239,
+      "sha256": "61fb60885a6edd78366402535000c7560b84423c097e598cc8065655b64faaf0"
     },
     {
       "path": "patches/rof2-housing-finance-width.patch",

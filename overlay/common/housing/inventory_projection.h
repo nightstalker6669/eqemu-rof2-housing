@@ -2,6 +2,7 @@
 #define EQEMU_HOUSING_INVENTORY_PROJECTION_H
 #include "custody_codec.h"
 #include "evolving_item_custody.h"
+#include "legacy_scaling_state.h"
 #include "../item_instance.h"
 #include "../strings.h"
 #include <map>
@@ -14,15 +15,8 @@ inline bool Shape(const LiveItems::InventoryRow& row){
   (!(row.null_fields&LiveItems::NullGuid)||!r.guid)&&
   (!(row.null_fields&LiveItems::NullCustomData)||r.custom_data.empty())&&r.custom_data.size()<=65535&&CustodyCodec::Valid(row);
 }
-inline std::optional<std::map<std::string,std::string>> Custom(const std::string& raw){
- std::map<std::string,std::string> result;if(raw.empty())return result;
- const auto parts=Strings::Split(raw,"^");
- // A final empty token is the writer's optional terminator. No trailing data
- // may be discarded, and duplicate keys cannot preserve all source records.
- size_t count=parts.size();if(count%2){if(!parts.back().empty())return std::nullopt;--count;}
- for(size_t i=0;i<count;i+=2)if(parts[i].empty()||!result.emplace(parts[i],parts[i+1]).second)return std::nullopt;
- return result;
-}
+inline std::optional<std::map<std::string,std::string>> Custom(const std::string& raw){return LegacyScaling::Fields(raw);}
+
 inline std::string Canonical(const std::map<std::string,std::string>& fields){
  std::string out;for(const auto& [key,value]:fields){if(!out.empty())out+='^';out+=key;out+='^';out+=value;out+='^';}return out;
 }
@@ -37,7 +31,7 @@ inline uint32_t Color(const LiveItems::InventoryRow& row,const EQ::ItemData& dat
 inline bool VaultCandidate(const EQ::ItemData& data){return !data.Placeable&&!data.NoTransfer&&data.ItemClass<=2&&(data.ItemClass==1||!data.BagSlots);}
 inline bool Matches(const LiveItems::InventoryRow& row,EQ::ItemInstance& item){
  const auto& r=row.values;const auto* data=item.GetItem();
- if(!Shape(row)||!data||data->ID!=r.item_id||((data->ItemClass!=0||data->BagSlots)&&!VaultCandidate(*data))||item.IsScaling()||item.GetSerialNumber()<=0||!EvolvingItemCustody::Matches(row.evolving_payload,item,r.character_id))return false;
+ if(!Shape(row)||!data||data->ID!=r.item_id||((data->ItemClass!=0||data->BagSlots)&&!VaultCandidate(*data))||!LegacyScaling::Matches(r.custom_data,item)||item.GetSerialNumber()<=0||!EvolvingItemCustody::Matches(row.evolving_payload,item,r.character_id))return false;
  const std::array<uint32_t,6> augments{r.augment_one,r.augment_two,r.augment_three,r.augment_four,r.augment_five,r.augment_six};
  size_t augment_count=0;for(size_t i=0;i<augments.size();++i){if(data->ItemClass!=EQ::item::ItemClassBag&&item.GetAugmentItemID(uint8_t(i))!=augments[i])return false;if(augments[i])++augment_count;}
  if(data->ItemClass==EQ::item::ItemClassBag){

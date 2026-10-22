@@ -15,7 +15,7 @@ Build a home, decorate a yard, and give your guild a place of its own. This proj
 | **Neighborhoods and plots** | Visit instanced Sunrise Hills, inspect plot markers, buy personal or guild plots, and pay upkeep. Fresh neighborhood setup includes 71 priced personal plots and four priced guild plots. |
 | **Houses and guild halls** | Place supported buildings, enter their interiors, and keep their identity and contents through storage and moves. Guild Lobby routing connects owning guilds to their placed hall. |
 | **Decoration** | Position, rotate and scale supported furniture outdoors or inside; mount supported items on walls and ceilings. Save and load layouts. |
-| **Storage and moving** | Use closets/vaults, sheds and moving crates. Supported filled bags, augments and evolving-item identity/progress are retained. Property returns include parcel overflow. |
+| **Storage and moving** | Use closets/vaults, sheds and moving crates. Supported filled bags, augments, legacy scaling experience and evolving-item identity/progress are retained. Property returns include parcel overflow. |
 | **Guild services** | Place the reviewed banker, supply, tribute and teleport assistants. Pay the portal-crystal vendor and use the aligned teleport device. |
 | **Ownership and upkeep** | Manage access, deposits, withdrawals, billing and voluntary Move Out. Reviewed retirement/recovery mechanisms preserve retained items. |
 
@@ -62,6 +62,7 @@ Recovered values are tied to the original client build above. Active mappings, u
 
 - [Current feature status](docs/STATUS.md) — what is implemented and what representative checks have passed.
 - [Known limits](docs/KNOWN-GAPS.md) — unsupported item shapes, unavailable historical data and platform boundaries.
+- [Supported item types](docs/ITEM-SUPPORT.md) — scaling items, bag contents and NPC/plushie evidence boundaries.
 - [House and guild-hall item limits](docs/CONFIGURING-HOUSE-CAPACITIES.md) — researched capacities and labelled server defaults.
 - [Implementation architecture](docs/ARCHITECTURE.md) — how the server components fit together.
 - [Historical notes](docs/history/README.md) — detailed implementation history, kept separate from the installation steps.

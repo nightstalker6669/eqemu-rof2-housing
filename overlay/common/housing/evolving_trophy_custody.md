@@ -43,8 +43,8 @@ are unchanged. Deploy the locator migration before enabling extended custody.
 
 This persistence support grants no new item model, trophy rank, activation
 benefit, minimum level or cost. Existing reviewed geometry and placement guards
-still decide which evolving physical items can be placed. Legacy `IsScaling`
-state is separate from CEI and remains unsupported where it has no durable
-inventory representation. The reviewed final tradeskill physical trophies have
-CharmFileID zero, so that legacy scaling restriction does not exclude their CEI
-identity. Unknown trophy benefits remain disabled.
+still decide which evolving physical items can be placed. Legacy `IsScaling` state remains separate from CEI. The legacy scaling persistence
+extension now preserves root and augment experience in per-instance custom_data;
+see legacy_scaling_state.h and docs/ITEM-SUPPORT.md in the housing package.
+The reviewed final tradeskill physical trophies use CEI identity. Unknown trophy
+benefits remain disabled.

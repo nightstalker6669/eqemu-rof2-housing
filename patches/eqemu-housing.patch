@@ -326,10 +326,18 @@ index 6967c21..70f0521 100644
  		int16	StackSize {};
  		uint8	PotionBeltSlots {};
 diff --git a/common/item_instance.cpp b/common/item_instance.cpp
-index bb048b1..cbf8d60 100644
+index bb048b1..f33008f 100644
 --- a/common/item_instance.cpp
 +++ b/common/item_instance.cpp
-@@ -150,6 +150,9 @@ EQ::ItemInstance::ItemInstance(const ItemInstance& copy)
+@@ -26,6 +26,7 @@
+ #include "shareddb.h"
+ #include "strings.h"
+ #include "evolving_items.h"
++#include "housing/legacy_scaling_state.h"
+ 
+ //#include "../common/light_source.h"
+ 
+@@ -150,6 +151,9 @@ EQ::ItemInstance::ItemInstance(const ItemInstance& copy)
  	}
  
  	m_SerialNumber = copy.m_SerialNumber;
@@ -339,7 +347,7 @@ index bb048b1..cbf8d60 100644
  	m_custom_data  = copy.m_custom_data;
  	m_timers       = copy.m_timers;
  
-@@ -172,6 +175,15 @@ EQ::ItemInstance::ItemInstance(const ItemInstance& copy)
+@@ -172,6 +176,15 @@ EQ::ItemInstance::ItemInstance(const ItemInstance& copy)
  }
  
  // Clean up container contents
@@ -355,6 +363,40 @@ index bb048b1..cbf8d60 100644
  EQ::ItemInstance::~ItemInstance()
  {
  	Clear();
+@@ -814,26 +827,17 @@ const EQ::ItemData* EQ::ItemInstance::GetUnscaledItem() const
+ }
+ 
+ std::string EQ::ItemInstance::GetCustomDataString() const {
+-	std::string ret_val;
+-	auto iter = m_custom_data.begin();
+-	while (iter != m_custom_data.end()) {
+-		if (ret_val.length() > 0) {
+-			ret_val += "^";
+-		}
+-		ret_val += iter->first;
+-		ret_val += "^";
+-		ret_val += iter->second;
+-		++iter;
+-
+-		if (ret_val.length() > 0) {
+-			ret_val += "^";
+-		}
+-	}
+-	return ret_val;
++ return Housing::LegacyScaling::Write(*this,m_custom_data);
+ }
+ 
+ void EQ::ItemInstance::SetCustomDataString(const std::string& str)
+ {
++    if (auto fields=Housing::LegacyScaling::Fields(str)) {
++        for (const auto& [key,value]:*fields) SetCustomData(key,value);
++        return;
++    }
++    // Preserve the historical fallback for unrelated malformed quest data.
++
+ 	auto components = Strings::Split(str, "^");
+ 	auto value_count = components.size() / 2;
+ 
 diff --git a/common/item_instance.h b/common/item_instance.h
 index 99edfb5..28312fe 100644
 --- a/common/item_instance.h
@@ -984,7 +1026,7 @@ index 9985c87..95f6138 100644
 +
  #endif
 diff --git a/common/shareddb.cpp b/common/shareddb.cpp
-index 0ef0cbe..2f11ae4 100644
+index 0ef0cbe..55ef65c 100644
 --- a/common/shareddb.cpp
 +++ b/common/shareddb.cpp
 @@ -1,3 +1,5 @@
@@ -993,15 +1035,16 @@ index 0ef0cbe..2f11ae4 100644
  /*	EQEMu: Everquest Server Emulator
  	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.org)
  
-@@ -34,6 +36,7 @@
+@@ -34,6 +36,8 @@
  #include "mysql.h"
  #include "rulesys.h"
  #include "shareddb.h"
++#include "housing/legacy_scaling_state.h"
 +#include "housing/trophy_benefits.h"
  #include "strings.h"
  #include "eqemu_config.h"
  #include "data_verification.h"
-@@ -55,6 +58,7 @@
+@@ -55,6 +59,7 @@
  #include "repositories/spells_new_repository.h"
  #include "repositories/damageshieldtypes_repository.h"
  #include "repositories/items_repository.h"
@@ -1009,10 +1052,22 @@ index 0ef0cbe..2f11ae4 100644
  
  SharedDatabase::SharedDatabase()
  : Database()
-@@ -221,6 +225,10 @@ bool SharedDatabase::VerifyInventory(uint32 account_id, int16 slot_id, const EQ:
+@@ -165,6 +170,10 @@ bool SharedDatabase::SaveCursor(
+ 	std::list<EQ::ItemInstance*>::const_iterator& end
+ )
+ {
++    // Validate the complete queue before its old SQL rows are removed.
++    for (auto it=start;it!=end;++it)
++        if (*it && !Housing::LegacyScaling::Persistable(**it)) return false;
++
+ 	const int deleted = InventoryRepository::DeleteWhere(
+ 		*this,
+ 		fmt::format(
+@@ -221,6 +230,11 @@ bool SharedDatabase::VerifyInventory(uint32 account_id, int16 slot_id, const EQ:
  
  bool SharedDatabase::SaveInventory(uint32 char_id, const EQ::ItemInstance* inst, int16 slot_id)
  {
++    if (inst && !Housing::LegacyScaling::Persistable(*inst)) return false;
 +	// Reject stale held identities before container clearing can delete any rows.
 +	try { if (inst && !Housing::EvolvingItemCustody::InventorySaveAllowed(*this, char_id, *inst)) return false; }
 +	catch (...) { return false; }
@@ -1020,7 +1075,16 @@ index 0ef0cbe..2f11ae4 100644
  	// Don't save any Tribute slots
  	if (
  		EQ::ValueWithin(slot_id, EQ::invslot::GUILD_TRIBUTE_BEGIN, EQ::invslot::GUILD_TRIBUTE_END) ||
-@@ -287,7 +295,13 @@ bool SharedDatabase::UpdateInventorySlot(uint32 char_id, const EQ::ItemInstance*
+@@ -263,6 +277,8 @@ bool SharedDatabase::UpdateInventorySlot(uint32 char_id, const EQ::ItemInstance*
+ 		return false;
+ 	}
+ 
++    if (!Housing::LegacyScaling::Persistable(*inst)) return false;
++
+ 	std::vector<uint32> augment_ids = inst->GetAugmentIDs();
+ 
+ 	uint16 charges = inst->GetCharges() >= 0 ? inst->GetCharges() : std::numeric_limits<int16>::max();
+@@ -287,7 +303,13 @@ bool SharedDatabase::UpdateInventorySlot(uint32 char_id, const EQ::ItemInstance*
  	e.ornament_hero_model = inst->GetOrnamentHeroModel();
  	e.guid                = inst->GetSerialNumber();
  
@@ -1034,7 +1098,25 @@ index 0ef0cbe..2f11ae4 100644
  
  	// Save bag contents, if slot supports bag contents
  	if (inst->IsClassBag() && EQ::InventoryProfile::SupportsContainers(slot_id)) {
-@@ -620,22 +634,40 @@ bool SharedDatabase::GetSharedBank(uint32 id, EQ::InventoryProfile *inv, bool is
+@@ -312,6 +334,8 @@ bool SharedDatabase::UpdateSharedBankSlot(uint32 char_id, const EQ::ItemInstance
+ 		return false;
+ 	}
+ 
++    if (!Housing::LegacyScaling::Persistable(*inst)) return false;
++
+ 	std::vector<uint32> augment_ids = inst->GetAugmentIDs();
+ 
+ 	uint16 charges = inst->GetCharges() >= 0 ? inst->GetCharges() : std::numeric_limits<int16>::max();
+@@ -596,6 +620,8 @@ bool SharedDatabase::GetSharedBank(uint32 id, EQ::InventoryProfile *inv, bool is
+ 			inst->SetCustomDataString(e.custom_data);
+ 		}
+ 
++        if (!Housing::LegacyScaling::Restore(*inst,e.custom_data)) { safe_delete(inst); return false; }
++
+ 		const int16 put_slot_id = inv->PutItem(e.slot_id, *inst);
+ 		safe_delete(inst);
+ 
+@@ -620,22 +646,40 @@ bool SharedDatabase::GetSharedBank(uint32 id, EQ::InventoryProfile *inv, bool is
  }
  // Overloaded: Retrieve character inventory based on character id (zone entry)
  //bool SharedDatabase::GetInventory(uint32 char_id, EQ::InventoryProfile *inv)
@@ -1077,7 +1159,7 @@ index 0ef0cbe..2f11ae4 100644
  		LogError("Error loading inventory for char_id {} from the database.", char_id);
  		return false;
  	}
-@@ -707,11 +739,13 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -707,11 +751,13 @@ bool SharedDatabase::GetInventory(Client *c)
  				item_id,
  				slot_id
  			);
@@ -1091,7 +1173,7 @@ index 0ef0cbe..2f11ae4 100644
  			continue;
  		}
  
-@@ -721,7 +755,7 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -721,7 +767,7 @@ bool SharedDatabase::GetInventory(Client *c)
  
  		inst->SetOrnamentIcon(ornament_icon);
  		inst->SetOrnamentationIDFile(ornament_idfile);
@@ -1100,7 +1182,7 @@ index 0ef0cbe..2f11ae4 100644
  
  		if (
  			instnodrop ||
-@@ -764,51 +798,37 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -764,51 +810,39 @@ bool SharedDatabase::GetInventory(Client *c)
  			}
  		}
  
@@ -1108,7 +1190,8 @@ index 0ef0cbe..2f11ae4 100644
 -			if (slot_id >= EQ::invslot::EQUIPMENT_BEGIN && slot_id <= EQ::invslot::EQUIPMENT_END) {
 -				inst->SetEvolveEquipped(true);
 -			}
--
++        if (!Housing::LegacyScaling::Restore(*inst,row.custom_data)) { safe_delete(inst); return false; }
+ 
 -			auto t = std::ranges::find_if(
 -				e_results.cbegin(),
 -				e_results.cend(),
@@ -1181,7 +1264,7 @@ index 0ef0cbe..2f11ae4 100644
  
  		int16 put_slot_id;
  		// this had  || slot_id == EQ::invslot::slotCursor ??s
-@@ -831,6 +851,7 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -831,6 +865,7 @@ bool SharedDatabase::GetInventory(Client *c)
  				item_id,
  				slot_id
  			);
@@ -1189,7 +1272,7 @@ index 0ef0cbe..2f11ae4 100644
  		}
  	}
  
-@@ -845,14 +866,35 @@ bool SharedDatabase::GetInventory(Client *c)
+@@ -845,14 +880,35 @@ bool SharedDatabase::GetInventory(Client *c)
  		);
  	}
  
@@ -1227,7 +1310,7 @@ index 0ef0cbe..2f11ae4 100644
  }
  
  std::map<uint32, uint32> SharedDatabase::GetItemRecastTimestamps(uint32 char_id)
-@@ -972,6 +1014,15 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+@@ -972,6 +1028,15 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
  		}
  	}
  
@@ -1243,7 +1326,7 @@ index 0ef0cbe..2f11ae4 100644
  	EQ::ItemData item;
  
  	const auto& l = ItemsRepository::All(*this);
-@@ -1004,6 +1055,26 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
+@@ -1004,6 +1069,26 @@ void SharedDatabase::LoadItems(void *data, uint32 size, int32 items, uint32 max_
  		item.NoPet           = !disable_no_pet && e.nopet;
  		item.NoRent          = disable_no_rent ? std::numeric_limits<uint8>::max() : e.norent;
  		item.NoTransfer      = !disable_no_transfer && e.notransfer;
@@ -1270,6 +1353,22 @@ index 0ef0cbe..2f11ae4 100644
  		item.PendingLoreFlag = e.pendingloreflag;
  		item.QuestItemFlag   = e.questitemflag;
  		item.Stackable       = e.stackable;
+@@ -1360,6 +1445,7 @@ EQ::ItemInstance* SharedDatabase::CreateItem(
+ 		inst->PutAugment(this, 5, aug6);
+ 		inst->SetAttuned(attuned);
+ 		inst->SetCustomDataString(custom_data);
++        if (!Housing::LegacyScaling::Restore(*inst,custom_data)) { safe_delete(inst); return nullptr; }
+ 		inst->SetOrnamentIcon(ornamenticon);
+ 		inst->SetOrnamentationIDFile(ornamentidfile);
+ 		inst->SetOrnamentHeroModel(ornament_hero_model);
+@@ -1403,6 +1489,7 @@ EQ::ItemInstance* SharedDatabase::CreateItem(
+ 		inst->PutAugment(this, 5, aug6);
+ 		inst->SetAttuned(attuned);
+ 		inst->SetCustomDataString(custom_data);
++        if (!Housing::LegacyScaling::Restore(*inst,custom_data)) { safe_delete(inst); return nullptr; }
+ 		inst->SetOrnamentIcon(ornamenticon);
+ 		inst->SetOrnamentationIDFile(ornamentidfile);
+ 		inst->SetOrnamentHeroModel(ornament_hero_model);
 diff --git a/common/shareddb.h b/common/shareddb.h
 index 2a78be6..92c0e52 100644
 --- a/common/shareddb.h
@@ -1948,10 +2047,15 @@ index ffea99f..e444965 100644
  SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 -
 diff --git a/zone/bonuses.cpp b/zone/bonuses.cpp
-index 0cc44ca..7df7e51 100644
+index 0cc44ca..4388b2d 100644
 --- a/zone/bonuses.cpp
 +++ b/zone/bonuses.cpp
-@@ -183,6 +183,12 @@ void Mob::CalcItemBonuses(StatBonuses* b) {
+@@ -1,3 +1,4 @@
++#include "../common/housing/legacy_scaling_state.h"
+ /*	EQEMu: Everquest Server Emulator
+ 	Copyright (C) 2001-2004 EQEMu Development Team (http://eqemu.org)
+ 
+@@ -183,6 +184,12 @@ void Mob::CalcItemBonuses(StatBonuses* b) {
  	}
  
  	if (IsClient()) {
@@ -1964,7 +2068,7 @@ index 0cc44ca..7df7e51 100644
  		if (CastToClient()->GetPP().tribute_active) {
  			for (auto const &t: CastToClient()->GetPP().tributes) {
  				auto item_id = CastToClient()->LookupTributeItemID(t.tribute, t.tier);
-@@ -736,6 +742,10 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
+@@ -736,6 +743,10 @@ void Mob::ApplyAABonuses(const AA::Rank &rank, StatBonuses *newbon)
  		case SpellEffect::MaxHPChange:
  			newbon->PercentMaxHPChange += base_value;
  			break;
@@ -1975,7 +2079,7 @@ index 0cc44ca..7df7e51 100644
  		case SpellEffect::Packrat:
  			newbon->Packrat += base_value;
  			break;
-@@ -2977,6 +2987,10 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
+@@ -2977,6 +2988,10 @@ void Mob::ApplySpellsBonuses(uint16 spell_id, uint8 casterlevel, StatBonuses *ne
  				break;
  			}
  
@@ -1986,6 +2090,60 @@ index 0cc44ca..7df7e51 100644
  			case SpellEffect::NegateSpellEffect:
  				new_bonus->NegateEffects = true;
  				break;
+@@ -3960,7 +3975,7 @@ bool Client::CalcItemScale(uint32 slot_x, uint32 slot_y) {
+ 		bool update_slot = false;
+ 		if(inst->IsScaling())
+ 		{
+-			uint16 oldexp = inst->GetExp();
++			uint32 oldexp = inst->GetExp();
+ 
+ 			if (parse->ItemHasQuestSub(inst, EVENT_SCALE_CALC)) {
+ 				parse->EventItem(EVENT_SCALE_CALC, this, inst, nullptr, "", 0);
+@@ -3982,7 +3997,7 @@ bool Client::CalcItemScale(uint32 slot_x, uint32 slot_y) {
+ 
+ 			if(a_inst->IsScaling())
+ 			{
+-				uint16 oldexp = a_inst->GetExp();
++				uint32 oldexp = a_inst->GetExp();
+ 
+ 				if (parse->ItemHasQuestSub(a_inst, EVENT_SCALE_CALC)) {
+ 					parse->EventItem(EVENT_SCALE_CALC, this, a_inst, nullptr, "", 0);
+@@ -3997,6 +4012,8 @@ bool Client::CalcItemScale(uint32 slot_x, uint32 slot_y) {
+ 			}
+ 		}
+ 
++        if (update_slot && !database.SaveInventory(CharacterID(),inst,int16_t(i)))
++            LogError("Could not persist recalculated legacy scaling item character [{}] slot [{}]",CharacterID(),i);
+ 		if(update_slot)
+ 		{
+ 			SendItemPacket(i, inst, ItemPacketCharmUpdate);
+@@ -4052,7 +4069,7 @@ bool Client::DoItemEnterZone(uint32 slot_x, uint32 slot_y) {
+ 		bool update_slot = false;
+ 		if(inst->IsScaling())
+ 		{
+-			uint16 oldexp = inst->GetExp();
++			uint32 oldexp = inst->GetExp();
+ 
+ 			if (parse->ItemHasQuestSub(inst, EVENT_ITEM_ENTER_ZONE)) {
+ 				parse->EventItem(EVENT_ITEM_ENTER_ZONE, this, inst, nullptr, "", 0);
+@@ -4090,7 +4107,7 @@ bool Client::DoItemEnterZone(uint32 slot_x, uint32 slot_y) {
+ 
+ 			if(a_inst->IsScaling())
+ 			{
+-				uint16 oldexp = a_inst->GetExp();
++				uint32 oldexp = a_inst->GetExp();
+ 
+ 				if (parse->ItemHasQuestSub(a_inst, EVENT_ITEM_ENTER_ZONE)) {
+ 					parse->EventItem(EVENT_ITEM_ENTER_ZONE, this, a_inst, nullptr, "", 0);
+@@ -4109,6 +4126,8 @@ bool Client::DoItemEnterZone(uint32 slot_x, uint32 slot_y) {
+ 			}
+ 		}
+ 
++        if (!Housing::LegacyScaling::Current(*inst).empty() && !database.SaveInventory(CharacterID(),inst,int16_t(i)))
++            LogError("Could not persist zone-entry legacy scaling item character [{}] slot [{}]",CharacterID(),i);
+ 		if(update_slot)
+ 		{
+ 			SendItemPacket(i, inst, ItemPacketCharmUpdate);
 diff --git a/zone/client.cpp b/zone/client.cpp
 index 5ed9edd..e36da25 100644
 --- a/zone/client.cpp

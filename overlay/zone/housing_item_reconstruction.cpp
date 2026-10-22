@@ -22,6 +22,7 @@ LiveItems::Result<ReconstructedItem> Reconstruct(SharedDatabase& db,const LiveIt
   // projection after creation. Never silently normalize the stored row.
   item->SetCharges(Charges(row,*data));item->SetColor(InventoryProjection::Color(row,*data));
   for(const auto& [key,value]:*fields)item->SetCustomData(key,value);
+  if(!LegacyScaling::Restore(*item,row.values.custom_data))return {{},LiveItems::Error::UnsupportedItem};
   if(!EvolvingItemCustody::Restore(row.evolving_payload,*item,row.values.character_id))return {{},LiveItems::Error::UnsupportedItem};
   for(const auto& child:row.children){auto rebuilt=Reconstruct(db,child);if(!rebuilt)return {{},rebuilt.error};item->PutItem(uint8_t(child.values.slot_id),*rebuilt.value.item);}
   if(!MatchesProjection(row,*item))return {{},LiveItems::Error::UnsupportedItem};
