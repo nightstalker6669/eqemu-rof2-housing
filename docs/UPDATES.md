@@ -1,4 +1,10 @@
-# Housing fixes — October 22, 2026
+# Housing updates
+
+## Housing pet commands — October 25, 2026
+
+Added the recovered `0x51e3` request, native pet menus, permission checks, and bounded noncombat pet movement/animation. The initial admitted model is Holgresh; unverified pet models remain disabled. See [pet controls and limits](HOUSING-PETS.md). No database migration is required.
+
+## Housing fixes — October 22, 2026
 
 These fixes are included in the complete installer for Linux, AkkStack and native Windows. Update your checkout, stop the server, and follow the same [installation/upgrade guide](INSTALL.md) with a **new private backup directory**. Do not copy only opcode mappings or import a replacement database. The installer retains ownership and existing items.
 

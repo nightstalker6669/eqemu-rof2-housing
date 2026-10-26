@@ -1,9 +1,10 @@
 # Housing opcode inventory
 
-Snapshot: October 21, 2026. Target: May 10, 2013 RoF2. **55 active mappings (49 real-estate and 6 guild-trophy);67 documented opcode numbers.** Mapping does not establish working gameplay or full original protocol coverage.
+Snapshot: October 25, 2026. Target: May 10, 2013 RoF2. **56 active mappings (50 real-estate and 6 guild-trophy);67 documented opcode numbers.** Mapping does not establish working gameplay or full original protocol coverage.
 
 | Opcode | Mapping | Direction |
 |---|---|---|
+| 0x51e3 | OP_RealEstateCustomInteraction | C2S |
 | 0x2691 | OP_RealEstateNeighborhood | C2S/S2C |
 | 0x218c | OP_RealEstateGo | C2S |
 | 0x2698 | OP_RealEstateDefinitions | S2C |

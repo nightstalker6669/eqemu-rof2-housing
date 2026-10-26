@@ -1,4 +1,5 @@
 #include "housing_service_npcs.h"
+#include "housing_pets.h"
 #include "../common/housing/item_payload_db.h"
 #include "housing_service_authority.h"
 #include "../common/housing/centered_wall_policy.h"
@@ -654,6 +655,10 @@ Bytes FurnitureEntry(Client* c,const Housing::LiveItems::Stored& row,const EQ::I
  w(owner.size());bytes.insert(bytes.end(),owner.begin(),owner.end());
  bytes.insert(bytes.end(),embedded->begin(),embedded->end());return bytes;
 }
+std::optional<Housing::Pets::Binding> FurniturePet(const Housing::LiveItems::Stored& row,const EQ::ItemInstance& item,const Housing::Scene::Snapshot& scene){
+ auto profile=FurnitureNpc(item);if(!profile||!Housing::Pets::Supported(*profile)||row.stowed||!row.placement||row.placement->transform.pitch!=0||row.placement->transform.roll!=0||row.placement->transform.scale!=1)return {};
+ Housing::Pets::Binding b;b.custody_id=row.custody_id;b.catalog_revision=scene.current_catalog_revision;b.pose_revision=row.placement->pose_revision;b.estate_id=row.estate_id;b.native_estate_id=row.placement->reservation.native_estate_id;b.native_item_id=row.placement->reservation.native_item_id;b.owner=row.row.values.character_id;b.profile=*profile;b.pose=row.placement->transform;b.frame=row.placement->npc_frame;b.name=item.GetUnscaledItem()->Name;b.regions.push_back(scene.region);b.regions.insert(b.regions.end(),scene.additional_regions.begin(),scene.additional_regions.end());return b;
+}
 struct FurnitureScene {uint32_t estate=0;Bytes list;std::map<uint32_t,Session::World> worlds;std::map<uint32_t,Bytes> entries;std::vector<Bytes> list_deltas;};
 void FurnitureFinalizeList(FurnitureScene& scene){
  std::vector<Bytes> entries;entries.reserve(scene.entries.size());for(const auto& e:scene.entries)entries.push_back(e.second);
@@ -718,6 +723,7 @@ std::optional<Housing::Scene::Snapshot> FurnitureSnapshot(Client* c,Housing::Inv
 }
 std::optional<FurnitureScene> FurnitureReadScene(Client* c,Session& session,Housing::InventoryBridge::Bridge& bridge,const FurnitureTarget& target,const Housing::Scene::Snapshot* supplied=nullptr,bool render_world=true){
  auto snapshot=supplied?std::optional<Housing::Scene::Snapshot>(*supplied):FurnitureSnapshot(c,bridge,target);if(!snapshot)return {};
+ std::vector<Housing::Pets::Binding> pets;
  FurnitureScene scene;scene.estate=target.node.native_id.value;Housing::NeighborhoodWire::Detail::Write32(scene.list,scene.estate);Housing::NeighborhoodWire::Detail::Write32(scene.list,snapshot->items.size());
  for(const auto& entry:snapshot->items){const auto& row=entry.stored;
   if(!FurnitureCurrentCatalog(row,target,snapshot->current_catalog_revision))return {};
@@ -725,9 +731,11 @@ std::optional<FurnitureScene> FurnitureReadScene(Client* c,Session& session,Hous
   if(cache==session.presentations.end()){auto rebuilt=Housing::InventoryBridge::Reconstruct(database,row.row);if(!rebuilt)return {};cache=session.presentations.emplace(id,std::move(rebuilt.value.item)).first;}
   if(!cache->second||!Housing::SceneProjection::SynchronizeCharges(row.row,*cache->second)||!Housing::HousePresentation::Project(entry,*cache->second))return {};auto bytes=FurnitureEntry(c,row,*cache->second,&entry.creator_name,entry.house.get(),snapshot->definition.type==4&&snapshot->access.implicit_owner);if(bytes.size()>65523)return {};
   if(!scene.entries.emplace(id,std::move(bytes)).second)return {};
-  if(render_world&&!row.stowed)scene.worlds.emplace(id,Session::World{FurnitureGuid(*cache->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cache->second,*row.placement,entry.house.get()))});
+  auto pet=FurniturePet(row,*cache->second,*snapshot);if(render_world&&pet)pets.push_back(*pet);
+  if(render_world&&!row.stowed&&!pet)scene.worlds.emplace(id,Session::World{FurnitureGuid(*cache->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cache->second,*row.placement,entry.house.get()))});
  }
  if(!FurnitureVaultEntries(session,scene,snapshot->vault_items))return {};
+ if(render_world&&!Housing::Pets::Reconcile(scene.estate,pets))return {};
  FurnitureFinalizeList(scene);return scene;
 }
 // Presentation/selection adapter from a freshly authorized typed room scene.
@@ -761,6 +769,7 @@ std::optional<FurnitureScene> FurnitureReadRoomScene(Client* c,Session& session,
  // Real service entities follow committed custody independently of whether
  // an unrelated furniture/vault presentation can be serialized for this view.
  if(render_world&&!Housing::ServiceAuthority::Reconcile(*c,snapshot))return {};
+ std::vector<Housing::Pets::Binding> pets;auto pet_scene=FurnitureRoomCrateSnapshot(snapshot);if(!pet_scene)return {};
  FurnitureScene scene;scene.estate=snapshot.house->interior->native_estate_id;std::map<uint32_t,Housing::Scene::InteriorContent> next_cache;
  for(const auto& entry:snapshot.contents){const auto& row=entry.stored;if(!row.placement)continue;
   if(!entry.room||row.placement->reservation.native_estate_id!=scene.estate||entry.room->house_id!=snapshot.house->house_id)return {};
@@ -769,9 +778,11 @@ std::optional<FurnitureScene> FurnitureReadRoomScene(Client* c,Session& session,
   if(!cached->second||!Housing::SceneProjection::SynchronizeCharges(row.row,*cached->second))return {};
   if(entry.crate&&!Housing::CratePresentation::Project(entry,snapshot.house->house_id,scene.estate,*cached->second))return {};
   auto bytes=FurnitureEntry(c,row,*cached->second,&entry.creator_name,nullptr,snapshot.access.owner_kind==Housing::OwnerKind::Character&&snapshot.access.owner_id==c->CharacterID());if(bytes.size()>65523||!scene.entries.emplace(id,bytes).second)return {};
-  if(render_world&&!row.stowed&&!Housing::ServiceItemBindings::Lookup(row.row.values.item_id))scene.worlds.emplace(id,Session::World{FurnitureGuid(*cached->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cached->second,*row.placement))});next_cache.emplace(id,entry);
+  auto pet=FurniturePet(row,*cached->second,*pet_scene);if(render_world&&pet)pets.push_back(*pet);
+  if(render_world&&!row.stowed&&!pet&&!Housing::ServiceItemBindings::Lookup(row.row.values.item_id))scene.worlds.emplace(id,Session::World{FurnitureGuid(*cached->second),Housing::PlacementWire::EncodeActor(FurnitureActor(*cached->second,*row.placement))});next_cache.emplace(id,entry);
  }
  if(!FurnitureVaultEntries(session,scene,snapshot.vault_items))return {};
+ if(render_world&&!Housing::Pets::Reconcile(scene.estate,pets))return {};
  FurnitureFinalizeList(scene);
  if(render_world){session.room_items=std::move(next_cache);session.room_context=Housing::LiveItems::InteriorMoveContext{snapshot.house->house_id,snapshot.house->revision,snapshot.profile_revision,0,snapshot.context.source};}else session.attached_rooms[scene.estate]=snapshot;return scene;
 }
@@ -807,6 +818,7 @@ void FurnitureSendScene(Client* c,Session& session,const FurnitureScene& scene,s
  for(auto prior=sent.begin();prior!=sent.end();){auto now=scene.worlds.find(prior->first);
   if(now==scene.worlds.end()||now->second.packet!=prior->second.packet){SendEstatePayload(c,OP_RealEstateWorldRemove,FurnitureRemoval(scene.estate,prior->first,prior->second.guid));if(now==scene.worlds.end()&&!scene.entries.count(prior->first)&&!session.contained_items.count(prior->first))session.presentations.erase(prior->first);prior=sent.erase(prior);}else ++prior;}
  for(const auto& world:scene.worlds)if(!sent.count(world.first)){SendEstatePayload(c,OP_RealEstateWorldItem,world.second.packet);sent.emplace(world.first,world.second);}
+ Housing::Pets::Publish(*c,scene.estate,[&](uint32_t id)->std::string{auto item=session.presentations.find(id);return item!=session.presentations.end()&&item->second?FurnitureGuid(*item->second):std::string{};});
  Housing::ServiceAuthority::PublishBindings(*c,scene.estate,[&](uint32_t id)->std::string{auto item=session.presentations.find(id);return item!=session.presentations.end()&&item->second?FurnitureGuid(*item->second):std::string{};});
 }
 void FurniturePurgeScene(Client* c,Session& session,uint32_t estate){
@@ -1443,13 +1455,13 @@ void Client::SendHousingChairMenu(uint32_t estate,uint32_t item,std::array<uint3
   const auto rent=Housing::RentState::Plot(database,current->estate_id,current->native_plot_id,false);
   if(!rent.Active()){FurnitureResult(this,rent.expired_since?24:1);return;}
   if(row->house&&Housing::UpkeepCycle::Expired(database,row->stored.custody_id,item)){FurnitureResult(this,25);return;}
-  const auto distance=FurnitureDistance(this,*cache->second,row->stored.placement->transform);
+  auto distance=Housing::Pets::Distance(*this,estate,item);if(!distance)distance=FurnitureDistance(this,*cache->second,row->stored.placement->transform);
   if(row->stored.stowed?!FurniturePlayerInRegion(this,*current):(!distance||*distance>20)){FurnitureResult(this,20);return;}
   const bool swap=RuleB(Housing,EnableNativeHouseSwap)&&row->house&&row->stored.stowed&&row->stored.row.values.character_id==CharacterID()&&std::any_of(current->items.begin(),current->items.end(),[&](const auto& placed){return placed.house&&!placed.stored.stowed&&placed.stored.row.values.character_id==CharacterID();})&&current->access.Allows(Housing::AccessPolicy::Capability::AddHouse)&&current->access.Allows(Housing::AccessPolicy::Capability::RemoveHouse);
   auto scene=FurnitureCurrentScene(this,session,*bridge,*target);if(!scene||!scene->entries.count(item)){FurnitureResult(this,9);return;}
   // Native5b74c4 item-owner match bypasses ordinary RemoveItem8/CanDrop.
   // Only the immutable creator receives Pickup; Move independently needs Move10.
-  auto payload=Housing::InteractionWire::EncodeChairMenu(estate,item,guid,cache->second->GetUnscaledItem()->Name,mouse,current->access.Allows(Housing::AccessPolicy::Capability::MoveItem),row->stored.row.values.character_id==CharacterID()&&(!row->house||current->access.Allows(Housing::AccessPolicy::Capability::RemoveHouse))&&(!row->crate||current->access.Allows(Housing::AccessPolicy::Capability::RemoveCrate)),bool(row->house)&&!row->stored.stowed&&current->access.Allows(Housing::AccessPolicy::Capability::Enter),true,swap);
+  auto payload=Housing::InteractionWire::EncodeChairMenu(estate,item,guid,cache->second->GetUnscaledItem()->Name,mouse,current->access.Allows(Housing::AccessPolicy::Capability::MoveItem),row->stored.row.values.character_id==CharacterID()&&(!row->house||current->access.Allows(Housing::AccessPolicy::Capability::RemoveHouse))&&(!row->crate||current->access.Allows(Housing::AccessPolicy::Capability::RemoveCrate)),bool(row->house)&&!row->stored.stowed&&current->access.Allows(Housing::AccessPolicy::Capability::Enter),true,swap,!row->stored.stowed&&Housing::Pets::Distance(*this,estate,item).has_value()&&current->access.Allows(Housing::AccessPolicy::Capability::InteractItem));
   auto packet=std::make_unique<EQApplicationPacket>(OP_RealEstateItemMenu,payload.size());std::memcpy(packet->pBuffer,payload.data(),payload.size());
   FurnitureSendScene(this,session,*scene);auto* raw=packet.release();FastQueuePacket(&raw);
  }catch(const std::exception&){LogError("Native chair interaction menu unavailable");FurnitureResult(this,1);}
@@ -2008,4 +2020,27 @@ bool HandleHousingPlotFind(Client*c,const EQApplicationPacket* app){
   c->SendPathPacket(points);
  }catch(const std::exception&){LogError("Housing plot navigation unavailable");c->SendPath(nullptr);}
  return true;
+}
+
+// Each request re-reads durable custody, lease/catalogue/ACL and rent through
+// the ordinary furniture bridge. Runtime spawn IDs confer no item authority.
+bool Client::ValidateHousingPet(const Housing::Pets::Binding& expected,bool command){
+ try{
+  if(!NativeFurniture(this)||!Connected()||!ClientDataLoaded()||!HasInventorySessionReservation()||!m_housing_placement_session)return false;
+  auto& session=*m_housing_placement_session;auto cached=session.presentations.find(expected.native_item_id);if(cached==session.presentations.end()||!cached->second)return false;
+  auto view=LoadHousingView(this);auto* bridge=GetHousingInventoryBridge();if(!view||!bridge)return false;auto target=FurniturePlot(this,*view,*cached->second,expected.native_estate_id);if(!target)return false;
+  auto fresh=FurnitureSnapshot(this,*bridge,*target);if(!fresh||fresh->current_catalog_revision!=expected.catalog_revision)return false;
+  auto regions=fresh->additional_regions;regions.insert(regions.begin(),fresh->region);if(regions.size()!=expected.regions.size())return false;for(size_t i=0;i<regions.size();++i)if(regions[i].id!=expected.regions[i].id||regions[i].matrix!=expected.regions[i].matrix)return false;
+  const auto rent=Housing::RentState::Plot(database,fresh->estate_id,fresh->native_plot_id,false);if(!rent.Active())return false;
+  for(const auto& entry:fresh->items){const auto& row=entry.stored;if(row.custody_id!=expected.custody_id||!row.placement||row.stowed||entry.contained_in_crate||row.estate_id!=expected.estate_id||row.row.values.character_id!=expected.owner||row.placement->pose_revision!=expected.pose_revision||row.placement->reservation.native_estate_id!=expected.native_estate_id||row.placement->reservation.native_item_id!=expected.native_item_id)continue;
+   if(!FurnitureCurrentCatalog(row,*target,fresh->current_catalog_revision)||!Housing::InventoryBridge::MatchesProjection(row.row,*cached->second)||!FurnitureSameTransform(row.placement->transform,expected.pose))return false;
+   auto p=FurnitureNpc(*cached->second);if(!p||!Housing::Pets::Supported(*p)||!Housing::NpcRuntime::Same(*p,expected.profile))return false;
+   return !command||fresh->access.Allows(Housing::AccessPolicy::Capability::InteractItem);
+  }return false;
+ }catch(...){return false;}
+}
+void Client::Handle_OP_RealEstateCustomInteraction(const EQApplicationPacket* app){
+ if(!app||!NativeFurniture(this)||!Connected()||!ClientDataLoaded()||!HasInventorySessionReservation())return;
+ auto request=Housing::PetCommands::Decode(app->pBuffer,app->size);if(!request){FurnitureResult(this,1);return;}
+ if(!Housing::Pets::Command(*this,*request)){FurnitureResult(this,23);return;}FurnitureResult(this,0);
 }

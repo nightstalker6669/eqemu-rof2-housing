@@ -307,11 +307,11 @@ Remaining limits: Only firstDWORD consumed; original full S2C extent not establi
 
 ## 0x51e3 — Custom placed-object interaction request
 
-Direction: C2S. Mapped: no. Layout: complete; meaning: partial.
+Direction: C2S. Mapped: **OP_RealEstateCustomInteraction**. Layout: complete; meaning: partial.
 
-estateID:u32,itemID:u32,parameter:u32 exactly12 bytes
+`estateID:u32, itemID:u32, parameter:u32`, exactly 12 little-endian bytes. Decoder and struct: [pet_commands.h](../overlay/common/housing/pet_commands.h).
 
-Remaining limits: Server-supplied parameter has no recovered effect taxonomy; distinct from label and submenu keys; No established acknowledgement/effect pairing
+The server implements parameters 16175 Stay, 16176 Walk Around, 16177 Run Around, 16178 Follow Me, and 16179 Play Dead for its admitted pet profile. This bounded set is based on an owned Live pet menu and matching original category28 labels. It does not establish other parameter meanings or exact historical item eligibility. See [behavior and model limits](../docs/HOUSING-PETS.md).
 
 ## 0x58c7 — OP_RealEstateItemInspect
 

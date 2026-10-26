@@ -13,3 +13,5 @@ The complete installer targets the pinned EQEmu source, MariaDB and a shared ite
 Voluntary Move Out and return mechanisms are available. Existing properties are not automatically enrolled in destructive inactivity retirement, and an old guild's recipient is not guessed. Exact-generation policy/recipient checks remain required. Unknown commit outcomes require real supervised recovery; installation does not certify process death or discard pending custody to proceed.
 
 Native acceptance is representative by item/room/service class, not exhaustive across every decoration, permission combination, house alias or packet branch. [Current status](STATUS.md) records the boundaries of completed checks and any final acceptance still pending.
+
+Housing pet controls are available for the admitted upright Holgresh profile. The Live spider comparison establishes a command set but does not enable the unverified spider model. Pet behavior rates and restart defaults are documented emulator policies; see [pet controls](HOUSING-PETS.md).

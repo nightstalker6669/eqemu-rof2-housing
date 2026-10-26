@@ -74,10 +74,10 @@ index 3052fd7..26adc93 100644
  	if (RuleB(Character, SoftDeletes)) {
  		delete_type = "soft-deleted";
 diff --git a/common/emu_oplist.h b/common/emu_oplist.h
-index 268fa97..ca65d22 100644
+index 268fa97..76061af 100644
 --- a/common/emu_oplist.h
 +++ b/common/emu_oplist.h
-@@ -627,4 +627,66 @@ N(OP_ZoneSpawns),
+@@ -627,4 +627,67 @@ N(OP_ZoneSpawns),
  N(OP_ZoneUnavail),
  N(OP_ResetAA),
  N(OP_UnderWorld),
@@ -115,6 +115,7 @@ index 268fa97..ca65d22 100644
 +N(OP_RealEstateStoreAll),
 +N(OP_RealEstateLoadLayout),
 +N(OP_RealEstateItemMenu),
++N(OP_RealEstateCustomInteraction),
 +N(OP_RealEstateItemQuery),
 +N(OP_RealEstateItemInspect),
 +N(OP_RealEstateHouseSwap),
@@ -1419,10 +1420,10 @@ index 11130d6..8385600 100644
  	constexpr int FinishingBlowLvl                = 440; // implemented[AA] - Sets the level Finishing blow can be triggered on an NPC
  	constexpr int DistanceRemoval                 = 441; // implemented - Buff is removed from target when target moves X amount of distance away from where initially hit.
 diff --git a/utils/patches/patch_RoF2.conf b/utils/patches/patch_RoF2.conf
-index 3533aaa..a40ba85 100644
+index 3533aaa..6a93067 100644
 --- a/utils/patches/patch_RoF2.conf
 +++ b/utils/patches/patch_RoF2.conf
-@@ -749,3 +749,77 @@ OP_ChangePetName=0x5dab
+@@ -749,3 +749,78 @@ OP_ChangePetName=0x5dab
  
  OP_InvokeNameChangeImmediate=0x4fe2
  OP_InvokeNameChangeLazy=0x2f2e
@@ -1462,6 +1463,7 @@ index 3533aaa..a40ba85 100644
 +# Native May 10 2013 layout sender73bec0; atomic mixed member handler.
 +OP_RealEstateLoadLayout=0x5b41
 +OP_RealEstateItemMenu=0x21ec
++OP_RealEstateCustomInteraction=0x51e3
 +OP_RealEstateItemQuery=0x050c
 +OP_RealEstateExit=0x1da9
 +OP_RealEstateTrophyOpen=0x51a9
@@ -1995,10 +1997,10 @@ index 30e90cb..19482d1 100644
  
  				auto sp  = new ServerPacket(ServerOP_GuildTributeUpdateDonations, sizeof(GuildTributeUpdate));
 diff --git a/zone/CMakeLists.txt b/zone/CMakeLists.txt
-index ffea99f..e444965 100644
+index ffea99f..3cfc098 100644
 --- a/zone/CMakeLists.txt
 +++ b/zone/CMakeLists.txt
-@@ -20,6 +20,31 @@ SET(zone_sources
+@@ -20,6 +20,32 @@ SET(zone_sources
      client_bot.cpp
      client_mods.cpp
      client_packet.cpp
@@ -2013,6 +2015,7 @@ index ffea99f..e444965 100644
 +    client_housing_transfer.cpp
 +    housing_inventory_bridge.cpp
 +    housing_service_npcs.cpp
++    housing_pets.cpp
 +    housing_service_tribute.cpp
 +    housing_service_bank.cpp
 +    housing_service_authority.cpp
@@ -2030,7 +2033,7 @@ index ffea99f..e444965 100644
      client_process.cpp
      combat_record.cpp
      corpse.cpp
-@@ -476,6 +501,10 @@ set_target_properties(gm_commands_zone PROPERTIES UNITY_BUILD ON UNITY_BUILD_BAT
+@@ -476,6 +502,10 @@ set_target_properties(gm_commands_zone PROPERTIES UNITY_BUILD ON UNITY_BUILD_BAT
  
  # zone combine sources and headers
  ADD_EXECUTABLE(zone ${zone_sources} ${zone_headers})
@@ -2041,7 +2044,7 @@ index ffea99f..e444965 100644
  
  # binary output directory
  INSTALL(TARGETS zone RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-@@ -505,4 +534,3 @@ endif()
+@@ -505,4 +535,3 @@ endif()
  target_link_libraries(zone PRIVATE lua_zone perl_zone gm_commands_zone ${ZONE_LIBS})
  
  SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -2312,7 +2315,7 @@ index 5ed9edd..e36da25 100644
  			delete *app;
  		*app = nullptr;
 diff --git a/zone/client.h b/zone/client.h
-index d5e8f3e..555c3e5 100644
+index d5e8f3e..0bf85ce 100644
 --- a/zone/client.h
 +++ b/zone/client.h
 @@ -1,3 +1,4 @@
@@ -2320,7 +2323,15 @@ index d5e8f3e..555c3e5 100644
  /* EQEMu: Everquest Server Emulator
  	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.org)
  
-@@ -33,6 +34,12 @@ struct DynamicZoneLocation;
+@@ -18,6 +19,7 @@
+ #ifndef CLIENT_H
+ #define CLIENT_H
+ 
++namespace Housing::Pets { struct Binding; }
+ class Client;
+ class EQApplicationPacket;
+ class DynamicZone;
+@@ -33,6 +35,12 @@ struct DynamicZoneLocation;
  enum WaterRegionType : int;
  enum class DynamicZoneMemberStatus;
  
@@ -2333,7 +2344,7 @@ index d5e8f3e..555c3e5 100644
  namespace EQ
  {
  	struct ItemData;
-@@ -263,6 +270,13 @@ public:
+@@ -263,6 +271,13 @@ public:
  
  	Client(EQStreamInterface * ieqs);
  	Client(); // mocking / testing
@@ -2347,7 +2358,7 @@ index d5e8f3e..555c3e5 100644
  	~Client();
  
  	void ReconnectUCS();
-@@ -387,6 +401,11 @@ public:
+@@ -387,6 +402,11 @@ public:
  		std::list<void *> *event_details = nullptr
  	);
  	void SendZonePoints();
@@ -2359,7 +2370,7 @@ index d5e8f3e..555c3e5 100644
  	void SendBulkParcels();
  	void DoParcelCancel();
  	void DoParcelSend(const Parcel_Struct *parcel_in);
-@@ -1306,6 +1325,36 @@ public:
+@@ -1306,6 +1326,36 @@ public:
  	uint16 sacrifice_caster_id;
  	PendingTranslocate_Struct PendingTranslocateData;
  	void SendOPTranslocateConfirm(Mob *Caster, uint16 SpellID);
@@ -2396,7 +2407,7 @@ index d5e8f3e..555c3e5 100644
  
  	// Help Window
  	std::string SendBotCommandHelpWindow(const BotCommandHelpParams& params);
-@@ -2047,6 +2096,13 @@ private:
+@@ -2047,6 +2097,13 @@ private:
  
  	uint8 playeraction;
  
@@ -2410,7 +2421,7 @@ index d5e8f3e..555c3e5 100644
  	EQStreamInterface* eqs;
  
  	uint32 ip;
-@@ -2142,7 +2198,11 @@ private:
+@@ -2142,7 +2199,11 @@ private:
  public:
  	bool IsLockSavePosition() const;
  	void SetLockSavePosition(bool lock_save_position);
@@ -2488,7 +2499,7 @@ index 77c29a4..bfcc5b3 100644
  	SendEvolvingPacket(EvolvingItems::Actions::UPDATE_ITEMS, item);
  }
 diff --git a/zone/client_packet.cpp b/zone/client_packet.cpp
-index a059bef..949b168 100644
+index a059bef..fdccb2b 100644
 --- a/zone/client_packet.cpp
 +++ b/zone/client_packet.cpp
 @@ -43,6 +43,15 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -2507,7 +2518,7 @@ index a059bef..949b168 100644
  #include "dynamic_zone.h"
  #include "event_codes.h"
  #include "guild_mgr.h"
-@@ -128,6 +137,36 @@ void MapOpcodes()
+@@ -128,6 +137,37 @@ void MapOpcodes()
  	ConnectedOpcodes[OP_AdventureMerchantRequest] = &Client::Handle_OP_AdventureMerchantRequest;
  	ConnectedOpcodes[OP_AdventureMerchantSell] = &Client::Handle_OP_AdventureMerchantSell;
  	ConnectedOpcodes[OP_AdventureRequest] = &Client::Handle_OP_AdventureRequest;
@@ -2533,6 +2544,7 @@ index a059bef..949b168 100644
 +	ConnectedOpcodes[OP_RealEstateItemOperation] = &Client::Handle_OP_RealEstateItemOperation;
 +	ConnectedOpcodes[OP_RealEstateAccessEdit] = &Client::Handle_OP_RealEstateMetadata;
 +	ConnectedOpcodes[OP_RealEstateItemMenu] = &Client::Handle_OP_RealEstateInteraction;
++    ConnectedOpcodes[OP_RealEstateCustomInteraction] = &Client::Handle_OP_RealEstateCustomInteraction;
 +	ConnectedOpcodes[OP_RealEstateItemQuery] = &Client::Handle_OP_RealEstateInteraction;
 +	ConnectedOpcodes[OP_RealEstateItemInspect] = &Client::Handle_OP_RealEstateItemInspect;
 +	ConnectedOpcodes[OP_RealEstateHouseSwap] = &Client::Handle_OP_RealEstateHouseSwap;
@@ -2544,7 +2556,7 @@ index a059bef..949b168 100644
  	ConnectedOpcodes[OP_AdventureStatsRequest] = &Client::Handle_OP_AdventureStatsRequest;
  	ConnectedOpcodes[OP_AggroMeterLockTarget] = &Client::Handle_OP_AggroMeterLockTarget;
  	ConnectedOpcodes[OP_AltCurrencyMerchantRequest] = &Client::Handle_OP_AltCurrencyMerchantRequest;
-@@ -533,6 +572,7 @@ void Client::CompleteConnect()
+@@ -533,6 +573,7 @@ void Client::CompleteConnect()
  	UpdateWho();
  	client_state = CLIENT_CONNECTED;
  	SendAllPackets();
@@ -2552,7 +2564,7 @@ index a059bef..949b168 100644
  	hpupdate_timer.Start();
  	autosave_timer.Start();
  	SetDuelTarget(0);
-@@ -887,9 +927,16 @@ void Client::CompleteConnect()
+@@ -887,9 +928,16 @@ void Client::CompleteConnect()
  
  	CalcItemScale();
  	DoItemEnterZone();
@@ -2570,7 +2582,7 @@ index a059bef..949b168 100644
  
  	if (ClientVersion() >= EQ::versions::ClientVersion::SoD)
  		entity_list.SendFindableNPCList(this);
-@@ -1261,6 +1308,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
+@@ -1261,6 +1309,7 @@ void Client::Handle_Connect_OP_ZoneComplete(const EQApplicationPacket *app)
  
  void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  {
@@ -2578,7 +2590,7 @@ index a059bef..949b168 100644
  	if (app->size != sizeof(ClientZoneEntry_Struct))
  		return;
  	ClientZoneEntry_Struct *cze = (ClientZoneEntry_Struct *)app->pBuffer;
-@@ -1282,6 +1330,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1282,6 +1331,12 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	Client* client = entity_list.GetClientByName(cze->char_name);
  	if (!zone->GetAuth(ip, cze->char_name, &WID, &account_id, &character_id, &admin, lskey, &tellsoff)) {
  		LogClientLogin("[{}] failed zone auth check", cze->char_name);
@@ -2591,7 +2603,7 @@ index a059bef..949b168 100644
  		if (nullptr != client) {
  			client->Save();
  			client->Kick("Failed auth check");
-@@ -1289,6 +1343,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1289,6 +1344,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  		return;
  	}
  
@@ -2617,7 +2629,7 @@ index a059bef..949b168 100644
  	strcpy(name, cze->char_name);
  	/* Check for Client Spoofing */
  	if (client != 0) {
-@@ -1370,7 +1443,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1370,7 +1444,25 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  	// set to full support in case they're a gm with items in disabled expansion slots...but, have their gm flag off...
  	// item loss will occur when they use the 'empty' slots, if this is not done
  	m_inv.SetGMInventory(true);
@@ -2644,7 +2656,7 @@ index a059bef..949b168 100644
  	database.LoadCharacterBandolier(cid, &m_pp); /* Load Character Bandolier */
  	database.LoadCharacterBindPoint(cid, &m_pp); /* Load Character Bind */
  	database.LoadCharacterMaterialColor(cid, &m_pp); /* Load Character Material */
-@@ -1504,7 +1595,9 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
+@@ -1504,7 +1596,9 @@ void Client::Handle_Connect_OP_ZoneEntry(const EQApplicationPacket *app)
  		if (guild_mgr.GetCharInfo(CharacterID(), cgi)) {
  			m_pp.guildrank = cgi.rank;
  		}
@@ -2655,7 +2667,7 @@ index a059bef..949b168 100644
  			GuildBanker = (guild_mgr.IsGuildLeader(GuildID(), CharacterID()) ||
  				guild_mgr.GetBankerFlag(CharacterID()) ||
  				ClientVersion() >= EQ::versions::ClientVersion::RoF ? true : false
-@@ -4705,7 +4798,34 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
+@@ -4705,7 +4799,34 @@ void Client::Handle_OP_ClickDoor(const EQApplicationPacket *app)
  		);
  	}
  
@@ -2690,7 +2702,7 @@ index a059bef..949b168 100644
  	if (within_distance) {
  		int quest_return = 0;
  		if (parse->PlayerHasQuestSub(EVENT_CLICK_DOOR)) {
-@@ -6470,8 +6590,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
+@@ -6470,8 +6591,11 @@ void Client::Handle_OP_FeignDeath(const EQApplicationPacket *app)
  	return;
  }
  
@@ -2702,7 +2714,7 @@ index a059bef..949b168 100644
  	if (app->size != sizeof(FindPersonRequest_Struct))
  		printf("Error in FindPersonRequest_Struct. Expected size of: %zu, but got: %i\n", sizeof(FindPersonRequest_Struct), app->size);
  	else {
-@@ -7671,12 +7794,11 @@ void Client::Handle_OP_GroupUpdate(const EQApplicationPacket *app)
+@@ -7671,12 +7795,11 @@ void Client::Handle_OP_GroupUpdate(const EQApplicationPacket *app)
  
  void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  {
@@ -2719,7 +2731,7 @@ index a059bef..949b168 100644
  		Message(Chat::Red, "The Guild Bank is not available in this zone.");
  		GuildBankAck();
  		return;
-@@ -7705,7 +7827,37 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7705,7 +7828,37 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  		return;
  	}
  
@@ -2758,7 +2770,7 @@ index a059bef..949b168 100644
  	{
  		if (Action != GuildBankDeposit && Action != GuildBankViewItem && Action != GuildBankWithdraw)
  		{
-@@ -7780,7 +7932,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7780,7 +7933,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  			const auto cursor_item_inst = GetInv().GetItem(EQ::invslot::slotCursor);
  			bool       allowed          = true;
  
@@ -2767,7 +2779,7 @@ index a059bef..949b168 100644
  				Message(Chat::Red, "No Item on the cursor.");
  				GuildBankDepositAck(true, sentAction);
  				return;
-@@ -7800,6 +7952,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7800,6 +7953,7 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  
  			if (!cursor_item->NoDrop ||
  				cursor_item_inst->IsAttuned() ||
@@ -2775,7 +2787,7 @@ index a059bef..949b168 100644
  				cursor_item_inst->IsNoneEmptyContainer() ||
  				cursor_item->NoRent == 0 ||
  				(cursor_item->LoreFlag && GuildBanks->HasItem(GuildID(), cursor_item->ID))
-@@ -7915,9 +8068,9 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
+@@ -7915,9 +8069,9 @@ void Client::Handle_OP_GuildBank(const EQApplicationPacket *app)
  				gbwis->Quantity = inst->GetCharges();
  			}
  
@@ -2787,7 +2799,7 @@ index a059bef..949b168 100644
  
  			if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::GUILD_BANK_WITHDRAWAL)) {
  				PlayerEvent::GuildBankTransaction log{};
-@@ -11016,7 +11169,8 @@ void Client::Handle_OP_OpenGuildTributeMaster(const EQApplicationPacket *app)
+@@ -11016,7 +11170,8 @@ void Client::Handle_OP_OpenGuildTributeMaster(const EQApplicationPacket *app)
  		StartTribute_Struct* st = (StartTribute_Struct*)app->pBuffer;
  		Mob* tribmast = entity_list.GetMob(st->tribute_master_id);
  		if (tribmast && tribmast->IsNPC() && tribmast->GetClass() == Class::GuildTributeMaster
@@ -2797,7 +2809,7 @@ index a059bef..949b168 100644
  			st->response = 1;
  			QueuePacket(app);
  			tribute_master_id = st->tribute_master_id;
-@@ -11046,7 +11200,8 @@ void Client::Handle_OP_OpenTributeMaster(const EQApplicationPacket *app)
+@@ -11046,7 +11201,8 @@ void Client::Handle_OP_OpenTributeMaster(const EQApplicationPacket *app)
  		StartTribute_Struct* st = (StartTribute_Struct*)app->pBuffer;
  		Mob* tribmast = entity_list.GetMob(st->tribute_master_id);
  		if (tribmast && tribmast->IsNPC() && tribmast->GetClass() == Class::TributeMaster
@@ -2807,7 +2819,7 @@ index a059bef..949b168 100644
  			st->response = 1;
  			QueuePacket(app);
  			tribute_master_id = st->tribute_master_id;
-@@ -11989,6 +12144,7 @@ void Client::Handle_OP_PickZone(const EQApplicationPacket *app)
+@@ -11989,6 +12145,7 @@ void Client::Handle_OP_PickZone(const EQApplicationPacket *app)
  
  void Client::Handle_OP_PopupResponse(const EQApplicationPacket *app)
  {
@@ -2815,7 +2827,7 @@ index a059bef..949b168 100644
  
  	if (app->size != sizeof(PopupResponse_Struct)) {
  		LogDebug("Size mismatch in OP_PopupResponse expected [{}] got [{}]", sizeof(PopupResponse_Struct), app->size);
-@@ -14059,6 +14215,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
+@@ -14059,6 +14216,7 @@ void Client::Handle_OP_ShopPlayerBuy(const EQApplicationPacket *app)
  		tmp == 0 ||
  		!tmp->IsNPC() ||
  		tmp->GetClass() != Class::Merchant ||
@@ -2823,7 +2835,7 @@ index a059bef..949b168 100644
  		mp->quantity < 1 ||
  		DistanceSquared(m_Position, tmp->GetPosition()) > USE_NPC_RANGE2
  	) {
-@@ -14297,7 +14454,7 @@ void Client::Handle_OP_ShopPlayerSell(const EQApplicationPacket *app)
+@@ -14297,7 +14455,7 @@ void Client::Handle_OP_ShopPlayerSell(const EQApplicationPacket *app)
  
  	Mob* vendor = entity_list.GetMob(mp->npcid);
  
@@ -2832,7 +2844,7 @@ index a059bef..949b168 100644
  		return;
  
  	//you have to be somewhat close to them to be properly using them
-@@ -14498,7 +14655,7 @@ void Client::Handle_OP_ShopRequest(const EQApplicationPacket *app)
+@@ -14498,7 +14656,7 @@ void Client::Handle_OP_ShopRequest(const EQApplicationPacket *app)
  	int tabs_to_display = None;
  	Mob *tmp            = entity_list.GetMob(mc->npc_id);
  
@@ -2841,7 +2853,7 @@ index a059bef..949b168 100644
  		return;
  	}
  
-@@ -15850,7 +16007,7 @@ void Client::Handle_OP_TributeItem(const EQApplicationPacket *app)
+@@ -15850,7 +16008,7 @@ void Client::Handle_OP_TributeItem(const EQApplicationPacket *app)
  		tribute_master_id = t->tribute_master_id;
  		//make sure they are dealing with a valid tribute master
  		Mob* tribmast = entity_list.GetMob(t->tribute_master_id);
@@ -2850,7 +2862,7 @@ index a059bef..949b168 100644
  			return;
  		if (DistanceSquared(m_Position, tribmast->GetPosition()) > USE_NPC_RANGE2)
  			return;
-@@ -15877,7 +16034,7 @@ void Client::Handle_OP_TributeMoney(const EQApplicationPacket *app)
+@@ -15877,7 +16035,7 @@ void Client::Handle_OP_TributeMoney(const EQApplicationPacket *app)
  		tribute_master_id = t->tribute_master_id;
  		//make sure they are dealing with a valid tribute master
  		Mob* tribmast = entity_list.GetMob(t->tribute_master_id);
@@ -2859,7 +2871,7 @@ index a059bef..949b168 100644
  			return;
  		if (DistanceSquared(m_Position, tribmast->GetPosition()) > USE_NPC_RANGE2)
  			return;
-@@ -17067,24 +17224,18 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
+@@ -17067,24 +17225,18 @@ void Client::Handle_OP_GuildTributeDonateItem(const EQApplicationPacket *app)
  
  	auto in = (GuildTributeDonateItemRequest_Struct *) app->pBuffer;
  
@@ -2895,7 +2907,7 @@ index a059bef..949b168 100644
  
  		SendGuildTributeDonateItemReply(in, favor);
  
-@@ -17125,16 +17276,19 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
+@@ -17125,16 +17277,19 @@ void Client::Handle_OP_GuildTributeDonatePlat(const EQApplicationPacket *app)
  
  	auto in = (GuildTributeDonatePlatRequest_Struct *) app->pBuffer;
  
@@ -2924,10 +2936,10 @@ index a059bef..949b168 100644
  
  		if(PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::GUILD_TRIBUTE_DONATE_PLAT)) {
 diff --git a/zone/client_packet.h b/zone/client_packet.h
-index 0840f5e..13a4f50 100644
+index 0840f5e..77740e7 100644
 --- a/zone/client_packet.h
 +++ b/zone/client_packet.h
-@@ -1,4 +1,34 @@
+@@ -1,4 +1,36 @@
  	/* Connecting OpCode Handlers */
 +	void Handle_OP_RealEstateNeighborhood(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateTrophyOpen(const EQApplicationPacket *app);
@@ -2949,6 +2961,8 @@ index 0840f5e..13a4f50 100644
 +	void Handle_OP_RealEstateItemOperation(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateMetadata(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateInteraction(const EQApplicationPacket *app);
++    void Handle_OP_RealEstateCustomInteraction(const EQApplicationPacket *app);
++    bool ValidateHousingPet(const Housing::Pets::Binding&,bool command=false);
 +	void Handle_OP_RealEstateItemInspect(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateHouseSwap(const EQApplicationPacket *app);
 +	void Handle_OP_RealEstateVotingOptOut(const EQApplicationPacket *app);
@@ -4349,24 +4363,34 @@ index 747302e..c9d69ea 100644
  		data->command = in->command;
  
 diff --git a/zone/zone.cpp b/zone/zone.cpp
-index eea9d8a..a696e5c 100644
+index eea9d8a..d9f7395 100644
 --- a/zone/zone.cpp
 +++ b/zone/zone.cpp
-@@ -1,3 +1,6 @@
+@@ -1,3 +1,7 @@
 +#include "housing_guild_portal.h"
 +#include "housing_service_npcs.h"
 +#include "housing_service_authority.h"
++#include "housing_pets.h"
  /*	EQEMu: Everquest Server Emulator
  	Copyright (C) 2001-2003 EQEMu Development Team (http://eqemulator.net)
  
-@@ -1107,6 +1110,7 @@ Zone::Zone(uint32 in_zoneid, uint32 in_instanceid, const char* in_short_name)
+@@ -1107,6 +1111,8 @@ Zone::Zone(uint32 in_zoneid, uint32 in_instanceid, const char* in_short_name)
  }
  
  Zone::~Zone() {
++ Housing::Pets::Clear();
 + Housing::ServiceAuthority::Clear();
  	LogInfo("Zone destructor called for zone [{}]", short_name);
  
  	spawn2_list.Clear();
+@@ -1536,6 +1542,7 @@ uint32 Zone::CountAuth() {
+ }
+ 
+ bool Zone::Process() {
++    Housing::Pets::Process();
+ 	spawn_conditions.Process();
+ 
+ 	if (spawn2_timer.Check()) {
 diff --git a/zone/zone_save_state.cpp b/zone/zone_save_state.cpp
 index f36f3ee..3a8607d 100644
 --- a/zone/zone_save_state.cpp

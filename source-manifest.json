@@ -1,7 +1,7 @@
 {
   "upstream": "https://github.com/EQEmu/EQEmu",
   "base_commit": "8175ae61874cbf20d7b05102821f6f8a4f4d1c39",
-  "publication_date": "2026-10-22",
+  "publication_date": "2026-10-25",
   "scope": "Housing production source, SQL, protocol, integration documentation and requested in-game screenshots; no suites, fixtures, logs, private runtime configuration or client archives.",
   "files": [
     {
@@ -45,6 +45,11 @@
       "sha256": "52dd21809e8d0b644049a92e6c256a5e86b807776d9d340e146979f81e083163"
     },
     {
+      "path": "docs/HOUSING-PETS.md",
+      "bytes": 2810,
+      "sha256": "d5d2561a5012e2fe76f215668d81fcf88ca3471fc9f81c29c25646899f905640"
+    },
+    {
       "path": "docs/INSTALL-ORIGINAL-GEOMETRY.md",
       "bytes": 1807,
       "sha256": "fed08ef5b3a45f79fe8d9f51a71ad08bcf6414d4b352d4185351112ad9efa671"
@@ -61,8 +66,8 @@
     },
     {
       "path": "docs/KNOWN-GAPS.md",
-      "bytes": 2843,
-      "sha256": "ffd787d838ba77c611b557707e9daef91119677acf11ab763cb07f73a4e70fd2"
+      "bytes": 3135,
+      "sha256": "f406ec4281a8da0a289415101c888d5b8bffc276b88fd4bd18597ccbad1759d5"
     },
     {
       "path": "docs/RETIREMENT-RETURNS.md",
@@ -71,13 +76,13 @@
     },
     {
       "path": "docs/STATUS.md",
-      "bytes": 4639,
-      "sha256": "b6f3fd1e5995d48bc9e35a03254c29cddc6ad3bba93c5dfa891fc8d0aad83c63"
+      "bytes": 5118,
+      "sha256": "73e28a4d7027447f75345cf6ff1352416fc7330ee03f44082aeade69ae1333de"
     },
     {
       "path": "docs/UPDATES.md",
-      "bytes": 2652,
-      "sha256": "3b7558e1616d6024038f01d1d98ce234c0ffe3c88dd6af17cd19e3570108d3f8"
+      "bytes": 3002,
+      "sha256": "d4ee5241b2caca7c875d74b846eb7f31969ccc554453a6e04ea40f35f4e05f4a"
     },
     {
       "path": "docs/UPGRADE-AKK-STACK.md",
@@ -781,8 +786,8 @@
     },
     {
       "path": "overlay/common/housing/interaction_wire.h",
-      "bytes": 5573,
-      "sha256": "5d03c8ab3a29f2eb39b4ec44cf2d913bb96e626e71f84cc7c289f81a8d3ce843"
+      "bytes": 5655,
+      "sha256": "436908eb6f5838e57f6b1e117ee5513a2d2673d3b45936fc488081169d1de66c"
     },
     {
       "path": "overlay/common/housing/interior_capacity_policy_db.h",
@@ -1513,6 +1518,11 @@
       "path": "overlay/common/housing/personal_trophy_placement.md",
       "bytes": 2735,
       "sha256": "a206d26f4551bc08e8d3acc53bb7c00eadf01bbfbf6d681f20b15abbee69571c"
+    },
+    {
+      "path": "overlay/common/housing/pet_commands.h",
+      "bytes": 1120,
+      "sha256": "8cd82cf1132cdf6d088e271e223d45026deaa550eb8a5d1eb575f58a7896e4f2"
     },
     {
       "path": "overlay/common/housing/placed_height_filters.h",
@@ -2251,8 +2261,8 @@
     },
     {
       "path": "overlay/zone/client_housing.cpp",
-      "bytes": 220075,
-      "sha256": "0202761ad4a6e1c9236480e0ecb8def9b9fea8c246f1348ba84a7008ddbc51b5"
+      "bytes": 224711,
+      "sha256": "86dbaedbdb8e1fe2fac913143cb38b9cb69431978911ed8131a1e93f95fca0bf"
     },
     {
       "path": "overlay/zone/client_housing_anchor.cpp",
@@ -2435,6 +2445,16 @@
       "sha256": "5647fe7ab18779bfe47903da642c89c823d5e92ca0aebe6996266d32e9957c16"
     },
     {
+      "path": "overlay/zone/housing_pets.cpp",
+      "bytes": 9201,
+      "sha256": "7294ccda3969226b9d042d10fb3ae6fdfbfaaa0bc8574edbc970020b4b382113"
+    },
+    {
+      "path": "overlay/zone/housing_pets.h",
+      "bytes": 1164,
+      "sha256": "07b202b3bbad644bce22d8c67f406871a2d3f86912a6b7efeb093f3c23c21ce3"
+    },
+    {
       "path": "overlay/zone/housing_plot_marker.h",
       "bytes": 3510,
       "sha256": "340144a1857bd18c1108b657a4447a9ee83139dfd3d90f8ae45a4a987637691a"
@@ -2501,8 +2521,8 @@
     },
     {
       "path": "patches/eqemu-housing.patch",
-      "bytes": 213619,
-      "sha256": "5107e69af6cf6b89965befb40a7b283c9dff3de47b6a906942096a18274af3a1"
+      "bytes": 214369,
+      "sha256": "b6b3411a05c4166a8b9fe82782492f5a7a70fba534d63d6f2e45f24654c94bac"
     },
     {
       "path": "patches/rof2-housing-finance-width.patch",
@@ -2516,13 +2536,13 @@
     },
     {
       "path": "protocol/OPCODES.md",
-      "bytes": 3699,
-      "sha256": "130ef5d81b002c747ede5b0871ee28ff3cc78d0b861857b6f187a1913cc2efac"
+      "bytes": 3749,
+      "sha256": "c7936ce44d2864e5d2f609b053ba738f474da9c2c5f3535ad94819d664b38885"
     },
     {
       "path": "protocol/PROTOCOL-BOUNDARIES.md",
-      "bytes": 2687,
-      "sha256": "587a4f90c6785962906e1328a3ab8f6d26a9dc233d545eda28e6370bc576d790"
+      "bytes": 3223,
+      "sha256": "a13dab0cd110f7ab31c0d43e7ade9107a604356b76eb4e7a5f056d2a47b9de3a"
     },
     {
       "path": "protocol/README.md",
@@ -2531,8 +2551,8 @@
     },
     {
       "path": "protocol/STRUCTS.md",
-      "bytes": 30048,
-      "sha256": "4cd6dc687d2e97c7fde0cc55f763b098ed75465dc658dc7b862ecc690a9107a7"
+      "bytes": 30404,
+      "sha256": "302f8d8712021399bb0f22e97aef225020f654c1da171fa54d815df686029b18"
     },
     {
       "path": "protocol/housing-wire-reference.json",
@@ -2555,14 +2575,19 @@
       "sha256": "78284e9fd37a21b1489abaf1242f6e98850b92cd8e2e5e732fe9aed626309b4a"
     },
     {
+      "path": "quest-overlay/guildhall/player.lua",
+      "bytes": 2758,
+      "sha256": "a62cbeed02593f3615dc2c0367834ce33f09239c96922c08cc221c1bb75d17ab"
+    },
+    {
       "path": "quest-overlay-manifest.json",
       "bytes": 296,
       "sha256": "188465f9bc76003ac9427ead81b7e30bb95d18159a6c75e1e3b5002563543900"
     },
     {
-      "path": "quest-overlay/guildhall/player.lua",
-      "bytes": 2758,
-      "sha256": "a62cbeed02593f3615dc2c0367834ce33f09239c96922c08cc221c1bb75d17ab"
+      "path": "tools/__pycache__/housing_platform.cpython-314.pyc",
+      "bytes": 40905,
+      "sha256": "d4ab28ea7b1ee77849c754bc92b8439064b5b88328fcf8252370bd3b43733eb6"
     },
     {
       "path": "tools/apply_overlay.py",

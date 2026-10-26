@@ -21,3 +21,7 @@ The [October 22 fixes](UPDATES.md) add the verified Palatial front-door exit and
 The ten final tradeskill physical trophies have reviewed geometry and real evolving identity. Custody support does not manufacture their missing benefit minimum levels or costs. Unknown benefits remain disabled.
 
 Detailed native records and implementation history are linked from [historical notes](history/README.md). Tests, private runtime IDs, packet captures, logs, fixtures and original client assets are not part of this repository.
+
+## Housing pet controls (October 25, 2026)
+
+The custom interaction opcode and bounded pet runtime are implemented for the admitted upright, unit-scale Holgresh profile. Builds, packet/menu checks and clean-overlay syntax checks passed. The local server was deployed and started. Native in-game acceptance of these new commands was explicitly deferred; do not interpret compilation as that proof. The Live spider remains unseeded. See [pet controls and limits](HOUSING-PETS.md).
